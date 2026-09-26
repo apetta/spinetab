@@ -1,0 +1,205 @@
+---
+import "../styles/global.css";
+---
+
+<!doctype html>
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width">
+		<meta
+			name="description"
+			content="Spinetab is an open-source TypeScript library for sharing connections across browser tabs. In development."
+		>
+		<title>Spinetab</title>
+	</head>
+	<body>
+		<a class="skip-link" href="#main">Skip to content</a>
+		<div class="site-shell">
+			<header class="site-header">
+				<a class="wordmark" href="/" aria-label="Spinetab home"
+					><span class="brand-mark" aria-hidden="true"
+						><i></i><i></i><i></i></span
+					>Spinetab</a
+				>
+				<nav aria-label="Main navigation">
+					<a href="/docs/">Documentation</a>
+					<a class="nav-example" href="/examples/"
+						>Examples <span aria-hidden="true">↗</span></a
+					>
+				</nav>
+			</header>
+			<main id="main">
+				<section class="hero" aria-labelledby="hero-title">
+					<div class="hero-copy">
+						<p class="release-note">
+							<span aria-hidden="true"></span>
+							In development
+						</p>
+						<h1 id="hero-title">One spine,<br>every tab.</h1>
+						<p class="intro">
+							An open-source TypeScript library for sharing live subscriptions
+							to your server across browser tabs, using WebSocket, SSE, fetch
+							streams or polling.
+						</p>
+						<p class="development-note">
+							Powered by{" "}
+							<a
+								href="https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker"
+								>SharedWorker</a
+							>.
+						</p>
+						<div class="hero-actions">
+							<a class="button" href="/docs/"
+								>Read the docs <span aria-hidden="true">↗</span></a
+							>
+							<a class="text-link" href="/examples/">View examples</a>
+						</div>
+					</div>
+					<figure
+						class="connection-art"
+						aria-label="Three browser tabs sharing one connection"
+					>
+						<div class="art-stage" aria-hidden="true">
+							<div class="browser-window window-back">
+								<div class="window-bar">
+									<span class="window-dots">● ● ●</span><span>Tab three</span>
+								</div>
+								<div class="window-lines"><i></i><i></i></div>
+							</div>
+							<div class="browser-window window-middle">
+								<div class="window-bar">
+									<span class="window-dots">● ● ●</span><span>Tab two</span>
+								</div>
+								<div class="window-lines"><i></i><i></i></div>
+							</div>
+							<div class="browser-window window-front">
+								<div class="window-bar">
+									<span class="window-dots">● ● ●</span><span>Tab one</span>
+								</div>
+								<div class="window-content">
+									<span class="connection-symbol">↔</span
+									><span>Shared<br>stream</span>
+								</div>
+								<div class="window-bottom">spinetab / shared connection</div>
+							</div>
+							<div class="connection-wire"></div>
+							<div class="spine-plug"><span>1</span> connection</div>
+							<span class="art-spark spark-one">✳</span
+							><span class="art-spark spark-two">✳</span>
+						</div>
+					</figure>
+				</section>
+				<section class="comparison" aria-labelledby="comparison-title">
+					<div class="comparison-intro">
+						<h2 id="comparison-title">How connection sharing works</h2>
+						<p>
+							If your app opens a WebSocket or SSE connection in each tab, three
+							tabs create three server connections. Spinetab’s planned
+							SharedWorker mode shares one connection between them.
+						</p>
+					</div>
+					<div class="comparison-panels">
+						<article class="comparison-panel without-panel">
+							<header class="comparison-heading">
+								<h3>Without Spinetab</h3>
+								<span>3 connections</span>
+							</header>
+							<div
+								class="connection-diagram"
+								role="img"
+								aria-label="Three browser tabs each open a separate connection to the same server."
+							>
+								<div class="diagram-tabs" aria-hidden="true">
+									<span>Tab 1</span><span>Tab 2</span><span>Tab 3</span>
+								</div>
+								<div class="separate-connections" aria-hidden="true">
+									<span></span><span></span><span></span>
+								</div>
+								<div class="diagram-server" aria-hidden="true">Your server</div>
+							</div>
+							<ul class="comparison-details">
+								<li>
+									<strong>A connection per tab.</strong>
+									Three open tabs mean three connections for the server to
+									maintain.
+								</li>
+								<li>
+									<strong>Repeated subscriptions.</strong>
+									Tabs requesting the same data each subscribe separately.
+								</li>
+								<li>
+									<strong>Separate reconnects.</strong>
+									Each tab detects disconnects and retries on its own.
+								</li>
+							</ul>
+						</article>
+						<article class="comparison-panel with-panel">
+							<header class="comparison-heading">
+								<h3>With Spinetab</h3>
+								<span>1 connection</span>
+							</header>
+							<div
+								class="connection-diagram"
+								role="img"
+								aria-label="Three browser tabs communicate with Spinetab in a SharedWorker, which owns one connection to the server."
+							>
+								<div class="diagram-tabs" aria-hidden="true">
+									<span>Tab 1</span><span>Tab 2</span><span>Tab 3</span>
+								</div>
+								<div class="shared-connections" aria-hidden="true">
+									<span></span><span></span><span></span>
+								</div>
+								<div class="diagram-worker" aria-hidden="true">
+									<strong>spinetab</strong><span>SharedWorker</span>
+								</div>
+								<div class="single-connection" aria-hidden="true"></div>
+								<div class="diagram-server" aria-hidden="true">Your server</div>
+							</div>
+							<ul class="comparison-details">
+								<li>
+									<strong>One connection for all tabs.</strong>
+									The worker owns the connection and forwards updates to the
+									tabs.
+								</li>
+								<li>
+									<strong>Shared subscriptions.</strong>
+									Matching requests share a subscription and receive the same
+									updates.
+								</li>
+								<li>
+									<strong>Shared reconnection.</strong>
+									The worker handles connection recovery for all tabs.
+								</li>
+							</ul>
+						</article>
+					</div>
+					<p class="comparison-note">
+						Planned behaviour for tabs on the same origin and session,
+						requesting the same feed. Separate feeds or sessions may need
+						separate connections.
+					</p>
+				</section>
+				<section class="project-strip" aria-label="About this project">
+					<div class="strip-heading">
+						<span aria-hidden="true">✳</span>
+						<h2>Package and adapters</h2>
+					</div>
+					<p>
+						Framework bindings and protocol adapters are planned as optional
+						imports from the spinetab package.
+					</p>
+					<a href="/docs/"
+						>Package structure <span aria-hidden="true">↗</span></a
+					>
+				</section>
+				<p class="scaffold-note">
+					The library and live connection demos are not implemented yet.
+				</p>
+			</main>
+			<footer class="site-footer">
+				<span>spinetab</span><span>In development</span>
+			</footer>
+		</div>
+	</body>
+</html>
