@@ -1,0 +1,205 @@
+{
+	"name": "spinetab",
+	"description": "Share live subscriptions across browser tabs and recover after interruptions.",
+	"version": "0.0.0",
+	"devDependencies": {
+		"@repo/typescript-config": "workspace:*",
+		"@types/node": "24.13.2",
+		"tsdown": "0.23.0",
+		"typescript": "6.0.3",
+		"vitest": "4.1.9"
+	},
+	"exports": {
+		".": {
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
+		},
+		"./websocket": {
+			"import": {
+				"types": "./dist/websocket.d.ts",
+				"default": "./dist/websocket.js"
+			},
+			"require": {
+				"types": "./dist/websocket.d.cts",
+				"default": "./dist/websocket.cjs"
+			}
+		},
+		"./sse": {
+			"import": {
+				"types": "./dist/sse.d.ts",
+				"default": "./dist/sse.js"
+			},
+			"require": {
+				"types": "./dist/sse.d.cts",
+				"default": "./dist/sse.cjs"
+			}
+		},
+		"./stream": {
+			"import": {
+				"types": "./dist/stream.d.ts",
+				"default": "./dist/stream.js"
+			},
+			"require": {
+				"types": "./dist/stream.d.cts",
+				"default": "./dist/stream.cjs"
+			}
+		},
+		"./polling": {
+			"import": {
+				"types": "./dist/polling.d.ts",
+				"default": "./dist/polling.js"
+			},
+			"require": {
+				"types": "./dist/polling.d.cts",
+				"default": "./dist/polling.cjs"
+			}
+		},
+		"./graphql-ws": {
+			"import": {
+				"types": "./dist/graphql-ws.d.ts",
+				"default": "./dist/graphql-ws.js"
+			},
+			"require": {
+				"types": "./dist/graphql-ws.d.cts",
+				"default": "./dist/graphql-ws.cjs"
+			}
+		},
+		"./graphql-sse": {
+			"import": {
+				"types": "./dist/graphql-sse.d.ts",
+				"default": "./dist/graphql-sse.js"
+			},
+			"require": {
+				"types": "./dist/graphql-sse.d.cts",
+				"default": "./dist/graphql-sse.cjs"
+			}
+		},
+		"./socket-io": {
+			"import": {
+				"types": "./dist/socket-io.d.ts",
+				"default": "./dist/socket-io.js"
+			},
+			"require": {
+				"types": "./dist/socket-io.d.cts",
+				"default": "./dist/socket-io.cjs"
+			}
+		},
+		"./apollo": {
+			"import": {
+				"types": "./dist/apollo.d.ts",
+				"default": "./dist/apollo.js"
+			},
+			"require": {
+				"types": "./dist/apollo.d.cts",
+				"default": "./dist/apollo.cjs"
+			}
+		},
+		"./tanstack-query": {
+			"import": {
+				"types": "./dist/tanstack-query.d.ts",
+				"default": "./dist/tanstack-query.js"
+			},
+			"require": {
+				"types": "./dist/tanstack-query.d.cts",
+				"default": "./dist/tanstack-query.cjs"
+			}
+		},
+		"./swr": {
+			"import": {
+				"types": "./dist/swr.d.ts",
+				"default": "./dist/swr.js"
+			},
+			"require": {
+				"types": "./dist/swr.d.cts",
+				"default": "./dist/swr.cjs"
+			}
+		},
+		"./trpc": {
+			"import": {
+				"types": "./dist/trpc.d.ts",
+				"default": "./dist/trpc.js"
+			},
+			"require": {
+				"types": "./dist/trpc.d.cts",
+				"default": "./dist/trpc.cjs"
+			}
+		},
+		"./ai-sdk": {
+			"import": {
+				"types": "./dist/ai-sdk.d.ts",
+				"default": "./dist/ai-sdk.js"
+			},
+			"require": {
+				"types": "./dist/ai-sdk.d.cts",
+				"default": "./dist/ai-sdk.cjs"
+			}
+		},
+		"./react": {
+			"import": {
+				"types": "./dist/react.d.ts",
+				"default": "./dist/react.js"
+			},
+			"require": {
+				"types": "./dist/react.d.cts",
+				"default": "./dist/react.cjs"
+			}
+		},
+		"./vue": {
+			"import": {
+				"types": "./dist/vue.d.ts",
+				"default": "./dist/vue.js"
+			},
+			"require": {
+				"types": "./dist/vue.d.cts",
+				"default": "./dist/vue.cjs"
+			}
+		},
+		"./svelte": {
+			"import": {
+				"types": "./dist/svelte.d.ts",
+				"default": "./dist/svelte.js"
+			},
+			"require": {
+				"types": "./dist/svelte.d.cts",
+				"default": "./dist/svelte.cjs"
+			}
+		},
+		"./solid": {
+			"import": {
+				"types": "./dist/solid.d.ts",
+				"default": "./dist/solid.js"
+			},
+			"require": {
+				"types": "./dist/solid.d.cts",
+				"default": "./dist/solid.cjs"
+			}
+		},
+		"./worker": {
+			"import": {
+				"types": "./dist/worker.d.ts",
+				"default": "./dist/worker.js"
+			}
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"license": "MIT",
+	"private": true,
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"sideEffects": false,
+	"type": "module"
+}
