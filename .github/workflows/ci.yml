@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, Typecheck, Test, E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Match @playwright/test in apps/website/package.json. The image includes
+    # the matching browser binaries and their system dependencies.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Biome
+        run: pnpm exec biome ci .
+      - name: Markdown, MDX and YAML formatting
+        run: pnpm exec prettier --check .
+      - name: Typecheck, unit tests, E2E
+        run: pnpm exec turbo run typecheck test e2e
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: apps/website/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
