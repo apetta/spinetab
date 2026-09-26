@@ -1,0 +1,25 @@
+{
+	"name": "spinetab-workspace",
+	"version": "0.0.0",
+	"devDependencies": {
+		"@biomejs/biome": "2.5.1",
+		"prettier": "3.9.9",
+		"turbo": "2.10.1"
+	},
+	"engines": {
+		"node": ">=24.11.0"
+	},
+	"packageManager": "pnpm@10.24.0",
+	"private": true,
+	"scripts": {
+		"build": "turbo run build",
+		"check": "biome check . && prettier --check .",
+		"check:fix": "biome check --write . && prettier --write .",
+		"dev": "turbo run dev",
+		"e2e": "turbo run e2e",
+		"format": "biome format --write . && prettier --write .",
+		"test": "turbo run test",
+		"typecheck": "turbo run typecheck"
+	},
+	"type": "module"
+}

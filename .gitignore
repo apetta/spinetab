@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+build/
+dist/
+.astro/
+.next/
+.turbo/
+.wrangler/
+next-env.d.ts
+*.tsbuildinfo
+*.tgz
+
+# Testing
+coverage/
+test-results/
+playwright-report/
+blob-report/
+**/playwright/.cache/
+
+# Local
+/docs/
+.env*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editors / OS
+.DS_Store
+.idea/
+*.pem

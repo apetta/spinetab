@@ -1,0 +1,13 @@
+{
+	"editor.formatOnSave": true,
+	"[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][astro]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"editor.codeActionsOnSave": {
+		"source.organizeImports.biome": "explicit",
+		"source.fixAll.biome": "explicit"
+	},
+	"[markdown][mdx][yaml]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	}
+}

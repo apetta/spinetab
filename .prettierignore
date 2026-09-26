@@ -1,0 +1,21 @@
+# Only format Markdown, MDX and YAML. Biome owns the code formats.
+*
+!*/
+!*.md
+!*.mdx
+!*.yml
+!*.yaml
+
+# Generated files.
+node_modules/
+dist/
+build/
+.astro/
+.next/
+.turbo/
+.wrangler/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+pnpm-lock.yaml
