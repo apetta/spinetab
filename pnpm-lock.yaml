@@ -181,6 +181,25 @@ importers:
         specifier: 8.22.0
         version: 8.22.0
 
+  packages/spinetab/tests/fixtures/harness:
+    dependencies:
+      spinetab:
+        specifier: workspace:*
+        version: link:../../..
+    devDependencies:
+      graphql-ws:
+        specifier: 6.3.0
+        version: 6.3.0(crossws@0.3.5)(graphql@17.0.2)(ws@8.22.0)
+      superjson:
+        specifier: 2.2.2
+        version: 2.2.2
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 8.3.1
+        version: 8.3.1(@types/node@24.13.2)(esbuild@0.28.2)(terser@5.51.2)(yaml@2.9.1)
+
   packages/typescript: {}
 
 packages:

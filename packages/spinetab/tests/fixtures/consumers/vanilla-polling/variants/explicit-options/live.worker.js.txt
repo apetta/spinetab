@@ -1,0 +1,6 @@
+import { pollingAdapter } from "spinetab/polling/runtime";
+import { defineWorker } from "spinetab/worker";
+
+// The explicit worker of the `explicit-options` control cell (L1 behaviour
+// with the plugin installed).
+export default defineWorker(() => [pollingAdapter()]);

@@ -1,0 +1,20 @@
+{
+	"name": "consumer-next-negative",
+	"version": "0.0.0",
+	"description": "Negative Next.js fixture: a Server Component calls a spinetab/react hook, which must fail the build.",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"dependencies": {
+		"next": "16.3.6",
+		"react": "19.3.0",
+		"react-dom": "19.3.0",
+		"spinetab": "file:../pack/spinetab-0.1.0.tgz"
+	},
+	"devDependencies": {
+		"@types/node": "24.13.2",
+		"@types/react": "19.3.0",
+		"@types/react-dom": "19.3.0",
+		"typescript": "6.0.3"
+	}
+}

@@ -1,0 +1,22 @@
+{
+	"name": "consumer-next-ai",
+	"version": "0.0.0",
+	"description": "Packed-consumer Next.js fixture: AI SDK chat shared across tabs with a real ai route handler.",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@ai-sdk/react": "4.0.119",
+		"ai": "7.0.116",
+		"next": "16.3.6",
+		"react": "19.3.0",
+		"react-dom": "19.3.0",
+		"spinetab": "file:../pack/spinetab-0.1.0.tgz",
+		"zod": "4.6.5"
+	},
+	"devDependencies": {
+		"@types/node": "24.13.2",
+		"@types/react": "19.3.0",
+		"@types/react-dom": "19.3.0",
+		"typescript": "6.0.3"
+	}
+}

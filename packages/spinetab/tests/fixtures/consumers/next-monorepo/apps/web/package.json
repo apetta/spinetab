@@ -1,0 +1,21 @@
+{
+	"name": "consumer-next-monorepo-web",
+	"version": "0.0.0",
+	"description": "The Next.js App Router app of the next-monorepo consumer.",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"dependencies": {
+		"@consumer/feeds": "workspace:*",
+		"next": "16.3.6",
+		"react": "19.3.0",
+		"react-dom": "19.3.0",
+		"spinetab": "file:../../../pack/spinetab-0.1.0.tgz"
+	},
+	"devDependencies": {
+		"@types/node": "24.13.2",
+		"@types/react": "19.3.0",
+		"@types/react-dom": "19.3.0",
+		"typescript": "6.0.3"
+	}
+}

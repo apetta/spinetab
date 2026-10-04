@@ -1,0 +1,14 @@
+{
+	"name": "consumer-astro-polling",
+	"version": "0.0.0",
+	"description": "Packed-consumer Astro static site with the Spinetab integration.",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"dependencies": {
+		"spinetab": "file:../pack/spinetab-0.1.0.tgz"
+	},
+	"devDependencies": {
+		"astro": "7.3.5"
+	}
+}

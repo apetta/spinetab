@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"strict": true,
+		"skipLibCheck": false,
+		"noEmit": true,
+		"types": ["node"]
+	},
+	"include": ["types/check.mts", "types/check.cts"]
+}

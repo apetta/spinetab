@@ -1,0 +1,18 @@
+{
+	"name": "app-graphql",
+	"version": "0.0.0",
+	"description": "Representative GraphQL application built from the packed artefact. Private fixture.",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"dependencies": {
+		"graphql": "17.0.2",
+		"graphql-ws": "6.3.0",
+		"react": "19.3.0",
+		"react-dom": "19.3.0",
+		"spinetab": "file:../pack/spinetab-0.1.0.tgz"
+	},
+	"devDependencies": {
+		"vite": "8.3.1"
+	}
+}

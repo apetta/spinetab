@@ -1,0 +1,16 @@
+{
+	"name": "app-graphql-baseline",
+	"version": "0.0.0",
+	"description": "No-Spinetab baseline of app-graphql, used only to measure integration effort.",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"graphql": "17.0.2",
+		"graphql-ws": "6.3.0",
+		"react": "19.3.0",
+		"react-dom": "19.3.0"
+	},
+	"devDependencies": {
+		"vite": "8.3.1"
+	}
+}

@@ -1,0 +1,28 @@
+{
+	"name": "consumer-react-sse-tanstack",
+	"version": "0.0.0",
+	"description": "Packed-consumer recipe app: React, fetch SSE, NDJSON stream and TanStack Query.",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@tanstack/query-core": "5.104.0",
+		"@tanstack/react-query": "5.104.0",
+		"react": "19.3.0",
+		"react-dom": "19.3.0",
+		"spinetab": "file:../pack/spinetab-0.1.0.tgz"
+	},
+	"devDependencies": {
+		"@rspack/cli": "2.2.7",
+		"@rspack/core": "2.2.7",
+		"@rspack/dev-server": "2.2.1",
+		"@types/react": "19.3.0",
+		"@types/react-dom": "19.3.0",
+		"expect-type": "1.4.0",
+		"html-webpack-plugin": "5.6.8",
+		"typescript": "6.0.3",
+		"vite": "8.3.1",
+		"webpack": "5.111.1",
+		"webpack-cli": "7.2.3",
+		"webpack-dev-server": "6.0.0"
+	}
+}

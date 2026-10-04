@@ -1,0 +1,8 @@
+{
+	"name": "consumer-next-monorepo",
+	"version": "0.0.0",
+	"description": "Packed-consumer pnpm workspace: a Next.js app whose only Spinetab source import lives in a linked workspace package.",
+	"private": true,
+	"type": "module",
+	"sideEffects": false
+}

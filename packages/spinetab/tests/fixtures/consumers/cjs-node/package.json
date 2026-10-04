@@ -1,0 +1,27 @@
+{
+	"name": "consumer-cjs-node",
+	"version": "0.0.0",
+	"description": "Packed CommonJS consumer: require() of every page entry in Node. Installs every page peer; not isolation evidence.",
+	"private": true,
+	"type": "commonjs",
+	"dependencies": {
+		"@apollo/client": "4.3.1",
+		"@tanstack/query-core": "5.104.0",
+		"@trpc/client": "11.19.0",
+		"@trpc/server": "11.19.0",
+		"ai": "7.0.116",
+		"graphql": "17.0.2",
+		"graphql-sse": "2.6.1",
+		"graphql-ws": "6.3.0",
+		"react": "19.3.0",
+		"rxjs": "7.8.2",
+		"socket.io-client": "4.8.4",
+		"solid-js": "1.9.15",
+		"spinetab": "file:../pack/spinetab-0.1.0.tgz",
+		"svelte": "5.57.1",
+		"swr": "2.5.1",
+		"typescript": "6.0.3",
+		"vue": "3.5.43",
+		"zod": "4.6.5"
+	}
+}

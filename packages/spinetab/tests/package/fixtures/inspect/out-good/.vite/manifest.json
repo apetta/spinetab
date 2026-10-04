@@ -1,0 +1,17 @@
+{
+	"index.html": {
+		"file": "assets/main-1.js",
+		"name": "index",
+		"src": "index.html",
+		"isEntry": true,
+		"dynamicImports": ["src/live.local.js"],
+		"assets": ["assets/live.worker-2.js"]
+	},
+	"src/live.local.js": {
+		"file": "assets/live.local-3.js",
+		"name": "live.local",
+		"src": "src/live.local.js",
+		"isDynamicEntry": true,
+		"imports": ["index.html"]
+	}
+}

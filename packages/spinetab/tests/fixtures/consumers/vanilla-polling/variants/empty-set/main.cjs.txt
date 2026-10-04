@@ -1,0 +1,4 @@
+// Empty-set control: the CommonJS page keeps no `spinetab/<source>`
+// import either, so the production scan finds no adapter and fails with `no-adapters`.
+// Only the module shape is kept; this file is not executed by the cell.
+module.exports = { empty: true };

@@ -397,9 +397,17 @@
 	"license": "MIT",
 	"scripts": {
 		"build": "tsdown",
+		"consumers:matrix": "node tests/package/consumers/matrix.ts",
+		"consumers:prepare": "node tests/package/consumers/prepare.ts",
 		"dev": "tsdown --watch",
-		"test": "vitest run --project unit --project dom --project package",
+		"e2e": "playwright test",
+		"e2e:consumers": "playwright test -c playwright.consumers.config.ts",
+		"e2e:diagnostics": "playwright test -c playwright.diagnostics.config.ts",
+		"fixtures": "node tests/fixtures/servers/start.ts",
+		"test": "vitest run --project unit --project dom --project package --project integration",
+		"test:consumers": "vitest run --project consumers",
 		"test:dom": "vitest run --project dom",
+		"test:integration": "vitest run --project integration",
 		"test:package": "vitest run --project package",
 		"test:unit": "vitest run --project unit",
 		"typecheck": "tsc --noEmit"

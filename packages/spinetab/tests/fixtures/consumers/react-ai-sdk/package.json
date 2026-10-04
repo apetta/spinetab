@@ -1,0 +1,31 @@
+{
+	"name": "consumer-react-ai-sdk",
+	"version": "0.0.0",
+	"description": "Packed-consumer scenario: React and the AI SDK against a real ai route.",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@ai-sdk/react": "4.0.119",
+		"ai": "7.0.116",
+		"react": "19.3.0",
+		"react-dom": "19.3.0",
+		"spinetab": "file:../pack/spinetab-0.1.0.tgz",
+		"zod": "4.6.5"
+	},
+	"devDependencies": {
+		"@rspack/cli": "2.2.7",
+		"@rspack/core": "2.2.7",
+		"@rspack/dev-server": "2.2.1",
+		"@types/json-schema": "7.0.15",
+		"@types/node": "24.13.2",
+		"@types/react": "19.3.0",
+		"@types/react-dom": "19.3.0",
+		"expect-type": "1.4.0",
+		"html-webpack-plugin": "5.6.8",
+		"typescript": "6.0.3",
+		"vite": "8.3.1",
+		"webpack": "5.111.1",
+		"webpack-cli": "7.2.3",
+		"webpack-dev-server": "6.0.0"
+	}
+}

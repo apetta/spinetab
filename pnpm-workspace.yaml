@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  - packages/spinetab/tests/fixtures/harness
 
 onlyBuiltDependencies:
   - esbuild

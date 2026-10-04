@@ -1,0 +1,13 @@
+{
+	"name": "app-http-baseline",
+	"version": "0.0.0",
+	"description": "No-Spinetab baseline of app-http, used only to measure integration effort.",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"vue": "3.5.43"
+	},
+	"devDependencies": {
+		"vite": "8.3.1"
+	}
+}

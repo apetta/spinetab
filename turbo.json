@@ -25,6 +25,23 @@
 			"dependsOn": ["build"],
 			"cache": false,
 			"passThroughEnv": ["CI", "PLAYWRIGHT_*"]
+		},
+		"spinetab#e2e": {
+			"dependsOn": ["build", "@spinetab/harness#build"],
+			"cache": false,
+			"passThroughEnv": ["CI", "PLAYWRIGHT_*"]
+		},
+		"@spinetab/harness#build": {
+			"dependsOn": ["spinetab#build"],
+			"outputs": ["dist/**"]
+		},
+		"spinetab#consumers": {
+			"dependsOn": ["build"],
+			"cache": false,
+			"passThroughEnv": ["CI", "PLAYWRIGHT_*", "SPINETAB_*"]
+		},
+		"spinetab#typecheck": {
+			"dependsOn": ["build", "^build"]
 		}
 	}
 }

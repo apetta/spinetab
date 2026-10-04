@@ -1,0 +1,13 @@
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([typeof document === "object" ? document.currentScript : undefined,
+"[project]/app/live.local.ts [app-client] (ecmascript, async loader)", ((__turbopack_context__) => {
+
+__turbopack_context__.v((parentImport) => {
+    return Promise.all([
+  "static/chunks/1o1h_spinetab_dist_0h_ryc0._.js",
+  "static/chunks/app_1rq13sl._.js"
+].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
+        return parentImport("[project]/app/live.local.ts [app-client] (ecmascript)");
+    });
+});
+}),
+]);

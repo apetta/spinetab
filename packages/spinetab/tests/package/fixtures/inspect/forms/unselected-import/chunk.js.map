@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/main.js","../node_modules/spinetab/dist/polling.js"],"sourcesContent":["import { chat } from \"spinetab/ai-sdk\";\nchat();\n","export {};"],"names":[],"mappings":"AAAA"}

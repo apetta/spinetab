@@ -1,0 +1,17 @@
+{
+	"name": "@consumer/feeds",
+	"version": "0.0.0",
+	"description": "Workspace package holding the app's only spinetab/sse import.",
+	"private": true,
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./src/index.d.ts",
+			"default": "./src/index.js"
+		}
+	},
+	"dependencies": {
+		"spinetab": "file:../../../pack/spinetab-0.1.0.tgz"
+	}
+}

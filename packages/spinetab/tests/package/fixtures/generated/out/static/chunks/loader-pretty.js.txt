@@ -1,0 +1,13 @@
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([typeof document === "object" ? document.currentScript : undefined,
+84550, ((__turbopack_context__) => {
+
+__turbopack_context__.v((parentImport) => {
+    return Promise.all([
+  "static/chunks/app-a.js",
+  "static/chunks/app-b.js"
+].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
+        return parentImport(64639);
+    });
+});
+}),
+]);

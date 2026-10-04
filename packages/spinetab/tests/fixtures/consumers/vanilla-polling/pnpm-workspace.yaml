@@ -1,0 +1,4 @@
+# Settings only (pnpm 10.24 accepts a workspace file without `packages`).
+# No hoisting: Spinetab's dist can reach only the peers linked to it, so an
+# unselected peer brought in by a tool can never satisfy a reachable import
+hoist: false

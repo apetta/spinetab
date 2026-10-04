@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/main.js","../vendor/polling-copy.js"],"sourcesContent":["import { polling } from \"spinetab/polling\";\npolling();\n","export {};"],"names":[],"mappings":"AAAA"}

@@ -1,0 +1,64 @@
+import { createSpinetab, resolveEndpoint } from "spinetab";
+import { endpoints, INTERVAL_MS, readSettings } from "./config.js";
+
+const settings = readSettings();
+const urls = endpoints(settings.run);
+
+// The standard recipe (L3): the bundler plugin supplies the
+// worker and generates it from this file's `spinetab/polling` import.
+const client = createSpinetab({
+	sharing: settings.sharing,
+});
+
+const probe = {
+	run: settings.run,
+	clients: 1,
+	events: [],
+	errors: [],
+	endpoint: resolveEndpoint(urls.value, document.baseURI),
+	status() {
+		const { mode, reason, health, runtimeId, generation, error } =
+			client.status.get();
+		return {
+			mode,
+			reason,
+			health,
+			runtimeId,
+			generation,
+			...(error
+				? {
+						error: {
+							code: error.code,
+							message: error.message,
+							detail: error.detail,
+						},
+					}
+				: {}),
+		};
+	},
+};
+window.__consumer = probe;
+
+const root =
+	document.getElementById("app") ??
+	document.body.appendChild(
+		Object.assign(document.createElement("div"), { id: "app" }),
+	);
+const heading = document.createElement("h1");
+heading.textContent = "Spinetab polling";
+const statusText = document.createElement("p");
+statusText.dataset.testid = "status";
+const valueText = document.createElement("p");
+valueText.dataset.testid = "value";
+root.append(heading, statusText, valueText);
+
+statusText.textContent = client.status.get().mode;
+client.status.subscribe((status) => {
+	statusText.textContent = status.mode;
+});
+
+// Control cell `empty-set`: no `spinetab/<source>` import
+// anywhere, so a production build fails with `no-adapters`. Stored as text
+// so the plugin's scanner never reads it.
+void urls;
+void INTERVAL_MS;

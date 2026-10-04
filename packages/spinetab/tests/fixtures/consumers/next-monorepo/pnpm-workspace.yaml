@@ -1,0 +1,9 @@
+# Workspace root: the lockfile lives here, the Next app in
+# apps/web and the only spinetab/sse import in the linked packages/feeds, so
+# inference must follow a declared workspace dependency.
+# No hoisting: Spinetab's dist can reach only the peers linked to it, so an
+# unselected peer brought in by a tool can never satisfy a reachable import
+packages:
+  - apps/*
+  - packages/*
+hoist: false

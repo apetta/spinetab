@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width">
+		<title>Native SharedWorker repro (no Spinetab)</title>
+	</head>
+	<body>
+		<h1>Native SharedWorker repro</h1>
+		<p>
+			This page uses a plain SharedWorker without Spinetab so that engine
+			behaviour (for example what happens to other clients when the first client
+			page closes) can be observed independently of the library.
+		</p>
+		<pre id="log" aria-live="polite"></pre>
+		<script type="module" src="/src/native.ts"></script>
+	</body>
+</html>

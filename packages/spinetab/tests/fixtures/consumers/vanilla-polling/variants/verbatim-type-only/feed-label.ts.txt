@@ -1,0 +1,9 @@
+// B2-1 (consumer cell c): a value module whose only Spinetab import is an
+// inline type list. Under verbatimModuleSyntax (./tsconfig.json), Vite 8
+// emits `import {} from "spinetab/sse"`, so the entry is in the module graph
+// although the application never uses SSE as a value.
+import { type SseFeed } from "spinetab/sse";
+
+export function feedLabel(feed: SseFeed | undefined): string {
+	return feed === undefined ? "polling" : "sse";
+}

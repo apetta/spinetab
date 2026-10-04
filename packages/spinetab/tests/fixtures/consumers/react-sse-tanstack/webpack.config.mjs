@@ -1,0 +1,44 @@
+import { resolve } from "node:path";
+import HtmlWebpackPlugin from "html-webpack-plugin";
+
+// webpack recipe: default worker settings, one HTML
+// plugin, no aliases, fallbacks, externals or replacement plugins.
+// CONSUMER_VARIANT=no-treeshake disables used-exports and side-effects
+// optimisation for isolation evidence.
+const noTreeshake = process.env.CONSUMER_VARIANT === "no-treeshake";
+const workerPublicPath = process.env.CONSUMER_WORKER_PUBLIC_PATH;
+
+export default {
+	mode:
+		process.env.CONSUMER_MODE === "development" ? "development" : "production",
+	entry: "./src/main.js",
+	devtool: "source-map",
+	output: {
+		path: resolve(import.meta.dirname, process.env.CONSUMER_OUT ?? "dist"),
+		...(process.env.CONSUMER_OUTPUT_MODULE === "1" ? { module: true } : {}),
+		...(workerPublicPath === undefined ? {} : { workerPublicPath }),
+	},
+	...(noTreeshake
+		? {
+				optimization: {
+					usedExports: false,
+					sideEffects: false,
+					minimize: false,
+					concatenateModules: false,
+				},
+			}
+		: {}),
+	plugins: [
+		new HtmlWebpackPlugin({
+			title: "Spinetab consumer",
+			// Module output must also be loaded as a module by the document.
+			...(process.env.CONSUMER_OUTPUT_MODULE === "1"
+				? { scriptLoading: "module" }
+				: {}),
+		}),
+	],
+	devServer: {
+		host: "127.0.0.1",
+		port: Number(process.env.CONSUMER_PORT ?? 4721),
+	},
+};
