@@ -1,6 +1,10 @@
 import react from "@astrojs/react";
+import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
+import { retiredRecipes } from "./src/recipes/catalogue.ts";
+
+const retiredPaths = new Set(retiredRecipes.map((recipe) => recipe.url));
 
 export default defineConfig({
 	site: "https://spinetab.com",
@@ -9,6 +13,7 @@ export default defineConfig({
 	compressHTML: true,
 	integrations: [
 		react(),
+		sitemap({ filter: (page) => !retiredPaths.has(new URL(page).pathname) }),
 		starlight({
 			title: "Spinetab",
 			customCss: ["./src/styles/docs.css"],

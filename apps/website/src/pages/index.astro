@@ -8,6 +8,8 @@ import Spark from "../components/Spark.astro";
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width">
+		<link rel="canonical" href={new URL("/", Astro.site)}>
+		<link rel="sitemap" href="/sitemap-index.xml">
 		<meta
 			name="description"
 			content="Share live subscriptions across browser tabs with Spinetab, a client-side TypeScript library for WebSocket, SSE, fetch streams and polling."
