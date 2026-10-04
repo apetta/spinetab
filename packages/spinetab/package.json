@@ -277,6 +277,24 @@
 				"types": "./dist/polling/runtime.d.ts",
 				"default": "./dist/polling/runtime.js"
 			}
+		},
+		"./graphql-ws/runtime": {
+			"import": {
+				"types": "./dist/graphql-ws/runtime.d.ts",
+				"default": "./dist/graphql-ws/runtime.js"
+			}
+		},
+		"./graphql-sse/runtime": {
+			"import": {
+				"types": "./dist/graphql-sse/runtime.d.ts",
+				"default": "./dist/graphql-sse/runtime.js"
+			}
+		},
+		"./socket-io/runtime": {
+			"import": {
+				"types": "./dist/socket-io/runtime.d.ts",
+				"default": "./dist/socket-io/runtime.js"
+			}
 		}
 	},
 	"files": [
@@ -294,7 +312,25 @@
 	},
 	"sideEffects": false,
 	"type": "module",
-	"peerDependencies": {},
-	"peerDependenciesMeta": {},
+	"peerDependencies": {
+		"graphql": "^17.0.2",
+		"graphql-sse": "^2.6.1",
+		"graphql-ws": "^6.3.0",
+		"socket.io-client": "^4.8.4"
+	},
+	"peerDependenciesMeta": {
+		"graphql": {
+			"optional": true
+		},
+		"graphql-sse": {
+			"optional": true
+		},
+		"graphql-ws": {
+			"optional": true
+		},
+		"socket.io-client": {
+			"optional": true
+		}
+	},
 	"private": true
 }
