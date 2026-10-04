@@ -25,6 +25,16 @@ export default defineConfig({
 					include: ["tests/unit/**/*.test.ts"],
 				},
 			},
+			{
+				// Framework bindings: real framework runtimes on a DOM shim.
+				resolve: { conditions: ["browser"], alias },
+				test: {
+					...common,
+					name: "dom",
+					environment: "happy-dom",
+					include: ["tests/dom/**/*.test.{ts,tsx}"],
+				},
+			},
 		],
 	},
 });
