@@ -307,6 +307,76 @@
 				"types": "./dist/ai-sdk/runtime.d.ts",
 				"default": "./dist/ai-sdk/runtime.js"
 			}
+		},
+		"./vite": {
+			"import": {
+				"types": "./dist/build/vite.d.ts",
+				"default": "./dist/build/vite.js"
+			},
+			"require": {
+				"types": "./dist/build/vite.d.cts",
+				"default": "./dist/build/vite.cjs"
+			}
+		},
+		"./webpack": {
+			"import": {
+				"types": "./dist/build/webpack.d.ts",
+				"default": "./dist/build/webpack.js"
+			},
+			"require": {
+				"types": "./dist/build/webpack.d.cts",
+				"default": "./dist/build/webpack.cjs"
+			}
+		},
+		"./rspack": {
+			"import": {
+				"types": "./dist/build/rspack.d.ts",
+				"default": "./dist/build/rspack.js"
+			},
+			"require": {
+				"types": "./dist/build/rspack.d.cts",
+				"default": "./dist/build/rspack.cjs"
+			}
+		},
+		"./next": {
+			"import": {
+				"types": "./dist/build/next.d.ts",
+				"default": "./dist/build/next.js"
+			},
+			"require": {
+				"types": "./dist/build/next.d.cts",
+				"default": "./dist/build/next.cjs"
+			}
+		},
+		"./astro": {
+			"import": {
+				"types": "./dist/build/astro.d.ts",
+				"default": "./dist/build/astro.js"
+			},
+			"require": {
+				"types": "./dist/build/astro.d.cts",
+				"default": "./dist/build/astro.cjs"
+			}
+		},
+		"./nuxt": {
+			"import": {
+				"types": "./dist/build/nuxt.d.ts",
+				"default": "./dist/build/nuxt.js"
+			},
+			"require": {
+				"types": "./dist/build/nuxt.d.cts",
+				"default": "./dist/build/nuxt.cjs"
+			}
+		},
+		"./loader": {
+			"import": {
+				"types": "./dist/build/loader.d.ts",
+				"default": "./dist/build/loader.js"
+			},
+			"require": {
+				"types": "./dist/build/loader.d.cts",
+				"default": "./dist/build/loader.cjs"
+			}
 		}
 	},
 	"files": [

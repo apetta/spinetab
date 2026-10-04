@@ -45,6 +45,18 @@ const seamEntries = {
 	"worker-config": "src/worker-config.ts",
 };
 
+// Build realm: Node-only bundler plugins and the shared loader.
+// Dual format because `next.config.ts` is compiled to CommonJS.
+const buildEntries = {
+	"build/vite": "src/build/vite.ts",
+	"build/webpack": "src/build/webpack.ts",
+	"build/rspack": "src/build/rspack.ts",
+	"build/next": "src/build/next.ts",
+	"build/astro": "src/build/astro.ts",
+	"build/nuxt": "src/build/nuxt.ts",
+	"build/loader": "src/build/loader.ts",
+};
+
 // Optional peers stay external in every entry; they are installed only with
 // the adapter that needs them.
 const external = [
@@ -125,5 +137,31 @@ export default defineConfig([
 		// writes neither a map nor a reference, and CJS JS maps are unaffected.
 		outputOptions: (options, _format, { cjsDts }) =>
 			cjsDts ? { ...options, sourcemap: false } : options,
+	},
+	{
+		...shared,
+		platform: "node",
+		clean: false,
+		entry: buildEntries,
+		format: ["esm", "cjs"],
+		// `.js`/`.cjs` and `.d.ts`/`.d.cts`, as the other entries and `exports`.
+		fixedExtension: false,
+		// Bundler packages are type-only imports at most; declarations stay
+		// structural, so nothing here reaches a browser bundle.
+		external: [
+			...external,
+			/^vite(\/|$)/,
+			/^webpack(\/|$)/,
+			/^@rspack\/core(\/|$)/,
+			/^next(\/|$)/,
+			/^astro(\/|$)/,
+		],
+		plugins: [stripDeclarationMapReferences],
+		outputOptions: (options, format, { cjsDts }) => ({
+			...(cjsDts ? { ...options, sourcemap: false } : options),
+			// CommonJS chunks need .cjs in this type: module package; declaration output follows that extension.
+			chunkFileNames:
+				format === "cjs" ? "build/[name]-[hash].cjs" : "build/[name]-[hash].js",
+		}),
 	},
 ]);
