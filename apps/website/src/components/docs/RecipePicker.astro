@@ -1,0 +1,224 @@
+---
+import {
+	type Consumer,
+	consumers,
+	contexts,
+	frameworks,
+	type Recipe,
+	recipes,
+	renderers,
+	sources,
+} from "../../recipes/catalogue";
+
+interface Props {
+	framework?: string;
+	consumer?: Consumer;
+	selected?: Recipe;
+	inline?: boolean;
+}
+const { framework, consumer, selected, inline = false } = Astro.props;
+const available = recipes.filter(
+	(r) =>
+		(!framework || r.context.framework === framework) &&
+		(!consumer || r.consumer === consumer),
+);
+const current = selected ?? available[0]!;
+const contextOptions = contexts.filter((c) =>
+	available.some((r) => r.context.id === c.id),
+);
+const frameworkOptions = Object.entries(frameworks).filter(([id]) =>
+	contextOptions.some((c) => c.framework === id),
+);
+const rendererOptions = contextOptions.filter(
+	(c) => c.framework === current.context.framework,
+);
+const consumerOptions = Object.entries(consumers).filter(([id]) =>
+	available.some(
+		(r) => r.context.id === current.context.id && r.consumer === id,
+	),
+);
+const sourceOptions = Object.entries(sources).filter(([id]) =>
+	available.some(
+		(r) =>
+			r.context.id === current.context.id &&
+			r.consumer === current.consumer &&
+			r.source === id,
+	),
+);
+const catalogue = available.map((r) => [
+	r.context.id,
+	r.consumer,
+	r.source,
+	r.url,
+]);
+---
+
+<div
+	class="recipe-picker"
+	data-recipe-picker
+	data-inline={inline || undefined}
+	data-consumer-lock={consumer}
+	data-source-lock={consumer && sourceOptions.length === 1 ? current.source : undefined}
+	data-recipes={JSON.stringify(catalogue)}
+	data-consumers={JSON.stringify(consumers)}
+	data-sources={JSON.stringify(sources)}
+	data-contexts={JSON.stringify(contextOptions)}
+	data-renderers={JSON.stringify(renderers)}
+>
+	<div class="recipe-fields">
+		<label hidden={frameworkOptions.length < 2}
+			>Framework
+			<select data-framework aria-label="Framework">
+				{frameworkOptions.map(([id, label]) => <option value={id} selected={id === current.context.framework}>{label}</option>)}
+			</select>
+		</label>
+		<label data-renderer-field hidden={rendererOptions.length < 2}
+			>UI library
+			<select data-renderer aria-label="UI library">
+				{rendererOptions.map((c) => <option value={c.renderer} selected={c.id === current.context.id}>{renderers[c.renderer]}</option>)}
+			</select>
+		</label>
+		{!consumer && <label
+			>Data layer
+			<select data-consumer aria-label="Data layer">
+				{consumerOptions.map(([id, label]) => <option value={id} selected={id === current.consumer}>{label}</option>)}
+			</select>
+		</label>}
+		{consumer && sourceOptions.length === 2 ? <fieldset class="connection-choices">
+			<legend>Connection</legend>
+			<div>{sourceOptions.map(([id, label]) => <label class="connection-choice"><input type="radio" name={`connection-${consumer}`} value={id} checked={id === current.source} data-source-radio /><span>{label}</span></label>)}</div>
+		</fieldset> : sourceOptions.length > 1 ? <label
+			>Connection
+			<select data-source aria-label="Connection">
+				{sourceOptions.map(([id, label]) => <option value={id} selected={id === current.source}>{label}</option>)}
+			</select>
+		</label> : null}
+	</div>
+	<a class="recipe-link" data-recipe-link href={current.url}
+		>Open recipe <span aria-hidden="true">→</span></a
+	>
+
+	<p
+		class="recipe-change"
+		data-recipe-message
+		role="status"
+		aria-live="polite"
+	></p>
+</div>
+<script>
+import "../../scripts/recipe-picker";
+</script>
+<style>
+.recipe-picker {
+	margin-block: 1.5rem 2rem;
+	padding: 1.1rem 1.2rem;
+	border: 1px solid var(--st-line);
+	border-radius: 0.75rem;
+	background: var(--st-raised);
+}
+.recipe-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.9rem;
+}
+label {
+	margin: 0;
+	flex: 1 1 9rem;
+	min-width: 0;
+	font-size: var(--sl-text-sm);
+	color: var(--sl-color-gray-2);
+}
+.recipe-fields > label:has(select) {
+	position: relative;
+}
+.recipe-fields > label:has(select)::after {
+	content: "";
+	position: absolute;
+	inset-inline-end: 0.85rem;
+	inset-block-end: 1.2rem;
+	width: 0.4rem;
+	height: 0.4rem;
+	border-inline-end: 1.5px solid currentColor;
+	border-block-end: 1.5px solid currentColor;
+	transform: rotate(45deg);
+	pointer-events: none;
+}
+select {
+	appearance: none;
+	display: block;
+	width: 100%;
+	min-block-size: 2.75rem;
+	margin-top: 0.35rem;
+	padding: 0.5rem;
+	padding-inline-end: 2rem;
+	border: 1px solid var(--st-line);
+	border-radius: 0.35rem;
+	background: var(--sl-color-bg);
+	color: var(--sl-color-text);
+	font: inherit;
+}
+select:focus-visible,
+.connection-choice:has(input:focus-visible),
+a:focus-visible,
+[data-recipe-link]:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 3px;
+}
+.connection-choices {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	flex: 2 1 18rem;
+	min-width: 0;
+}
+legend {
+	padding: 0;
+	font-size: var(--sl-text-sm);
+	color: var(--sl-color-gray-2);
+}
+.connection-choices > div {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin-top: 0.35rem;
+}
+.connection-choice {
+	position: relative;
+	flex: 1 1 auto;
+	cursor: pointer;
+}
+.connection-choice input {
+	position: absolute;
+	opacity: 0;
+	width: 1px;
+	height: 1px;
+}
+.connection-choice span {
+	display: block;
+	padding: 0.5rem 0.65rem;
+	border: 1px solid var(--st-line);
+	border-radius: 0.35rem;
+	background: var(--sl-color-bg);
+	color: var(--sl-color-text);
+}
+.connection-choice input:checked + span {
+	border-color: var(--sl-color-accent);
+	background: var(--sl-color-accent-low);
+	color: var(--sl-color-text-accent);
+}
+.recipe-link {
+	display: inline-block;
+	margin-top: 1rem;
+	font-size: var(--sl-text-sm);
+	font-weight: 600;
+}
+.recipe-change:empty {
+	display: none;
+}
+.recipe-change {
+	font-size: var(--sl-text-sm);
+}
+[data-inline][data-enhanced] [data-recipe-link]:not([data-failed]) {
+	display: none;
+}
+</style>

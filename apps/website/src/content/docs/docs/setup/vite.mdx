@@ -1,0 +1,128 @@
+---
+title: Vite
+description: Add Spinetab to a Vite app and share a live feed across tabs, with a complete React component.
+---
+
+import RecipePicker from "../../../../components/docs/RecipePicker.astro";
+
+import SourceChoices from "../../../../components/docs/SourceChoices.mdx";
+
+Add a shared live feed to an existing Vite app. Choose your renderer and data
+library below for a complete recipe. The walkthrough on this page uses React.
+
+You need an API that supplies a queue value such as `{ "open": 12 }`. Choose its
+transport in step 3 and replace the URL and type with your own. If your
+API runs on another local port, use your app's existing dev proxy or an absolute
+URL with CORS configured on the API.
+
+## Choose your stack
+
+Use a complete recipe for your renderer and data library, or continue below for
+the basic direct subscription.
+
+<RecipePicker framework="vite" />
+
+## 1. Add the plugin
+
+```sh
+pnpm add spinetab
+```
+
+Add `spinetab()` alongside the plugins already in your config:
+
+```ts title="vite.config.ts"
+import react from "@vitejs/plugin-react";
+import { spinetab } from "spinetab/vite";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [react(), spinetab()],
+});
+```
+
+The plugin builds the worker and includes the adapters your app imports.
+Restart the dev server after changing the config.
+
+## 2. Create the client
+
+Create one client for your app and bind the React hooks to it:
+
+```ts title="src/live.ts"
+import { createSpinetab } from "spinetab";
+import { bindClient } from "spinetab/react";
+
+export const spinetab = createSpinetab();
+export const { useLive, useSpinetabStatus } = bindClient(spinetab);
+```
+
+Import these hooks wherever you need them. No provider is required.
+
+## 3. Choose your source
+
+<SourceChoices />
+
+## 4. Render a subscription
+
+```tsx title="src/Queue.tsx"
+import { queueSource } from "./queue-source";
+import { useLive } from "./live";
+
+export function Queue() {
+  const { data, error } = useLive(queueSource, {
+    reconcile: "latest",
+  });
+
+  if (error) return <p role="alert">Could not load the queue: {error.code}</p>;
+  if (data === undefined) return <p role="status">Loading queue…</p>;
+
+  return <p>{data.open} open</p>;
+}
+```
+
+Render it in your app:
+
+```tsx title="src/App.tsx"
+import { Queue } from "./Queue";
+
+export default function App() {
+  return <Queue />;
+}
+```
+
+The hook subscribes on mount and cleans up on unmount. Polling reads every five
+seconds by default and pauses when no consumer is eligible, for example when all
+subscribing tabs are hidden. It performs a catch-up read when a tab returns.
+
+## 5. Check it across tabs
+
+Open the app in two tabs of the same browser profile. With SharedWorker available,
+matching subscriptions share the upstream feed or polling schedule. Each tab still renders its
+own component and holds its own value.
+
+To inspect the mode, temporarily render this component alongside `Queue`:
+
+```tsx title="src/LiveStatus.tsx"
+import { useSpinetabStatus } from "./live";
+
+export function LiveStatus() {
+  const status = useSpinetabStatus();
+  return <p>Mode: {status.mode}</p>;
+}
+```
+
+`shared` means the client is using a worker. `local` means this tab runs its own
+subscriptions. See [execution modes](/docs/concepts/modes/) for fallback reasons.
+Server logs are the useful check for shared upstream work. With polling, a new
+consumer may trigger a fresh read without creating another ongoing schedule.
+
+`reconcile: "latest"` fits these full-state feeds. After a delivery gap, the next
+value restores the displayed state.
+Use a [refresh policy](/docs/concepts/continuity/) for feeds of incremental changes.
+
+## Next steps
+
+- Use [polling options](/docs/transports/polling/) to change the interval, or choose [another subscription source](/docs/#use-the-api-you-already-have).
+- Keep your existing [Apollo](/docs/integrations/apollo/), [TanStack Query](/docs/integrations/tanstack-query/) or [SWR](/docs/integrations/swr/) data flow through its integration.
+- Add [authentication](/docs/concepts/credentials/) and [recovery handling](/docs/concepts/continuity/) for your app's feeds.
+
+For plugin options, base paths and custom builds, see [bundler configuration](/docs/bundlers/).

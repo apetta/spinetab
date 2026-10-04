@@ -1,0 +1,238 @@
+---
+title: Apollo Client
+description: Route Apollo Client 4 subscriptions through Spinetab with one split link; queries, mutations and the cache stay with Apollo.
+---
+
+[Complete examples for your app](/docs/recipes/apollo/) include configuration,
+components and cleanup. This page covers the integration API.
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+Keep Apollo's hooks and cache. The Spinetab link handles subscription operations;
+queries and mutations continue through your HTTP link.
+
+These examples assume the [bundler plugin and client](/docs/getting-started/) are
+already set up.
+
+```sh
+pnpm add spinetab @apollo/client rxjs graphql
+```
+
+Declare `anonymous: true` or `credentials` in `live.ts`, as on the
+[GraphQL](/docs/protocols/graphql/) page; the plugin registers the GraphQL adapter
+for you. Choose your server's GraphQL transport, then split subscriptions to Spinetab:
+
+<Tabs syncKey="graphql-transport">
+<TabItem label="WebSocket">
+
+```sh
+pnpm add graphql-ws
+```
+
+```ts title="graphql-endpoint.ts"
+import { graphqlWs } from "spinetab/graphql-ws";
+
+export const endpoint = graphqlWs("/graphql");
+```
+
+</TabItem>
+<TabItem label="SSE">
+
+```sh
+pnpm add graphql-sse
+```
+
+```ts title="graphql-endpoint.ts"
+import { graphqlSse } from "spinetab/graphql-sse";
+
+export const endpoint = graphqlSse("/graphql/stream");
+```
+
+Match [distinct or single mode](/docs/protocols/graphql/#graphql-over-sse) to your server.
+This uses the GraphQL SSE protocol, not an arbitrary SSE event endpoint.
+
+</TabItem>
+</Tabs>
+
+```ts title="apollo.ts"
+import { ApolloClient, HttpLink, InMemoryCache } from "@apollo/client";
+import { spinetabSplit } from "spinetab/apollo";
+import { endpoint } from "./graphql-endpoint";
+import { spinetab } from "./live";
+
+const http = new HttpLink({ uri: "/graphql" });
+
+export const apollo = new ApolloClient({
+  link: spinetabSplit(spinetab, endpoint, http),
+  cache: new InMemoryCache(),
+});
+```
+
+Components keep using Apollo's own `useSubscription`. Subscriptions go to the
+worker, where compatible tabs share upstream work; every other operation goes to `http`.
+
+## Render with Apollo
+
+If your app already provides this Apollo client, keep that provider and its hooks.
+For a React component, a minimal complete-state subscription looks like this:
+
+```tsx title="Queue.tsx"
+"use client";
+
+import { gql, type TypedDocumentNode } from "@apollo/client";
+import { useSubscription } from "@apollo/client/react";
+
+const QUEUE: TypedDocumentNode<{ queue: { open: number } }> = gql`
+  subscription Queue {
+    queue {
+      open
+    }
+  }
+`;
+
+export function Queue() {
+  const { data, error } = useSubscription(QUEUE);
+  if (error) return <p role="alert">{error.message}</p>;
+  if (!data) return <p role="status">Loading queue…</p>;
+  return <p>{data.queue.open} open</p>;
+}
+```
+
+The schema must supply `queue { open }`. For this complete-state example, set
+`reconcile: "latest"` in the split link as shown [below](#reconcile). For deltas,
+use the refresh policy instead.
+
+In Next.js, keep the Apollo client in the client tree. If you already use Apollo's
+Next.js integration, add the split link to its client factory; retain its
+request-scoped cache and hydration setup. For a browser-only subscription widget,
+you can pass the client directly with `useSubscription(QUEUE, { client: apollo })`
+after importing `apollo` from `./apollo`; that widget needs no provider.
+
+For Vite or React Router, use the same React component and your existing provider.
+In Astro, place both in one hydrated island.
+
+## Other UI frameworks
+
+The complete Apollo recipes use React. The Spinetab link itself is
+framework-independent: add it to your existing Apollo client, then use a UI
+integration compatible with your version of Apollo Client.
+
+For a custom view, subscribe through `client.subscribe()` on browser mount and
+call the returned subscription's `unsubscribe()` when the view is disposed.
+Keep an app-wide Apollo client alive while other views use it. This requires
+your own reactive state and error handling; it is not a Vue, Svelte or Solid
+Apollo wrapper integration.
+
+If you only need GraphQL subscription results without Apollo, use a
+[direct subscription recipe](/docs/recipes/direct/) with your UI library.
+
+## Default behaviour
+
+| Behaviour            | Default                                                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Results              | Passed through unchanged, so Apollo's `errorPolicy` handles partial data                                               |
+| Resumable states     | The observable stays open through `reconnecting`, `retry-exhausted` and `auth-blocked`                                 |
+| Errors               | Failed connections, operation errors and invalid payloads remain terminal; gaps are terminal without a recovery policy |
+| `unknown` continuity | Reported to `onContinuity`, never injected into results                                                                |
+| Teardown             | The Spinetab subscription is released when Apollo tears the operation down                                             |
+| Other operations     | A query or mutation that reaches the Spinetab link errors with `unsupported-option`                                    |
+
+Configure `reconcile` for automatic recovery after overflow or a reconnect with
+uncertain delivery. The link keeps the operation open and runs your policy;
+components continue using `useSubscription` without a restart effect. Without a
+policy, a gap ends the operation and `useSubscription().restart()` creates a fresh
+consumer. A restart alone does not recover missed data.
+
+## Reconcile
+
+A reconnect without replay reports `unknown` continuity; overflow reports a
+known gap. For a feed of changes, supply a refresh that rejects on failure. The
+policy receives the subscription's `operation`, `continuity`, `status` and an
+abort `signal`. Use the operation to choose the correct query and variables.
+This example assumes the link serves an orders subscription:
+
+```ts
+const link = spinetabSplit(spinetab, endpoint, http, {
+  reconcile: async ({ operation, signal }) => {
+    const { data } = await apollo.query({
+      query: ORDERS,
+      variables: operation.variables,
+      fetchPolicy: "no-cache",
+      errorPolicy: "none",
+      context: { queryDeduplication: false },
+    });
+    if (signal.aborted) return;
+    apollo.writeQuery({ query: ORDERS, variables: operation.variables, data });
+  },
+});
+```
+
+`no-cache` asks the server and leaves the write to you: a `network-only` query
+writes its own answer, and an older run's late
+answer would replace newer data. `errorPolicy: "none"` rejects on a network or
+GraphQL error, even when your client defaults to `"all"`.
+`queryDeduplication: false` stops the query joining an identical request that
+began before the notice. Pass the same `variables` to `query` and `writeQuery`.
+
+The engine waits for a restored connection and coalesces newer notices into a
+further refresh. It aborts the old signal when superseded, disconnected or
+disposed. Check that signal before applying the result; cancellation cannot undo
+an application cache write. The engine marks continuity restored only after a
+valid refresh completes. A rejected refresh leaves the loss visible and reaches
+the client's `onCallbackError`, or `reportError`.
+
+Live events can arrive during the refresh. For deltas, merge them against the
+snapshot using your server's version or watermark; do not overwrite newer state
+with an older snapshot. Requests that other components began independently can
+still write their answers, so apply the same application ordering rules to them.
+
+If every subscription event contains the complete current state, use
+`reconcile: "latest"` instead. The next delivered result restores continuity;
+never use this for incremental changes or partial results:
+
+```ts
+spinetabSplit(spinetab, endpoint, http, {
+  reconcile: "latest",
+});
+```
+
+`onContinuity` remains available for observation or custom manual recovery. Its
+returned promise is not awaited; use `reconcile` for the normal refresh path.
+
+Avoid using `refetchQueries` alone to confirm recovery: it can resolve when no
+query was refetched, and `errorPolicy: "all"` or `"ignore"` can hide a failure
+from the promise. An explicit query with `errorPolicy: "none"`, as above, makes
+the success condition clear.
+
+## Status and retry
+
+Watch every status change of an operation:
+
+```ts
+spinetabSplit(spinetab, endpoint, http, { onStatus: (status) => show(status) });
+```
+
+Retry one operation's connection from either callback with `controls.retry()`.
+The callbacks receive `(status, operation, controls)` and
+`(continuity, operation, controls)` respectively. Controls become inactive once
+the observable ends.
+
+## Custom Apollo links
+
+`SpinetabLink` is the terminating link behind `spinetabSplit`. Use it directly with
+your own `ApolloLink.split` or link chain:
+
+```ts
+import { SpinetabLink } from "spinetab/apollo";
+
+const subscriptions = new SpinetabLink(spinetab, endpoint);
+```
+
+- `context.spinetab` carries response-affecting, credential-free data. It becomes
+  part of the subscription identity; other context stays in the page.
+- Apollo deduplicates identical subscriptions by query and variables, not by
+  context or extensions. Set `queryDeduplication: false` for subscriptions that
+  differ only there.
+- If `onStatus` or `onContinuity` throws, the link still applies its terminal
+  handling and releases the subscription, then reports the exception once through
+  the client's `onCallbackError`.

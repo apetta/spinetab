@@ -1,0 +1,122 @@
+---
+title: SvelteKit
+description: Add Spinetab to SvelteKit and render a shared live feed with a Svelte store.
+---
+
+import RecipePicker from "../../../../components/docs/RecipePicker.astro";
+
+import SourceChoices from "../../../../components/docs/SourceChoices.mdx";
+
+This guide adds a shared live feed to an existing SvelteKit app using Svelte 5.
+It keeps server rendering enabled and uses Spinetab's Svelte store binding.
+
+The examples display a queue value such as `{ "open": 12 }`. Choose the source
+that matches your backend in step 3.
+Use an existing endpoint or replace the URL and type with your API.
+Spinetab does not create the endpoint.
+
+## Choose your stack
+
+Use a complete recipe for your renderer and data library, or continue below for
+the basic direct subscription.
+
+<RecipePicker framework="sveltekit" />
+
+## 1. Add the Vite plugin
+
+```sh
+pnpm add spinetab
+```
+
+Keep the SvelteKit plugin and add `spinetab()` alongside it:
+
+```ts title="vite.config.ts"
+import { sveltekit } from "@sveltejs/kit/vite";
+import { spinetab } from "spinetab/vite";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [sveltekit(), spinetab()],
+});
+```
+
+The plugin generates the worker from the adapters your app imports. Restart the
+dev server after changing the config; keep your existing SvelteKit deployment
+adapter in `svelte.config.js`.
+
+## 2. Create the client
+
+```ts title="src/lib/live.ts"
+import { createSpinetab } from "spinetab";
+import { bindClient } from "spinetab/svelte";
+
+export const spinetab = createSpinetab();
+export const { liveStore } = bindClient(spinetab);
+```
+
+## 3. Choose your source
+
+<SourceChoices />
+
+## 4. Render a subscription
+
+Create a [SvelteKit page](https://svelte.dev/docs/kit/project-structure) at `/queue`:
+
+```svelte title="src/routes/queue/+page.svelte"
+<script lang="ts">
+  import { queueSource } from "$lib/queue-source";
+  import { liveStore } from "$lib/live";
+
+  const queue = liveStore(queueSource, {
+    reconcile: "latest",
+  });
+</script>
+
+<h1>Queue</h1>
+
+{#if $queue.error}
+  <p role="alert">Could not load the queue: {$queue.error.code}</p>
+{:else if $queue.data === undefined}
+  <p role="status">Loading queue…</p>
+{:else}
+  <p>{$queue.data.open} open</p>
+{/if}
+```
+
+`$queue` subscribes through Svelte's store contract. The store starts live work
+when it gains a browser subscriber and releases it when the last subscriber
+leaves. During server rendering it returns the inactive snapshot without
+connecting. You do not need `ssr = false` or an `onMount` wrapper.
+
+Keep the store in the component as shown. For URLs that change with route
+parameters, follow the [reactive source rules](/docs/bindings/#svelte) so the store
+tracks the new source. Do not start subscriptions from a server `load` function.
+
+## Check it across tabs
+
+Visit `/queue` in your running app. Navigating away removes that page's store
+subscriber; another tab on the page keeps its own subscription alive.
+
+Open the page in two tabs of the same browser profile. With SharedWorker available,
+matching subscriptions share the upstream feed or polling schedule. Each component keeps its own value.
+For polling, a new subscriber can trigger a fresh read; check ongoing requests
+rather than expecting exactly one initial request.
+
+Polling reads every five seconds by default and pauses when no consumer is
+eligible, such as when all subscribing tabs are hidden. It reads again when a tab
+returns. If worker sharing is unavailable, each tab runs its own subscriptions;
+see [execution modes](/docs/concepts/modes/).
+
+`reconcile: "latest"` fits these full-state feeds. After a delivery gap, the next
+value restores the displayed state.
+Use a [refresh policy](/docs/concepts/continuity/) for feeds of incremental changes.
+
+## Next steps
+
+- Use [GraphQL, Socket.IO or a client library](/docs/choose-integration/) with this setup.
+- Add [authentication and user scopes](/docs/concepts/credentials/) for private data. Keep request-specific credentials out of server module singletons.
+- Read [continuity and recovery](/docs/concepts/continuity/) before using an event stream: reconnecting alone cannot recover missed events.
+- Check [compatible versions and restrictions](/docs/compatibility/) for your stack.
+
+See [Vite framework configuration](/docs/bundlers/#ssr-frameworks-using-vite)
+for build options and [Svelte bindings](/docs/bindings/#svelte) for store APIs.

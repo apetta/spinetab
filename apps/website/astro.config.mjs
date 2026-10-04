@@ -4,14 +4,95 @@ import { defineConfig } from "astro/config";
 
 export default defineConfig({
 	output: "static",
+	// Preserve spaces around inline prose when the formatter wraps HTML tags.
+	compressHTML: true,
 	integrations: [
 		react(),
 		starlight({
 			title: "Spinetab",
 			customCss: ["./src/styles/docs.css"],
 			sidebar: [
-				{ label: "Documentation", link: "/docs/" },
-				{ label: "Examples", link: "/examples/" },
+				{
+					label: "Start here",
+					items: [
+						{ label: "Overview", slug: "docs" },
+						"docs/getting-started",
+						"docs/choose-integration",
+						"docs/frameworks",
+					],
+				},
+				{
+					label: "Frameworks",
+					items: [
+						"docs/setup/vite",
+						"docs/setup/nextjs",
+						"docs/setup/astro",
+						"docs/setup/nuxt",
+						"docs/setup/sveltekit",
+						"docs/setup/react-router",
+					],
+				},
+				{
+					label: "Subscriptions",
+					collapsed: true,
+					items: [
+						"docs/transports/polling",
+						"docs/transports/sse",
+						"docs/transports/stream",
+						"docs/transports/websocket",
+						"docs/protocols/graphql",
+						"docs/protocols/socket-io",
+					],
+				},
+				{
+					label: "Library integrations",
+					collapsed: true,
+					items: [
+						"docs/integrations/apollo",
+						"docs/integrations/tanstack-query",
+						"docs/integrations/swr",
+						"docs/integrations/trpc",
+						"docs/integrations/ai-sdk",
+					],
+				},
+				{
+					label: "Recipes",
+					items: [
+						{ label: "Direct subscriptions", link: "/docs/recipes/direct/" },
+						{ label: "Apollo Client", link: "/docs/recipes/apollo/" },
+						{ label: "TanStack Query", link: "/docs/recipes/tanstack-query/" },
+						{ label: "SWR", link: "/docs/recipes/swr/" },
+						{ label: "tRPC", link: "/docs/recipes/trpc/" },
+						{ label: "AI SDK", link: "/docs/recipes/ai-sdk/" },
+					],
+				},
+				{
+					label: "Authentication and recovery",
+					collapsed: true,
+					items: [
+						"docs/concepts/credentials",
+						"docs/concepts/status",
+						"docs/concepts/continuity",
+						"docs/concepts/modes",
+					],
+				},
+				{
+					label: "Configuration",
+					collapsed: true,
+					items: ["docs/bundlers", "docs/your-worker", "docs/deployment"],
+				},
+				{
+					label: "Reference",
+					collapsed: true,
+					items: [
+						"docs/concepts/identity",
+						"docs/concepts/defaults",
+						"docs/bindings",
+						"docs/compatibility",
+						"docs/limits",
+					],
+				},
+				{ label: "GitHub", link: "https://github.com/apetta/spinetab" },
 			],
 		}),
 	],

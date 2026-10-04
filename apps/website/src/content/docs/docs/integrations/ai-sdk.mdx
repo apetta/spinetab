@@ -1,0 +1,149 @@
+---
+title: AI SDK
+description: A ChatTransport that lets tabs follow one AI generation and recover through your backend's resume endpoint.
+---
+
+[Complete examples for your app](/docs/recipes/ai-sdk/) include configuration,
+components and cleanup. This page covers the integration API.
+
+Use Spinetab as AI SDK's chat transport so tabs can follow the same generation.
+Your backend must support [generation identity and resumable streams](#what-your-backend-provides).
+Adding the transport alone does not make an existing chat endpoint resumable.
+
+These examples assume the [bundler plugin and client](/docs/getting-started/) are
+already set up.
+
+```sh
+pnpm add spinetab ai @ai-sdk/react zod
+```
+
+Zod is the AI SDK's own peer dependency. With AI SDK 7.0.116 and
+`skipLibCheck: false`, also install its JSON Schema and Node declarations:
+
+```sh
+pnpm add -D @types/json-schema @types/node
+```
+
+If your `tsconfig.json` restricts `types`, include `"node"` in that list.
+
+```tsx
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import { useEffect } from "react";
+import { SpinetabChatTransport } from "spinetab/ai-sdk";
+import { spinetab } from "./live";
+
+const transport = new SpinetabChatTransport({
+  client: spinetab,
+  api: "/api/chat",
+});
+
+export function Chat({ id }: { id: string }) {
+  const { messages, resumeStream } = useChat({ id, transport });
+  useEffect(() => {
+    const unfollow = transport.follow(id, resumeStream);
+    void resumeStream();
+    return unfollow;
+  }, [id, resumeStream]);
+  return <p>{messages.length} messages</p>;
+}
+```
+
+Send with `sendMessage` from `useChat` as usual. With the backend contract below, a generation started in one tab can be
+followed by other tabs showing the same chat in the same scope.
+`follow` resumes this tab when another tab starts a generation, and once after an
+actual loss of the stream. It returns the disposer the effect needs. The plugin
+registers the AI SDK adapter for you.
+
+The initial `resumeStream()` also joins a generation already running when this
+view mounts. `follow` observes new starts and interrupted streams; it does not
+store earlier chunks. A late join needs full replay from your backend and may
+open a separate resume request. Neither path sends the prompt again.
+
+## Use it in your app
+
+Complete recipes use AI SDK's React, Vue or Svelte bindings. For Solid or a custom
+UI, the transport API below remains available, but state management and the
+send/resume lifecycle belong to your application.
+
+The example uses React: it fits Next.js Client Components, Vite React, React
+Router or a hydrated React island in Astro. Only Next.js needs `"use client"`.
+The transport implements AI SDK's `ChatTransport` interface; it does not depend
+on React. With another AI SDK chat UI, pass `transport` into its chat options,
+then attach `transport.follow(chatId, resumeStream)` and call `resumeStream()` on
+browser mount. Call the returned disposer on unmount. Bind `resumeStream` to your chat instance if
+it is an instance method, and dispose/re-attach when the chat ID changes.
+
+Use that SDK binding's own message state and send/resume APIs. Do not add
+Spinetab's `useLive` or wrap the transport in `sse()`; the AI SDK protocol handles
+message chunks and generation identity. See the [AI SDK UI reference](https://ai-sdk.dev/docs/reference/ai-sdk-ui)
+for its framework APIs and ensure the binding matches your installed `ai` version.
+In Vue, keep the transport outside deep reactive state; use `shallowRef` if you
+need to store it in a ref.
+
+## Default behaviour
+
+| Behaviour   | Default                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------- |
+| Start       | One `POST` per start, with a `generationId` in the body. Never retried                  |
+| Resume      | `GET {api}/{chatId}/stream`, as `DefaultChatTransport`. HTTP 204 means no active stream |
+| Aborting    | Detaches this tab only; the generation keeps running                                    |
+| Stop        | Unavailable until you declare a `stop` endpoint                                         |
+| History     | Not stored. Durable generation after every tab closes is your backend's job             |
+| Credentials | Provider `headers` when a `credentials` callback exists; cookies otherwise              |
+
+`follow` is suppressed after `stop()` until a new start, coalesces triggers that
+land together, never fires on a bare page-return hint, and never retries a failed
+resume.
+
+## Stop a generation and configure requests
+
+Stop a generation from any tab with one `POST` to your endpoint:
+
+```ts
+const transport = new SpinetabChatTransport({
+  client: spinetab,
+  api: "/api/chat",
+  stop: {
+    api: (chatId, generationId) => `/api/chat/${chatId}/stop/${generationId}`,
+  },
+});
+```
+
+Then `await transport.stop(chatId)` returns the command outcome.
+`transport.role(chatId)` says whether this tab is the `originator` or a
+`follower`.
+
+Send non-secret headers or a body with each request through `headers` and `body`.
+`authorization`, `cookie`, `x-api-key`, `x-auth-token`, `proxy-authorization` and
+`last-event-id` are refused there: tokens come only from the client's
+`credentials` callback. To send provider credentials to a chat API on another
+origin, list it in `credentialOrigins` in the plugin options or your worker file; see
+[Credentials](/docs/concepts/credentials/).
+
+## What your backend provides
+
+- **Generation identity.** Followers are served only when the backend echoes the
+  generation id, in an `x-generation-id` header or the `start` chunk's `messageId`.
+- **Resume.** A stream from the start of the active generation. A response whose
+  first chunk is not `start` ends with `cannot-resume`.
+- **Stop**, if you want one, at an endpoint you choose.
+
+Serve UI-message streams with `Cache-Control: no-store, no-transform`. Proxies
+must forward chunks promptly and close the downstream response if the upstream
+stream fails; otherwise the browser cannot detect the interruption.
+
+HTTP failures carry the status in `detail.status` and a fixed message; the
+response body is never read. A 401 rejects the credential revision that was sent;
+a 403 rejects nothing. A request that carries provider headers never follows a
+redirect.
+
+## Custom recovery callbacks
+
+`transport.observe(chatId, { onStart })` is the observation `follow` uses, for a
+custom resume. `onInterrupted(chatId)` on the transport is called once per
+recovery episode after an actual loss, for recovery that is not a plain
+`resumeStream()`. An interrupted observer gets a `TypeError`-compatible network
+error, so the AI SDK reports a disconnect; check for it with
+`isSpinetabError(error, "interrupted")`.

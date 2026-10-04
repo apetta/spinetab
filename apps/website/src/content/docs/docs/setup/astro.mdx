@@ -1,0 +1,135 @@
+---
+title: Astro
+description: Add Spinetab to Astro and share live updates through a hydrated island.
+---
+
+import RecipePicker from "../../../../components/docs/RecipePicker.astro";
+
+import SourceChoices from "../../../../components/docs/SourceChoices.mdx";
+
+Add live updates to a hydrated Astro island. Choose your renderer and data
+library below for a complete recipe. The walkthrough on this page uses React.
+
+The examples display a queue value such as `{ "open": 12 }`. Choose the source
+that matches your backend in step 3.
+Replace the URL and type with your API. A static Astro build does not create a
+live API endpoint: use an existing backend, with CORS configured if it is on a
+different origin.
+
+## Choose your stack
+
+Use a complete recipe for your renderer and data library, or continue below for
+the basic direct subscription.
+
+<RecipePicker framework="astro" />
+
+## 1. Add the integrations
+
+```sh
+pnpm add spinetab
+```
+
+Keep your existing integrations and add `spinetab()`. This example assumes
+[`@astrojs/react`](https://docs.astro.build/en/guides/integrations-guide/react/)
+is installed and configured for React components:
+
+```js title="astro.config.mjs"
+import react from "@astrojs/react";
+import { defineConfig } from "astro/config";
+import { spinetab } from "spinetab/astro";
+
+export default defineConfig({
+  integrations: [react(), spinetab()],
+});
+```
+
+The Spinetab integration adds the worker build to Astro's client build. Add it
+manually; `astro add spinetab` is not supported. Restart the dev server after
+changing the config.
+
+## 2. Create the client
+
+```ts title="src/live.ts"
+import { createSpinetab } from "spinetab";
+import { bindClient } from "spinetab/react";
+
+export const spinetab = createSpinetab();
+export const { useLive } = bindClient(spinetab);
+```
+
+## 3. Choose your source
+
+<SourceChoices />
+
+## 4. Add a live component
+
+```tsx title="src/components/Queue.tsx"
+import { queueSource } from "../queue-source";
+import { useLive } from "../live";
+
+export function Queue() {
+  const { data, error } = useLive(queueSource, {
+    reconcile: "latest",
+  });
+
+  if (error) return <p role="alert">Could not load the queue: {error.code}</p>;
+  if (data === undefined) return <p role="status">Loading queue…</p>;
+
+  return <p>{data.open} open</p>;
+}
+```
+
+## 5. Hydrate it on a page
+
+```astro title="src/pages/queue.astro"
+---
+import { Queue } from "../components/Queue";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Queue</title>
+  </head>
+  <body>
+    <h1>Queue</h1>
+    <Queue client:load />
+  </body>
+</html>
+```
+
+[`client:load`](https://docs.astro.build/en/guides/framework-components/#hydrating-interactive-components)
+hydrates the component on page load. Without a `client:*` directive, Astro renders
+HTML only and the subscription never starts. Use `client:visible` if the feed
+should start only when its island becomes visible.
+
+Server rendering produces the loading state without opening a connection.
+The React hook starts work when the island mounts and releases the subscription
+when it unmounts. You do not need `client:only` for this component.
+
+## Check it across tabs
+
+Visit `/queue` in your running app.
+
+Open the page in two tabs of the same browser profile. With SharedWorker available,
+matching subscriptions share the upstream feed or polling schedule. Each component keeps its own value.
+For polling, a new subscriber can trigger a fresh read; check ongoing requests
+rather than expecting exactly one initial request.
+
+Polling reads every five seconds by default and pauses when no consumer is
+eligible, such as when all subscribing tabs are hidden. It reads again when a tab
+returns. If worker sharing is unavailable, each tab runs its own subscriptions;
+see [execution modes](/docs/concepts/modes/).
+
+`reconcile: "latest"` fits these full-state feeds. After a delivery gap, the next
+value restores the displayed state.
+Use a [refresh policy](/docs/concepts/continuity/) for feeds of incremental changes.
+
+## Next steps
+
+- Use [GraphQL, Socket.IO or a client library](/docs/choose-integration/) with this setup.
+- Add [authentication and user scopes](/docs/concepts/credentials/) for private data. Keep request-specific credentials out of server module singletons.
+- Read [continuity and recovery](/docs/concepts/continuity/) before using an event stream: reconnecting alone cannot recover missed events.
+- Check [compatible versions and restrictions](/docs/compatibility/) for your stack.
+
+See [Astro configuration](/docs/bundlers/#astro) for plugin options.

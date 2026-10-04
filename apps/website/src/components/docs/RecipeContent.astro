@@ -1,0 +1,130 @@
+---
+import { Code } from "@astrojs/starlight/components";
+import AnchorHeading from "@astrojs/starlight/components/AnchorHeading.astro";
+import { type Recipe, references, sources } from "../../recipes/catalogue";
+import { dependencies, recipeFiles } from "../../recipes/files";
+
+interface Props {
+	recipe: Recipe;
+}
+const { recipe } = Astro.props;
+const files = recipeFiles(recipe);
+const directReferences: Partial<Record<Recipe["source"], string>> = {
+	polling: "/docs/transports/polling/",
+	sse: "/docs/transports/sse/",
+	websocket: "/docs/transports/websocket/",
+	stream: "/docs/transports/stream/",
+	"graphql-ws": "/docs/protocols/graphql/",
+	"graphql-sse": "/docs/protocols/graphql/",
+	"socket-io": "/docs/protocols/socket-io/",
+};
+const reference =
+	recipe &&
+	(recipe.consumer === "direct"
+		? directReferences[recipe.source]
+		: references[recipe.consumer]);
+const graphql = recipe?.source.startsWith("graphql-");
+---
+
+<div data-recipe-content data-recipe-id={recipe.id}>
+	<p data-recipe-summary>
+		{sources[recipe.source]}
+		·
+		<a href={`/docs/setup/${recipe.context.framework}/`}
+			>{recipe.context.label}</a
+		>
+	</p>
+	<section data-recipe-part="before-you-start">
+		<AnchorHeading level={2} id="before-you-start"
+			>Before you start</AnchorHeading
+		>
+		<div data-recipe-part-body>
+			<p>
+				Start with an existing {recipe.context.label} app. Keep its renderer,
+				routes and plugins. These files add one live view; Spinetab does not
+				create your API.
+			</p>
+			{recipe.consumer === "ai" ? <>
+      <p>Your backend returns AI SDK UI-message streams: <code>POST /api/chat</code> starts a generation and <code>GET /api/chat/shared-chat/stream</code> replays the active generation from its first <code>start</code> chunk. It echoes the supplied generation ID in <code>x-generation-id</code> or the start chunk's <code>messageId</code>. Return HTTP 204 when no generation is active.</p>
+      <p>Serve <code>Cache-Control: no-store, no-transform</code>. Your proxy must forward chunks promptly and close downstream responses on upstream failure. See the <a href="/docs/integrations/ai-sdk/#what-your-backend-provides">backend contract</a> before using an ordinary chat route.</p>
+    </> : recipe.consumer === "trpc" ? <p>Use a tRPC 11 server with a <code>queue</code> subscription returning a complete <code>{'{ open: number }'}</code> value. The server router below defines that contract; mount it at <code>{recipe.source === "trpc-ws" ? "/trpc-ws" : "/trpc"}</code> with tRPC's {recipe.source === "trpc-ws" ? "WebSocket" : "HTTP/SSE"} adapter. The browser imports only its type. This standalone client recipe uses untracked full-state results; <a href="/docs/integrations/trpc/">tracked events and transformers</a> require their corresponding result handling.</p> : graphql ? <p>Your schema exposes <code>Subscription.queue: Queue!</code> with <code>Queue.open: Int!</code>. Each event contains the complete queue value. Serve the {recipe.source === "graphql-ws" ? "graphql-transport-ws protocol at /graphql" : "graphql-sse distinct protocol at /graphql/stream"}. Queries and mutations, if used, go to <code>/graphql</code>. This is a GraphQL endpoint, not a plain SSE or WebSocket feed.</p> : recipe.source === "socket-io" ? <p>Your Socket.IO server emits <code>{'socket.emit("queue", { open: 12 })'}</code> in the default namespace, using the default <code>/socket.io</code> path. Each event contains the complete queue. The example chooses <code>sharing: "shared"</code>: use it only if merging tabs onto one socket suits your server's presence and membership rules.</p> : <p>Your endpoint supplies complete <code>{'{ "open": 12 }'}</code> values: {recipe.source === "polling" ? "JSON from GET /api/queue, read every five seconds by default." : recipe.source === "sse" ? "JSON in each data: field of /api/queue/events, served as text/event-stream." : recipe.source === "websocket" ? "one JSON value per text frame from /ws/queue." : "one JSON value per line from /api/queue/stream (NDJSON). Opening this request again must be safe."}</p>}
+			<p>
+				The examples use same-origin URLs and declare
+				<code>anonymous: true</code>: no token is supplied, although cookies
+				still flow. For a separate API origin, use its URL and configure CORS or
+				your application's proxy. For private data, add
+				<a href="/docs/concepts/credentials/">credentials and user scopes</a>;
+				never put a secret in these files.
+			</p>
+		</div>
+	</section>
+	<section data-recipe-part="install">
+		<AnchorHeading level={2} id="install">1. Install</AnchorHeading>
+		<div data-recipe-part-body>
+			<Code code={`pnpm add ${dependencies(recipe).join(" ")}`} lang="sh" />
+			{recipe.consumer === "ai" && <><p>For strict AI SDK declarations, install these types and include <code>node</code> if your tsconfig restricts <code>types</code>:</p><Code code="pnpm add -D @types/json-schema @types/node" lang="sh" /></>}
+			<p>
+				Keep your framework's existing dependencies. See
+				<a href="/docs/compatibility/">compatible versions</a>
+				if upgrading an older app.
+			</p>
+		</div>
+	</section>
+	<section data-recipe-part="configure">
+		<AnchorHeading level={2} id="configure"
+			>2. Configure your app</AnchorHeading
+		>
+		<div data-recipe-part-body>
+			<p>
+				Merge this addition into your configuration; preserve existing plugins
+				and options. Restart the dev server afterwards. The plugin bundles the
+				worker and discovers the adapters imported below.
+			</p>
+			{files.filter((f) => f.section === "config").map((f) => <Code code={f.code} lang={f.lang} title={f.path} />)}
+		</div>
+	</section>
+	<section data-recipe-part="connect">
+		<AnchorHeading level={2} id="connect">3. Connect and render</AnchorHeading>
+		<div data-recipe-part-body>
+			<p>Save these files together in <code>{recipe.context.folder}/</code>.</p>
+			{recipe.consumer === "query" && <p>The provider owns a fresh QueryClient. If your app already has a provider, render <code>Queue</code> beneath it instead of creating another one. The query uses <code>skipToken</code> to read live cache updates without fetching a competing snapshot. The bridge uses that same client's <code>["queue"]</code> key.</p>}
+			{recipe.consumer === "apollo" && <p>The provider supplies Apollo's client to its subscription hook. {recipe.context.framework === "nextjs" ? "ApolloNextAppProvider creates the client for the Next.js render context. This view subscribes only in the browser; use an absolute HTTP URI and your request authentication if adding server-rendered queries." : "Keep an existing app provider/client when extending an Apollo app rather than introducing a second cache."}</p>}
+			{recipe.consumer === "swr" && <p>SWR uses its default cache. The constant <code>queue</code> key always returns the same source; if the endpoint varies, derive it from that key. With SWR 2.5.1 and React 19.3, avoid nesting a custom cache provider inside StrictMode; see <a href="/docs/integrations/swr/#use-it-in-your-app">the upstream restriction</a>.</p>}
+			{recipe.consumer !== "ai" && <p><code>reconcile: "latest"</code> fits this full-state contract: the next complete event restores the displayed value after a gap. Use a <a href="/docs/concepts/continuity/">refresh/merge policy</a> for deltas or partial GraphQL results. Reconnecting alone does not reconstruct missed state.</p>}
+			{files.filter((f) => f.section === "code").map((f) => <Code code={f.code} lang={f.lang} title={f.path} />)}
+		</div>
+	</section>
+	<section data-recipe-part="mount">
+		<AnchorHeading level={2} id="mount">4. Mount the view</AnchorHeading>
+		<div data-recipe-part-body>
+			{files.filter((f) => f.section === "mount").map((f) => <Code code={f.code} lang={f.lang} title={f.path} />)}
+			{recipe.context.framework === "astro" && <p>Provider and consumer live in this one hydrated island. <code>client:load</code> starts it on page load; <code>client:visible</code> defers it until visible. Without hydration no subscription starts.</p>}
+			{recipe.context.framework === "nextjs" && <p>The <code>"use client"</code> boundary includes the view and its imports. Keep subscriptions out of Server Components, loaders and server actions. Retain your existing root layout; use <code>src/app/</code> instead if that is your app directory. Both supported Next bundlers use this configuration.</p>}
+			{recipe.context.framework === "nuxt" && <p>Your existing <code>app/app.vue</code> must render <code>&lt;NuxtPage /&gt;</code>. Work starts on browser mount; no ClientOnly wrapper is needed. KeepAlive retains subscriptions until the component is disposed.</p>}
+			{recipe.context.framework === "sveltekit" && <p>Keep your existing SvelteKit deployment adapter. Component lifecycle keeps live work out of server rendering; do not disable SSR or subscribe in a server load function.</p>}
+			{recipe.context.framework === "react-router" && <p>Keep your existing routes and root Outlet. The dependency-scan entries include route imports on a cold first visit. Declarative/Data Mode apps use the Vite recipe instead.</p>}
+			{recipe.context.framework === "vite" && <p>Your existing entry point mounts App as usual. Keep its renderer plugin; no additional application provider is required beyond those shown.</p>}
+		</div>
+	</section>
+	<section data-recipe-part="check">
+		<AnchorHeading level={2} id="check">Check the result</AnchorHeading>
+		<div data-recipe-part-body>
+			{recipe.consumer === "ai" ? <p>Open the same chat in two tabs and press Send in one. Both should display the same generation. A late tab explicitly resumes from the backend; it may need another HTTP response, but must not start another generation. Unmounting detaches this view and its follow observer, not the server's generation. Remount the component when the chat ID changes. Durable history and an explicit server-side stop endpoint belong to your app.</p> : <p>Open {recipe.context.framework === "vite" || recipe.context.framework === "nextjs" ? "the page" : "/queue"} in two tabs of the same browser profile. Both should show advancing queue values. Matching subscriptions share upstream work when SharedWorker is available; fallback runs independently in each tab. Remove one view and the other should keep updating. Removing the last view releases its subscription; connection closure can follow the adapter's idle delay.</p>}
+			<p>
+				<a href={reference}>API options and advanced recovery</a>
+				· <a href="/docs/concepts/credentials/">Authentication</a>
+			</p>
+		</div>
+	</section>
+</div>
+<style>
+section {
+	margin: 0;
+}
+[data-recipe-part-body] {
+	margin-top: 1rem;
+}
+[data-recipe-part] + [data-recipe-part] {
+	margin-top: 2.5rem;
+}
+</style>

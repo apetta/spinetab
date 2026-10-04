@@ -1,0 +1,236 @@
+---
+title: tRPC
+description: Share typed tRPC subscriptions across tabs over WebSocket or SSE, with tracked event IDs preserved.
+---
+
+[Complete examples for your app](/docs/recipes/trpc/) include configuration,
+components and cleanup. This page covers the integration API.
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+Route tRPC subscriptions through Spinetab while keeping tRPC's typed client.
+Choose the WebSocket or SSE link to match your server.
+
+These examples assume the [bundler plugin and client](/docs/getting-started/) are
+already set up.
+
+```sh
+pnpm add spinetab @trpc/client @trpc/server
+```
+
+<Tabs syncKey="trpc-transport">
+<TabItem label="WebSocket">
+
+```ts title="subscription-link.ts"
+import { spinetabWsLink } from "spinetab/trpc";
+import { spinetab } from "./live";
+import type { AppRouter } from "./server";
+
+export const subscriptionLink = spinetabWsLink<AppRouter>({
+  client: spinetab,
+  url: "/trpc-ws",
+});
+```
+
+</TabItem>
+<TabItem label="SSE">
+
+```ts title="subscription-link.ts"
+import { spinetabSseLink } from "spinetab/trpc";
+import { spinetab } from "./live";
+import type { AppRouter } from "./server";
+
+export const subscriptionLink = spinetabSseLink<AppRouter>({
+  client: spinetab,
+  url: "/trpc",
+});
+```
+
+Your server must support tRPC's SSE subscription protocol. This is not the
+plain `sse()` source. [SSE authentication and options](#use-sse-instead-of-websocket)
+are described below.
+
+</TabItem>
+</Tabs>
+
+```ts title="trpc.ts"
+import { createTRPCClient, httpBatchLink, splitLink } from "@trpc/client";
+import { subscriptionLink } from "./subscription-link";
+import type { AppRouter } from "./server";
+
+export const trpc = createTRPCClient<AppRouter>({
+  links: [
+    splitLink({
+      condition: (op) => op.type === "subscription",
+      true: subscriptionLink,
+      false: httpBatchLink({ url: "/trpc" }),
+    }),
+  ],
+});
+```
+
+Subscriptions go to the worker, which hosts the selected tRPC link; queries and
+mutations stay on your existing link. The plugin registers the tRPC adapter for
+you. The client in `live.ts` declares `credentials` or `anonymous: true`, as for
+[GraphQL](/docs/protocols/graphql/).
+
+## Use it in your app
+
+Keep your existing tRPC UI integration and configure its client with the links
+above. These links operate on tRPC subscriptions; they do not turn ordinary
+queries into subscriptions or accept arbitrary SSE/WebSocket feeds.
+
+With the standalone typed client, subscribe when the browser view mounts:
+
+```ts
+import { trpc } from "./trpc";
+
+// This example assumes your router defines an onMessage subscription.
+export function watchMessages() {
+  const subscription = trpc.onMessage.subscribe(undefined, {
+    onData: (message) => console.log(message),
+    onError: (error) => console.error(error),
+  });
+  return () => subscription.unsubscribe();
+}
+```
+
+Use the actual procedure name and input from your `AppRouter`. Place subscription
+creation in React's `useEffect`, Vue's `onMounted`, Svelte's `onMount` or Solid's
+`onMount`, and call the returned disposer on cleanup. For example, React can use
+`useEffect(watchMessages, [])`. A tRPC UI hook
+handles this lifecycle itself. In Next.js, keep it below a `"use client"` boundary;
+in Astro, use a hydrated island. Do not start a live subscription in server
+rendering, a loader or a server action. Configure the [recovery policy](#reconcile)
+on the link, whichever framework renders the data.
+
+## Default behaviour
+
+| Behaviour      | Default                                                                 |
+| -------------- | ----------------------------------------------------------------------- |
+| Identity       | Procedure path and plain-JSON input, excluding `lastEventId`            |
+| Tracked events | Keep tRPC's `{ id, data }` shape; each consumer's last id is its cursor |
+| Cursor         | Forwarded as `lastEventId` whenever the subscription is re-registered   |
+| Replay         | None declared: a reconnect reports `unknown`                            |
+| Credentials    | `connectionParams` from the `credentials` callback, over WebSocket      |
+
+Consumers that start from different cursors never share one upstream
+subscription.
+
+## Reconcile
+
+Declare which procedures replay from `lastEventId`, so a reconnect with a cursor
+reports `resumed`. `true` declares every procedure:
+
+```ts
+spinetabWsLink<AppRouter>({
+  client: spinetab,
+  url: "/trpc-ws",
+  replay: ["onMessage"],
+});
+```
+
+For procedures that need a snapshot refresh, configure `reconcile`. Both links
+keep recoverable subscriptions open through overflow and run the policy after
+delivery returns. The policy receives `path`, `input`, the operation's `context`,
+`continuity`, `status` and an abort `signal`. Use the path and input to refresh
+the right data. This example assumes the link serves a messages subscription:
+
+```ts
+spinetabWsLink<AppRouter>({
+  client: spinetab,
+  url: "/trpc-ws",
+  reconcile: async ({ signal }) => {
+    const messages = await fetchMessages({ signal }); // Application fetch; rejects on failure.
+    if (signal.aborted) return;
+    setMessages(messages);
+  },
+});
+```
+
+The engine waits for a restored connection, coalesces newer loss notices, and
+aborts the old signal on supersession, disconnection or disposal. Check the
+signal before writing application state. Merge deltas with the snapshot using
+your server's version or watermark so a late snapshot cannot replace newer data.
+A failed refresh leaves continuity lost and reports through the client's error
+handler; a later loss notice or reconnection runs the policy again.
+
+For a procedure whose every event contains complete current state, use
+`reconcile: "latest"`; the next delivered event restores continuity. It is not
+appropriate for incremental messages. Replay declarations do not, by themselves,
+recover a consumer's overflowed delivery window: configure a policy for that case.
+
+Without a policy, a gap ends the subscription with `continuity-lost`. Invalid
+payloads, failed connections and terminal procedure errors still end it even
+with a policy. `onContinuity` remains available for observation or custom manual
+handling; its returned promise is not awaited.
+
+## Subscription options
+
+| Option                     | Links     | Meaning                                                                  |
+| -------------------------- | --------- | ------------------------------------------------------------------------ |
+| `replay`                   | Both      | `true`, or the procedure paths that replay from `lastEventId`            |
+| `reconcile`                | Both      | `"latest"` for complete-state events, or an application refresh function |
+| `onStatus`                 | Both      | Every status change, with `{ markReconciled, retry }`                    |
+| `onContinuity`             | Both      | Each notice away from `continuous`, with the same controls               |
+| `connectionParams`         | Both      | String values only. Over SSE they go into the URL, so no secrets         |
+| `retryAttempts`            | Both      | Upstream retry budget                                                    |
+| `anonymous`                | Both      | This endpoint needs no credentials                                       |
+| `scope`                    | Both      | Must equal the client's scope; change it with `setScope()`               |
+| `transformer`              | Both      | `true` when the router uses a data transformer; see below                |
+| `lazyCloseMs`, `keepAlive` | WebSocket | Lazy close delay and ping settings                                       |
+| `withCredentials`          | SSE       | Send cookies cross-origin                                                |
+
+## Transformers
+
+A data transformer such as superjson runs in the worker, since only
+structured-cloneable values cross to the page. Mark the link, then construct the
+adapter with the transformer in your own worker file:
+
+```ts
+spinetabWsLink<AppRouter>({
+  client: spinetab,
+  url: "/trpc-ws",
+  transformer: true,
+});
+```
+
+```ts title="spinetab.worker.ts"
+import { trpcWsAdapter } from "spinetab/trpc/runtime";
+import { defineWorker } from "spinetab/worker";
+import superjson from "superjson";
+
+export default defineWorker(() => [trpcWsAdapter({ transformer: superjson })]);
+```
+
+The plugin finds this file in `src/`, `app/` or the project root and stops
+generating the worker, so list every adapter your app uses here; see
+[Custom worker](/docs/your-worker/).
+`transformer: true` is a marker, not the transformer itself. Without a worker
+adapter configured with the transformer, the marked subscription fails with
+`unsupported-option`. Omitting the marker can expose encoded values to your
+application instead of decoded results.
+
+Subscription inputs must be plain JSON, even with a transformer: they form the
+subscription's identity, so a `Date`, `Map` or class instance in the input is
+unsupported. Results may use the transformer.
+
+## Use SSE instead of WebSocket
+
+`spinetabSseLink` hosts tRPC's `httpSubscriptionLink`; the plugin registers
+`trpcSseAdapter()` for it. Select SSE in the example above; the split client and
+component lifecycle stay the same.
+
+The native `EventSource` cannot send headers, and
+connection parameters end up in the URL, where they reach logs. So the default
+recipe authenticates with cookies. To send `credentials.headers` instead, give
+the adapter a header-capable `EventSource` in your worker file:
+
+```ts
+trpcSseAdapter({ EventSource: HeaderEventSource, headers: true });
+```
+
+A 401 or `UNAUTHORIZED` is `auth-blocked` and rejects the revision that was sent.
+A connection-level `FORBIDDEN` or 403 ends the connection as `failed`, code
+`forbidden`; a procedure's own `FORBIDDEN` ends only that subscription. A
+redirect on a request that carries provider headers is not followed.

@@ -1,0 +1,74 @@
+---
+title: Getting started
+description: Set up Spinetab in Vite, Next.js, Astro, Nuxt, SvelteKit or React Router, then connect your API.
+---
+
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Choose your app's setup guide. You'll add the plugin, create a client and render
+a subscription. The examples connect to your existing API; no Spinetab backend
+is required.
+
+## Choose your setup
+
+<CardGrid>
+  <LinkCard
+    title="Vite"
+    href="/docs/setup/vite/"
+    description="Add the plugin to a React, Vue, Svelte or Solid app."
+  />
+  <LinkCard
+    title="Next.js"
+    href="/docs/setup/nextjs/"
+    description="Wrap your config and add a live App Router Client Component."
+  />
+  <LinkCard
+    title="Astro"
+    href="/docs/setup/astro/"
+    description="Add the integration and hydrate a live island."
+  />
+  <LinkCard
+    title="Nuxt"
+    href="/docs/setup/nuxt/"
+    description="Add the Nuxt module and subscribe from a Vue page."
+  />
+  <LinkCard
+    title="SvelteKit"
+    href="/docs/setup/sveltekit/"
+    description="Add the Vite plugin and read live values with a Svelte store."
+  />
+  <LinkCard
+    title="React Router"
+    href="/docs/setup/react-router/"
+    description="Add the Vite plugin and subscribe from a route component."
+  />
+</CardGrid>
+
+Using another build tool? Add its plugin, then follow the component recipe for
+your framework:
+
+| Your app                         | Build setup                               | Component setup                                            |
+| -------------------------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| webpack                          | [webpack plugin](/docs/bundlers/#webpack) | [Using subscriptions](/docs/frameworks/)                   |
+| Rspack                           | [Rspack plugin](/docs/bundlers/#rspack)   | [Using subscriptions](/docs/frameworks/)                   |
+| Vanilla JavaScript or TypeScript | [Your bundler's plugin](/docs/bundlers/)  | [Vanilla JavaScript](/docs/frameworks/#vanilla-javascript) |
+
+## Connect your existing API
+
+The setup guides let you switch between polling, SSE, WebSocket and fetch streams
+without rewriting the component. For GraphQL, Socket.IO or an existing data
+library, [choose your integration](/docs/choose-integration/): it shows which
+sources fit each library and where to connect them in your framework.
+
+Keep your library's hooks and providers when using an integration. You do not
+need to add Spinetab's value hooks as well.
+
+## Before you deploy
+
+- Set up [authentication and user scopes](/docs/concepts/credentials/) if the feed contains user-specific data.
+- Choose how the app [recovers missed events](/docs/concepts/continuity/). Reconnecting alone cannot recover data the server did not replay.
+- Check [deployment requirements](/docs/deployment/) and [compatibility](/docs/compatibility/).
+
+Custom decoders, protocol handlers and runtime settings belong in a
+[custom worker](/docs/your-worker/). You can add one later without changing how
+your components subscribe.

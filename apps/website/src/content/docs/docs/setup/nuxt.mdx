@@ -1,0 +1,136 @@
+---
+title: Nuxt
+description: Add Spinetab's Nuxt module and render shared live values in a Vue page.
+---
+
+import RecipePicker from "../../../../components/docs/RecipePicker.astro";
+
+import SourceChoices from "../../../../components/docs/SourceChoices.mdx";
+
+This guide uses Nuxt 4 with Vite and its default `app/` directory. It adds a
+shared live feed to an existing app without disabling server rendering.
+
+The examples display a queue value such as `{ "open": 12 }`. Choose the source
+that matches your backend in step 3.
+Use your existing server route or replace the URL and type with your API.
+Spinetab does not create the endpoint.
+
+## Choose your stack
+
+Use a complete recipe for your renderer and data library, or continue below for
+the basic direct subscription.
+
+<RecipePicker framework="nuxt" />
+
+## 1. Add the module
+
+```sh
+pnpm add spinetab
+```
+
+Add the module alongside your existing modules:
+
+```ts title="nuxt.config.ts"
+import { defineNuxtConfig } from "nuxt/config";
+
+export default defineNuxtConfig({
+  modules: ["spinetab/nuxt"],
+});
+```
+
+The module configures the Vite plugin for the client build and generates the
+worker. You do not need to add `spinetab/vite` separately. Restart the dev server
+after changing the config.
+
+## 2. Create the client
+
+```ts title="app/live.ts"
+import { createSpinetab } from "spinetab";
+import { bindClient } from "spinetab/vue";
+
+export const spinetab = createSpinetab();
+export const { useLive } = bindClient(spinetab);
+```
+
+Import the bound composable explicitly from components. No Nuxt runtime plugin
+or provider is required for this setup.
+
+## 3. Choose your source
+
+<SourceChoices />
+
+## 4. Render a subscription
+
+```vue title="app/components/Queue.vue"
+<script setup lang="ts">
+import { queueSource } from "../queue-source";
+import { useLive } from "../live";
+
+const { data, error } = useLive(queueSource, {
+  reconcile: "latest",
+});
+</script>
+
+<template>
+  <p v-if="error" role="alert">Could not load the queue: {{ error.code }}</p>
+  <p v-else-if="data === undefined" role="status">Loading queue…</p>
+  <p v-else>{{ data.open }} open</p>
+</template>
+```
+
+Render it from a page:
+
+```vue title="app/pages/queue.vue"
+<script setup lang="ts">
+import Queue from "../components/Queue.vue";
+</script>
+
+<template>
+  <main>
+    <h1>Queue</h1>
+    <Queue />
+  </main>
+</template>
+```
+
+If you have an [`app/app.vue`](https://nuxt.com/docs/4.x/directory-structure/app/app),
+keep its layout and ensure it renders `<NuxtPage />` for page routing.
+
+The composable renders the loading state on the server, starts its subscription
+on mount in the browser and releases it when the component's scope is disposed.
+A `<ClientOnly>` wrapper is not required. A page cached by `<KeepAlive>` retains
+its subscription until it is disposed; deactivation is not unmounting.
+
+## Check it across tabs
+
+Visit `/queue` in your running app. Navigate away in one tab while keeping the
+other on the queue page; that remaining subscriber continues receiving updates.
+
+Open the page in two tabs of the same browser profile. With SharedWorker available,
+matching subscriptions share the upstream feed or polling schedule. Each component keeps its own value.
+For polling, a new subscriber can trigger a fresh read; check ongoing requests
+rather than expecting exactly one initial request.
+
+Polling reads every five seconds by default and pauses when no consumer is
+eligible, such as when all subscribing tabs are hidden. It reads again when a tab
+returns. If worker sharing is unavailable, each tab runs its own subscriptions;
+see [execution modes](/docs/concepts/modes/).
+
+If you introduce a new adapter during development, restart the dev server if
+Nuxt needs to prepare its dependencies. See the
+[Nuxt development restriction](/docs/compatibility/#known-restrictions) for the
+WebKit cache caveat.
+
+`reconcile: "latest"` fits these full-state feeds. After a delivery gap, the next
+value restores the displayed state.
+Use a [refresh policy](/docs/concepts/continuity/) for feeds of incremental changes.
+
+## Next steps
+
+- Use [GraphQL, Socket.IO or a client library](/docs/choose-integration/) with this setup.
+- Add [authentication and user scopes](/docs/concepts/credentials/) for private data. Keep request-specific credentials out of server module singletons.
+- Read [continuity and recovery](/docs/concepts/continuity/) before using an event stream: reconnecting alone cannot recover missed events.
+- Check [compatible versions and restrictions](/docs/compatibility/) for your stack.
+
+Pass plugin options through the module tuple; see
+[Nuxt configuration](/docs/bundlers/#ssr-frameworks-using-vite).

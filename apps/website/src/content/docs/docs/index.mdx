@@ -1,0 +1,56 @@
+---
+title: Documentation
+description: Share live subscriptions across browser tabs. Start with your frontend setup, then connect your existing API.
+---
+
+Spinetab shares live subscriptions across tabs of your app. When two tabs ask for
+the same feed, Spinetab can share its connection or polling schedule between them.
+
+It runs in the browser and connects to your existing API. Your framework handles
+rendering; libraries such as Apollo, TanStack Query and SWR keep managing their
+own data and caches.
+
+## Start with your app
+
+[Choose your setup](/docs/getting-started/) to add the bundler plugin, create a
+client and render your first subscription. The plugin generates the worker for
+you. Use a framework binding for component cleanup, or the core API in vanilla
+JavaScript.
+
+## Use the API you already have
+
+Choose the source that matches your backend. There is no Spinetab server to install.
+
+| Your API                                      | Guide                                     |
+| --------------------------------------------- | ----------------------------------------- |
+| An HTTP endpoint you read at intervals        | [Polling](/docs/transports/polling/)      |
+| Server-sent events                            | [SSE](/docs/transports/sse/)              |
+| NDJSON or a line-delimited streaming response | [Fetch streams](/docs/transports/stream/) |
+| A WebSocket feed or custom socket protocol    | [WebSocket](/docs/transports/websocket/)  |
+| GraphQL subscriptions over WebSocket or SSE   | [GraphQL](/docs/protocols/graphql/)       |
+| Socket.IO events                              | [Socket.IO](/docs/protocols/socket-io/)   |
+
+For an existing client library, use its integration:
+[Apollo](/docs/integrations/apollo/), [TanStack Query](/docs/integrations/tanstack-query/),
+[SWR](/docs/integrations/swr/), [tRPC](/docs/integrations/trpc/) or
+[AI SDK](/docs/integrations/ai-sdk/).
+
+[Choose your integration](/docs/choose-integration/) maps these sources to your
+framework and data library, including lifecycle and result-shape differences.
+
+## Understand sharing and recovery
+
+A [SharedWorker](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker)
+owns the subscriptions and forwards updates to the tabs. Matching requests share
+work within the same worker and scope. Use a different scope for each user or
+tenant; different endpoints and subscription parameters also stay separate.
+When a browser cannot share a worker,
+Spinetab falls back to running in each tab.
+
+After an interruption, Spinetab restores active, repeatable subscriptions. Recovering missed
+events still needs replay from your server or a refresh from your app. Spinetab
+reports uncertainty rather than treating a reconnected feed as complete.
+
+Read [sharing and identity](/docs/concepts/identity/) for the boundaries,
+[status and health](/docs/concepts/status/) for what to show in the UI, and
+[continuity and recovery](/docs/concepts/continuity/) for handling missed events.

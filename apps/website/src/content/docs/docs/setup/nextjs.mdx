@@ -1,0 +1,135 @@
+---
+title: Next.js
+description: Use Spinetab in the Next.js App Router with a live Client Component, server rendering and automatic worker bundling.
+---
+
+import RecipePicker from "../../../../components/docs/RecipePicker.astro";
+
+import SourceChoices from "../../../../components/docs/SourceChoices.mdx";
+
+This guide adds a shared live feed to an existing Next.js App Router app.
+It works with Turbopack and webpack. Your page can remain a Server Component;
+the component that subscribes uses `"use client"`.
+
+The examples display a queue value such as `{ "open": 12 }`. Choose the source
+that matches your backend in step 3.
+Use an API endpoint that supports your chosen transport. Next.js route handlers
+can serve HTTP responses; a WebSocket feed needs a WebSocket-capable backend.
+The plugin does not create these endpoints.
+
+## Choose your stack
+
+Use a complete recipe for your renderer and data library, or continue below for
+the basic direct subscription.
+
+<RecipePicker framework="nextjs" />
+
+## 1. Wrap your Next.js config
+
+```sh
+pnpm add spinetab
+```
+
+Pass your existing config to `withSpinetab`:
+
+```ts title="next.config.ts"
+import type { NextConfig } from "next";
+import { withSpinetab } from "spinetab/next";
+
+const nextConfig: NextConfig = {
+  // Keep your existing options here.
+};
+
+export default withSpinetab(nextConfig);
+```
+
+The plugin handles the worker build. Restart `next dev` after changing the config.
+You do not need `transpilePackages` or `dynamic(..., { ssr: false })` for Spinetab.
+
+## 2. Create the client
+
+```ts title="app/live.ts"
+import { createSpinetab } from "spinetab";
+import { bindClient } from "spinetab/react";
+
+export const spinetab = createSpinetab();
+export const { useLive, useSpinetabStatus } = bindClient(spinetab);
+```
+
+Import this module only from Client Components or other client modules. If your
+project uses `src/app/`, put these files there instead.
+
+## 3. Choose your source
+
+<SourceChoices />
+
+## 4. Add a Client Component
+
+```tsx title="app/queue.tsx"
+"use client";
+
+import { queueSource } from "./queue-source";
+import { useLive } from "./live";
+
+export function Queue() {
+  const { data, error } = useLive(queueSource, {
+    reconcile: "latest",
+  });
+
+  if (error) return <p role="alert">Could not load the queue: {error.code}</p>;
+  if (data === undefined) return <p role="status">Loading queue…</p>;
+
+  return <p>{data.open} open</p>;
+}
+```
+
+The [`"use client"` directive](https://nextjs.org/docs/app/getting-started/server-and-client-components#using-client-components)
+puts this component and its imports, including `live.ts`, in the client module
+graph. Creating the client starts no connection during server rendering. The
+hook starts the subscription after the component mounts in the browser and
+releases it when the component unmounts.
+
+## 5. Render it from your page
+
+```tsx title="app/page.tsx"
+import { Queue } from "./queue";
+
+export default function Page() {
+  return (
+    <main>
+      <h1>Queue</h1>
+      <Queue />
+    </main>
+  );
+}
+```
+
+Keep hooks and the `live.ts` import in Client Components. Server Components can
+render `Queue` and pass it serialisable props; they cannot call Spinetab hooks.
+
+## Check the result
+
+Open the page in two tabs of the same browser profile. With SharedWorker available,
+matching subscriptions share the upstream feed or polling schedule. Navigate away from the component in
+one tab: the other tab keeps receiving updates.
+
+The hook renders the loading state during prerendering and initial hydration.
+If you chose polling, it starts in the browser, reads every five seconds by default and pauses
+when no consumer is eligible. See [polling](/docs/transports/polling/) for the
+schedule and [execution modes](/docs/concepts/modes/) if the client falls back to
+running in each tab.
+
+`reconcile: "latest"` fits these full-state feeds. After a delivery gap, the next
+value restores the displayed state.
+Use a [refresh policy](/docs/concepts/continuity/) for feeds of incremental changes.
+
+## Next steps
+
+- Use [GraphQL, Socket.IO or a client library](/docs/choose-integration/) with this setup.
+- Add [authentication](/docs/concepts/credentials/) in the client module. Keep server secrets out of browser code.
+- Decide how your app [recovers missed events](/docs/concepts/continuity/).
+
+Monorepo commands, `basePath` and CDN asset prefixes need additional configuration;
+see [Next.js configuration](/docs/bundlers/#nextjs-app-router). The
+[binding reference](/docs/bindings/#nextjs-app-router) covers server rendering and
+client boundaries in detail.

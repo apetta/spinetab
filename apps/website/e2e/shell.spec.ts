@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test("the website shell links to documentation and examples", async ({
+test("the website shell links to documentation and GitHub", async ({
 	page,
 }) => {
 	await page.goto("/");
 	await expect(page).toHaveTitle("Spinetab");
 	await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-		"One spine,every tab.",
+		/One connection,\s*every tab\./,
 	);
 	await page
 		.getByRole("navigation", { name: "Main navigation" })
@@ -15,17 +15,13 @@ test("the website shell links to documentation and examples", async ({
 	await expect(page.getByRole("heading", { level: 1 })).toHaveText(
 		"Documentation",
 	);
-	await page.getByRole("link", { name: "View the embedded examples" }).click();
-	await expect(page.getByRole("heading", { level: 1 })).toHaveText("Examples");
-});
-
-test("the embedded React shell hydrates without browser errors", async ({
-	page,
-}) => {
-	const errors: string[] = [];
-	page.on("pageerror", (error) => errors.push(error.message));
-	await page.goto("/examples/");
-	await page.getByRole("button", { name: "Check interactivity" }).click();
-	await expect(page.getByRole("status")).toHaveText("React is ready.");
-	expect(errors).toEqual([]);
+	const sidebar = page.getByRole("navigation", { name: "Main", exact: true });
+	await sidebar.getByRole("link", { name: "Getting started" }).click();
+	await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+		"Getting started",
+	);
+	await expect(sidebar.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+		"href",
+		"https://github.com/apetta/spinetab",
+	);
 });

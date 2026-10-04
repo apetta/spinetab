@@ -69,6 +69,33 @@
 					"expand": "always"
 				}
 			}
+		},
+		{
+			"includes": [
+				"apps/website/recipes/**/*.vue",
+				"apps/website/recipes/**/*.svelte"
+			],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"useHookAtTopLevel": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"apps/website/src/components/docs/RecipePicker.astro",
+				"apps/website/src/components/docs/RecipeContent.astro",
+				"apps/website/src/pages/docs/recipes/**/*.astro"
+			],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"useJsxKeyInIterable": "off"
+					}
+				}
+			}
 		}
 	],
 	"html": {

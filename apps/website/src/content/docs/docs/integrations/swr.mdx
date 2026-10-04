@@ -1,0 +1,138 @@
+---
+title: SWR
+description: Feed useSWRSubscription from a shared Spinetab subscription, with reconciliation per SWR key.
+---
+
+[Complete examples for your app](/docs/recipes/swr/) include configuration,
+components and cleanup. This page covers the integration API.
+
+Use a shared live feed with `useSWRSubscription`. SWR owns the component-facing
+data; Spinetab supplies the events and subscription lifecycle.
+
+These examples assume the [bundler plugin and client](/docs/getting-started/) are
+already set up.
+
+```sh
+pnpm add spinetab swr
+```
+
+```tsx
+"use client";
+
+import { sse } from "spinetab/sse";
+import { swrSubscription } from "spinetab/swr";
+import useSWRSubscription from "swr/subscription";
+import { spinetab } from "./live";
+
+const prices = swrSubscription(
+  spinetab,
+  (symbol: string) => sse<{ price: number }>(`/api/prices/${symbol}`),
+  { map: (event) => event.price, reconcile: "latest" },
+);
+
+export function Price({ symbol }: { symbol: string }) {
+  const { data, error } = useSWRSubscription(symbol, prices);
+  if (error) return <p>{error.code}</p>;
+  return <p>{data ?? "…"}</p>;
+}
+```
+
+The second argument returns a feed or a request for the SWR key. It must be a pure
+function of the key, because SWR keeps the first `subscribe` for each key. The
+auth scope comes from the client, never from the key. `reconcile: "latest"` suits
+this feed because every event carries the whole price.
+
+## Use it in your app
+
+This is a React integration: use it in Next.js Client Components, Vite React,
+React Router components or a hydrated React island in Astro. `"use client"` is
+only required by Next.js. The subscription hook releases its consumer when the
+last matching SWR subscriber unmounts.
+
+With SWR 2.5.1 and React 19.3, use the default cache for subscriptions inside StrictMode.
+A custom cache provider nested inside StrictMode can fail during development
+remounts, including for subscriptions that do not use Spinetab. An `SWRConfig`
+without a custom `provider` is unaffected.
+
+The example can use polling, WebSocket, a repeatable fetch stream, or a
+[protocol subscription](/docs/choose-integration/#match-your-backend) in place of
+`sse()`. Keep the source builder a pure function of the SWR key. For Vue, Svelte
+or Solid, use a [Spinetab binding](/docs/frameworks/) or TanStack Query instead.
+
+## Default behaviour
+
+| Behaviour                               | Default                                                                                   |
+| --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Data                                    | The event itself, or what `map` returns                                                   |
+| Cache                                   | SWR stores subscription data; your `reconcile` function refreshes any related query cache |
+| `error`                                 | Subscription errors, failed connections, failed refreshes and unhandled continuity loss   |
+| Loss without a policy or `onContinuity` | `gap` and `unknown` reach `error` as `continuity-lost`                                    |
+| Resumable states                        | The subscription stays open through `reconnecting`, `retry-exhausted` and `auth-blocked`  |
+
+## Reconcile
+
+For a feed of changes, pass a refresh for the key. It runs while connected and
+must resolve only after fresh data has been applied, or reject on failure.
+Use `mutate` from `useSWRConfig` so the refresh uses the component's cache provider:
+
+```tsx
+import { useSWRConfig } from "swr";
+
+export function OrderUpdates({ id }: { id: string }) {
+  const { mutate } = useSWRConfig();
+  const updates = swrSubscription(
+    spinetab,
+    (orderId: string) => sse<Order>(`/api/orders/${orderId}`),
+    {
+      reconcile: async (orderId) => {
+        await mutate(
+          `/api/orders/${orderId}/snapshot`,
+          fetchSnapshot(orderId),
+          { revalidate: false, throwOnError: true },
+        );
+      },
+    },
+  );
+  const { error } = useSWRSubscription(id, updates);
+  return error ? <p>{error.code}</p> : null;
+}
+```
+
+`fetchSnapshot` is your application fetch. This refresh updates a separate
+snapshot key read by `useSWR`; it does not replace `useSWRSubscription`'s event
+data. Choose the snapshot key and merge behaviour for your application.
+
+`mutate(key, promise)` writes the result even without a mounted query hook and,
+with `throwOnError: true`, rejects on failure. A key-only `mutate(key)` does not
+confirm a refresh: it may fetch nothing or resolve after a failed fetch.
+
+A failed refresh leaves continuity lost and reaches SWR's `error` as
+`upstream-error`. A later loss notice or reconnect retries it. Spinetab coalesces
+newer notices and does not mark a superseded refresh as reconciled. This adapter's
+refresh callback receives only the key, not an abort signal; it does not cancel
+your fetch. Coordinate other writes to the snapshot key so an older result cannot
+overwrite newer application state.
+
+## Configure subscription data
+
+| Option      | Purpose                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------- |
+| `map`       | Turn an event into SWR data, or into an updater `(current) => next`. Default: the event   |
+| `reconcile` | `"latest"`, or a refresh `(key) => Promise<void>` that rejects on failure (see Reconcile) |
+| `onStatus`  | Every status change, with the key and controls                                            |
+| `consumer`  | Per-consumer options, spread in flat: `...pollEvery(30_000)` from `spinetab/polling`      |
+
+## Status and manual recovery
+
+SWR clears `error` on the next data event, even if continuity is still lost.
+Use `onStatus(status, key, controls)` to track that distinction in your UI.
+
+`onContinuity(continuity, key, controls)` observes each notice away from
+`continuous`. For [manual recovery](/docs/concepts/continuity/#reconcile-manually),
+call `controls.markReconciled({ pending: true })` to restart stopped delivery,
+then `controls.markReconciled()` only after application state is current. The
+callback's returned promise is not awaited; handle errors and overlapping
+refreshes yourself, or use `reconcile`.
+
+`controls.retry()` retries the connection. It does not restart delivery stopped
+by overflow. Both controls become inactive when SWR disposes the subscription.

@@ -1,0 +1,70 @@
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+Choose the format your server already serves. Save **one** of these as
+`queue-source.ts` alongside `live.ts`. Each example receives the complete queue
+value, `{ "open": 12 }`, so the component below stays the same.
+
+<Tabs syncKey="queue-transport">
+<TabItem label="Polling">
+
+Read a JSON response from `GET /api/queue` every five seconds by default.
+
+```ts title="queue-source.ts"
+import { polling } from "spinetab/polling";
+
+export const queueSource = polling<{ open: number }>("/api/queue");
+```
+
+[Polling options](/docs/transports/polling/)
+
+</TabItem>
+<TabItem label="SSE">
+
+Your endpoint serves `text/event-stream` with JSON in each `data:` field.
+
+```ts title="queue-source.ts"
+import { sse } from "spinetab/sse";
+
+export const queueSource = sse<{ open: number }>("/api/queue/events");
+```
+
+[SSE options and named events](/docs/transports/sse/)
+
+</TabItem>
+<TabItem label="WebSocket">
+
+Your WebSocket endpoint sends a JSON queue value in each text frame. This is a
+raw WebSocket feed; GraphQL and Socket.IO need their own adapters.
+
+```ts title="queue-source.ts"
+import { websocket } from "spinetab/websocket";
+
+export const queueSource = websocket<{ open: number }>("/ws/queue", {
+  decoder: "json",
+});
+```
+
+[WebSocket options and custom protocols](/docs/transports/websocket/)
+
+</TabItem>
+<TabItem label="Fetch stream">
+
+Your endpoint streams one JSON value per line (NDJSON). Only declare it
+repeatable when opening the request again is safe.
+
+```ts title="queue-source.ts"
+import { stream } from "spinetab/stream";
+
+export const queueSource = stream<{ open: number }>("/api/queue/stream", {
+  repeatable: true,
+});
+```
+
+[Fetch stream options](/docs/transports/stream/)
+
+</TabItem>
+</Tabs>
+
+These URLs are examples, not routes created by the plugin. Replace them with your
+API. For GraphQL, Socket.IO or a client library, see
+[how sources and integrations fit together](/docs/choose-integration/).

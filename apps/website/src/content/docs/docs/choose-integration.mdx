@@ -1,0 +1,144 @@
+---
+title: Choose your integration
+description: Match your backend, frontend framework and data library without changing how your app renders or owns its cache.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+import RecipePicker from "../../../components/docs/RecipePicker.astro";
+
+Choose a complete setup for your app. Each recipe includes its dependencies,
+provider where needed, component and mounting instructions.
+
+<RecipePicker />
+
+Use one subscription path for each view: component state or your existing data library.
+
+## Match your backend
+
+All seven sources below work with the [React, Vue, Svelte and Solid bindings](/docs/frameworks/)
+and the vanilla `spinetab.subscribe()` API. TanStack Query and SWR also accept
+these sources; their `map` option adapts events to your data shape. TanStack
+Query also provides `reduce` for accumulating updates.
+
+| Backend                | Source                                                                          | Library integration           |
+| ---------------------- | ------------------------------------------------------------------------------- | ----------------------------- |
+| HTTP JSON              | [`polling()`](/docs/transports/polling/)                                        | TanStack Query or SWR         |
+| Server-sent events     | [`sse()`](/docs/transports/sse/)                                                | TanStack Query or SWR         |
+| Raw WebSocket          | [`websocket()`](/docs/transports/websocket/)                                    | TanStack Query or SWR         |
+| Fetch stream           | [`stream()`](/docs/transports/stream/)                                          | TanStack Query or SWR         |
+| GraphQL over WebSocket | [`graphqlWs().subscription()`](/docs/protocols/graphql/#graphql-over-websocket) | Apollo, TanStack Query or SWR |
+| GraphQL over SSE       | [`graphqlSse().subscription()`](/docs/protocols/graphql/#graphql-over-sse)      | Apollo, TanStack Query or SWR |
+| Socket.IO              | [`socketIo().subscription()`](/docs/protocols/socket-io/)                       | TanStack Query or SWR         |
+
+[Apollo](/docs/integrations/apollo/) accepts the GraphQL **endpoint** directly
+and builds operations from your documents. With TanStack Query, SWR or a UI
+binding, build the `.subscription()` request yourself. GraphQL results include
+`data` and `errors`; Socket.IO events are argument arrays. Neither is silently
+converted into an application value.
+
+Two integrations provide their own transport path:
+
+- [tRPC](/docs/integrations/trpc/) uses `spinetabWsLink` or `spinetabSseLink`
+  with a tRPC server. Keep calling the typed tRPC client; do not wrap it in
+  `websocket()` or `sse()`.
+- [AI SDK](/docs/integrations/ai-sdk/) uses `SpinetabChatTransport` with the AI
+  SDK UI message stream protocol. It handles chat start/resume requests, not
+  arbitrary polling or WebSocket feeds.
+
+## Choose where the data lives
+
+| Your data layer | Frontend fit                                                                       | Start here                                                                                                      |
+| --------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Component state | React, Vue, Svelte, Solid; vanilla callbacks                                       | [Using subscriptions](/docs/frameworks/)                                                                        |
+| TanStack Query  | Any of its React, Vue, Svelte or Solid clients backed by the compatible Query core | [Bind a cache and clean up by framework](/docs/integrations/tanstack-query/#start-and-stop-with-your-component) |
+| SWR             | React, including Next.js and React Router                                          | [SWR subscription hook](/docs/integrations/swr/)                                                                |
+| Apollo          | Apollo Client 4's link API; use a UI library compatible with that version          | [GraphQL link and React example](/docs/integrations/apollo/)                                                    |
+| tRPC            | Framework-independent typed client; keep your existing UI integration              | [Subscription links and cleanup](/docs/integrations/trpc/#use-it-in-your-app)                                   |
+| AI SDK          | A chat UI accepting the installed AI SDK's `ChatTransport` interface               | [Chat transport and follow lifecycle](/docs/integrations/ai-sdk/)                                               |
+
+SWR's hook cannot be used in Vue, Svelte or Solid. Apollo and AI SDK transport
+compatibility does not imply that every third-party UI wrapper supports the
+required peer version; check that wrapper before adopting it. For GraphQL without
+an Apollo wrapper, use the [direct source](/docs/protocols/graphql/) with a Spinetab UI binding.
+
+## Keep your framework's client boundary
+
+The backend choice does not change the build plugin or component lifecycle.
+The library choice may add its own provider or cache; Spinetab does not replace it.
+
+| Setup                                       | Where the subscription belongs                                                    |
+| ------------------------------------------- | --------------------------------------------------------------------------------- |
+| [Vite](/docs/setup/vite/)                   | In the component lifecycle for React, Vue, Svelte or Solid                        |
+| [Next.js](/docs/setup/nextjs/)              | Below a `"use client"` boundary; keep library providers in that client tree       |
+| [Nuxt](/docs/setup/nuxt/)                   | In a Vue component; mount imperative bindings in the browser, not a server plugin |
+| [SvelteKit](/docs/setup/sveltekit/)         | In a component store or `onMount`; not a server `load` function                   |
+| [React Router](/docs/setup/react-router/)   | In the route component; not a server `loader` or `action`                         |
+| [Astro](/docs/setup/astro/)                 | Inside a hydrated island; keep library providers and consumers in the same island |
+| [Other bundlers / vanilla](/docs/bundlers/) | Start when the browser view mounts and dispose when it is removed                 |
+
+With server rendering, keep request-specific data and library caches scoped to
+that request. A shared browser connection does not share a cache between tabs
+or make a server module singleton safe for user data.
+
+## Adapt protocol results
+
+These are the two extra data shapes to handle when replacing the plain JSON
+sources in a framework guide. Declare `anonymous: true` or a `credentials`
+callback on your client, and install the protocol's peer libraries.
+
+<Tabs>
+<TabItem label="GraphQL">
+
+```ts title="queue-source.ts"
+import { graphqlWs } from "spinetab/graphql-ws";
+import { QueueChangedDocument } from "./generated/graphql";
+
+export const queueSource = graphqlWs("/graphql").subscription({
+  query: QueueChangedDocument,
+});
+```
+
+`QueueChangedDocument` is your generated typed document for
+`subscription { queue { open } }`. A plain query string also works, but its result
+fields are untyped. Install `graphql` and `graphql-ws`. For GraphQL over SSE, install `graphql-sse`
+and use `graphqlSse("/graphql/stream")` instead. The request and result shape
+stay the same.
+
+The binding's `data` is a GraphQL result: read `data?.data?.queue.open` and handle
+`data?.errors` as well as the binding's transport `error`. In TanStack Query or
+SWR, a `map` callback can select `result.data?.queue`; decide explicitly how your
+app handles partial results and GraphQL errors before caching them.
+
+</TabItem>
+<TabItem label="Socket.IO">
+
+```ts title="queue-source.ts"
+import { socketIo } from "spinetab/socket-io";
+
+export const queueSource = socketIo("/", { sharing: "shared" }).subscription<
+  [{ open: number }]
+>({ event: "queue" });
+```
+
+Install `socket.io-client`. This expects the server to emit
+`socket.emit("queue", { open: 12 })`. Read `data?.[0].open`, or use
+`map: ([queue]) => queue` in the binding, TanStack Query or SWR.
+Only choose `sharing: "shared"` if merging tabs onto one socket suits your server;
+see [rooms and sharing](/docs/protocols/socket-io/).
+
+</TabItem>
+</Tabs>
+
+## Choose recovery from the data, not the transport
+
+- **Complete current value on every event:** `reconcile: "latest"` restores
+  continuity when the next complete value arrives.
+- **Incremental changes:** refresh a snapshot and merge it with live events,
+  or use server replay with a policy for delivery overflow.
+- **One-off work:** do not make a request repeatable just to enable sharing.
+  Use the operation's explicit start/resume contract.
+
+See [recovery policies](/docs/concepts/continuity/) for implementations. The same
+choice applies in every framework; a reconnected transport alone does not prove
+that your displayed data is complete.

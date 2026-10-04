@@ -1,0 +1,252 @@
+---
+title: TanStack Query
+description: Write subscription events into your QueryClient under a key you choose, and reconcile after a loss.
+---
+
+[Complete examples for your app](/docs/recipes/tanstack-query/) include configuration,
+components and cleanup. This page covers the integration API.
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+Connect a live feed to a query key in your existing `QueryClient`. Your components
+keep reading that key through TanStack Query; Spinetab shares the subscription
+that supplies its updates.
+
+These examples assume the [bundler plugin and client](/docs/getting-started/) are
+already set up.
+
+```sh
+pnpm add spinetab @tanstack/query-core
+```
+
+`@tanstack/query-core` is needed for types. React apps usually have it already
+through `@tanstack/react-query`.
+
+## Start and stop with your component
+
+Create a small function that binds your existing cache. This example receives
+complete `{ "n": 1 }` values from SSE; any
+[subscription source](/docs/choose-integration/#match-your-backend) can replace it.
+
+```ts title="tick-feed.ts"
+import type { QueryClient } from "@tanstack/query-core";
+import { sse } from "spinetab/sse";
+import { bindQuery } from "spinetab/tanstack-query";
+import { spinetab } from "./live";
+
+export function startTicks(queryClient: QueryClient) {
+  return bindQuery(spinetab, sse<{ n: number }>("/api/ticks"), {
+    queryClient,
+    queryKey: ["tick"],
+    reconcile: "latest",
+  });
+}
+```
+
+Mount one bridge for this cache key where you want updates to remain active.
+Use the same `QueryClient` as your existing query provider. Your query hooks keep
+reading `["tick"]`; the bridge only supplies live writes and releases its own
+subscription on cleanup.
+
+<Tabs syncKey="ui-framework">
+<TabItem label="React">
+
+```tsx title="TickUpdates.tsx"
+"use client";
+
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { startTicks } from "./tick-feed";
+
+export function TickUpdates() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const binding = startTicks(queryClient);
+    return () => binding.unsubscribe();
+  }, [queryClient]);
+  return null;
+}
+```
+
+Render `<TickUpdates />` beneath your existing `QueryClientProvider`. The
+`"use client"` boundary is needed in Next.js; Vite and React Router do not require it.
+
+</TabItem>
+<TabItem label="Vue">
+
+```vue title="TickUpdates.vue"
+<script setup lang="ts">
+import { useQueryClient } from "@tanstack/vue-query";
+import { onMounted, onUnmounted } from "vue";
+import { startTicks } from "./tick-feed";
+
+const queryClient = useQueryClient();
+let binding: ReturnType<typeof startTicks> | undefined;
+onMounted(() => {
+  binding = startTicks(queryClient);
+});
+onUnmounted(() => binding?.unsubscribe());
+</script>
+```
+
+Render this component under your existing Vue Query plugin/provider. In Nuxt,
+keep that provider's SSR setup; the live binding starts only on browser mount.
+
+</TabItem>
+<TabItem label="Svelte">
+
+```svelte title="TickUpdates.svelte"
+<script lang="ts">
+  import { useQueryClient } from "@tanstack/svelte-query";
+  import { onMount } from "svelte";
+  import { startTicks } from "./tick-feed";
+
+  const queryClient = useQueryClient();
+  onMount(() => {
+    const binding = startTicks(queryClient);
+    return () => binding.unsubscribe();
+  });
+</script>
+```
+
+Render this component under your existing `QueryClientProvider`. `onMount` keeps
+the live binding out of SvelteKit's server rendering.
+
+</TabItem>
+<TabItem label="Solid">
+
+```tsx title="TickUpdates.tsx"
+import { useQueryClient } from "@tanstack/solid-query";
+import { onCleanup, onMount } from "solid-js";
+import { startTicks } from "./tick-feed";
+
+export function TickUpdates() {
+  const queryClient = useQueryClient();
+  let binding: ReturnType<typeof startTicks> | undefined;
+  onMount(() => {
+    binding = startTicks(queryClient);
+  });
+  onCleanup(() => binding?.unsubscribe());
+  return null;
+}
+```
+
+Render this component under your existing `QueryClientProvider`.
+
+</TabItem>
+</Tabs>
+
+For Astro, put this bridge and its provider in the same hydrated island.
+In vanilla code, call `startTicks(queryClient)` when the view mounts and
+`binding.unsubscribe()` when it is removed.
+
+Each event writes the whole value to `["tick"]`. `reconcile: "latest"` restores
+continuity when a new complete value arrives after a gap. Spinetab does not
+cancel ordinary Query fetches during live delivery: if the same key also fetches
+snapshots, use server versions to prevent an older snapshot overwriting a newer
+event. For a stream-only key, disable its query fetch and let the feed populate it.
+
+## Default behaviour
+
+| Behaviour                               | Default                                                                                  |
+| --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Write                                   | `setQueryData(queryKey, event)`, before any `onEvent`                                    |
+| Loss without a policy or `onContinuity` | `gap` and `unknown` reach `onError` as `continuity-lost`, once per notice                |
+| Errors without `onError`                | Reported once through the client's `onCallbackError`, else `reportError`                 |
+| Resumable states                        | The subscription stays open through `reconnecting`, `retry-exhausted` and `auth-blocked` |
+| Query defaults                          | Focus and online managers, defaults and scheduling are never touched                     |
+
+## Reconcile
+
+Pick the policy that matches the feed:
+
+| `reconcile`            | For                                 | What runs after a loss                                                                |
+| ---------------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
+| `"latest"`             | Every event carries the whole value | Delivery restarts; the next event reconciles                                          |
+| `"invalidate"`         | A feed of changes to `queryKey`     | `invalidateQueries({ queryKey })`; reconciled once every matching query has refetched |
+| `{ queryKey }`         | Changes to another key              | The same for that key or prefix                                                       |
+| `(context) => Promise` | Anything else                       | Your refresh; reconciled when it resolves                                             |
+
+A refresh runs while connected. A newer loss notice aborts its signal and queues
+another refresh; failure reaches `onError` and leaves continuity lost. Sharing a
+feed does not deduplicate these application queries: each tab refreshes its cache.
+
+`"invalidate"` and `{ queryKey }` confirm recovery only after every matching query
+refetches successfully. Inactive, disabled, static, paused or missing queries do
+not confirm it. For a prefix containing such entries, use a more specific key or
+a custom refresh.
+
+A custom refresh can cancel an older query fetch before writing its result:
+
+```ts
+bindQuery(spinetab, ticks, {
+  queryClient,
+  queryKey: ["tick"],
+  reconcile: async ({ signal }) => {
+    await queryClient.cancelQueries({ queryKey: ["tick"], exact: true });
+    if (signal.aborted) return;
+    const snapshot = await fetchTick({ signal });
+    if (!signal.aborted) queryClient.setQueryData(["tick"], snapshot);
+  },
+});
+```
+
+`fetchTick` is your application fetch and must reject on failure. Pass the signal
+to the request and check it before writing, so an obsolete refresh cannot replace
+newer data. For a feed of changes, also merge live events with the snapshot using
+a server version or watermark; cancellation alone does not establish their order.
+
+## Configure cache updates
+
+Store a field with `map`, or fold events with `reduce(current, event, meta)`.
+Both require a `queryKey`; choose one, not both:
+
+```ts
+bindQuery(spinetab, ticks, {
+  queryClient,
+  queryKey: ["tick"],
+  map: (tick) => tick.n,
+});
+```
+
+Poll at another rate with `pollEvery` from `spinetab/polling`; `consumer` options
+spread in flat:
+
+```ts
+import { pollEvery } from "spinetab/polling";
+
+bindQuery(spinetab, queue, {
+  queryClient,
+  queryKey: ["queue"],
+  ...pollEvery(30_000),
+});
+```
+
+Watch status with the bound tools, which include `retry()`:
+
+```ts
+bindQuery(spinetab, ticks, { queryClient, queryKey: ["tick"], onStatus: show });
+```
+
+## Custom callbacks
+
+Without `queryKey`, supply `onEvent` to control which cache entries change:
+
+```ts
+bindQuery(spinetab, ticks, {
+  queryClient,
+  onEvent: (tick, tools) => tools.setQueryData(["tick"], tick.n),
+});
+```
+
+The tools expose `setQueryData`, `setQueriesData`, `invalidateQueries`,
+`getQueryData`, `markReconciled` and `retry`. Prefer `reconcile` for refreshing;
+use `onContinuity` and `markReconciled` only when you need
+[manual recovery](/docs/concepts/continuity/#reconcile-manually).
+
+| Callback       | Called with                                                                   |
+| -------------- | ----------------------------------------------------------------------------- |
+| `onEvent`      | Each event in order, the tools and the event metadata                         |
+| `onContinuity` | Each continuity notice away from `continuous` (`gap`, `unknown` or `resumed`) |
+| `onError`      | Terminal outcomes, an unreconciled loss without a policy, a failed refresh    |
+| `onStatus`     | Every status change, with the tools                                           |

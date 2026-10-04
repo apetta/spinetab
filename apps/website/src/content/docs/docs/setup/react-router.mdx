@@ -1,0 +1,129 @@
+---
+title: React Router
+description: Add Spinetab to React Router Framework Mode and share live updates from a route component.
+---
+
+import RecipePicker from "../../../../components/docs/RecipePicker.astro";
+
+import SourceChoices from "../../../../components/docs/SourceChoices.mdx";
+
+This guide uses React Router **Framework Mode** with its Vite plugin. For a
+standalone React app using Declarative or Data Mode, follow the
+[Vite guide](/docs/setup/vite/) instead.
+
+The examples display a queue value such as `{ "open": 12 }`. Choose the source
+that matches your backend in step 3.
+Use an existing endpoint or replace the URL and type with your API.
+Spinetab does not create the endpoint.
+
+## Choose your stack
+
+Use a complete recipe for your renderer and data library, or continue below for
+the basic direct subscription.
+
+<RecipePicker framework="react-router" />
+
+## 1. Add the Vite plugin
+
+```sh
+pnpm add spinetab
+```
+
+Keep your existing plugins and add `spinetab()`:
+
+```ts title="vite.config.ts"
+import { reactRouter } from "@react-router/dev/vite";
+import { spinetab } from "spinetab/vite";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [reactRouter(), spinetab()],
+  optimizeDeps: { entries: ["app/**/*.{ts,tsx}"] },
+});
+```
+
+The plugin generates the worker from your adapter imports. Keep any existing
+path-alias or styling plugins too, and restart the dev server.
+The `entries` setting includes route files in Vite's initial dependency scan,
+avoiding a dependency reload on the first visit. Preserve any other entries your
+app already scans.
+
+## 2. Create the client
+
+```ts title="app/live.ts"
+import { createSpinetab } from "spinetab";
+import { bindClient } from "spinetab/react";
+
+export const spinetab = createSpinetab();
+export const { useLive } = bindClient(spinetab);
+```
+
+## 3. Choose your source
+
+<SourceChoices />
+
+## 4. Add a route component
+
+```tsx title="app/routes/queue.tsx"
+import { queueSource } from "../queue-source";
+import { useLive } from "../live";
+
+export default function Queue() {
+  const { data, error } = useLive(queueSource, {
+    reconcile: "latest",
+  });
+
+  if (error) return <p role="alert">Could not load the queue: {error.code}</p>;
+  if (data === undefined) return <p role="status">Loading queue…</p>;
+
+  return <p>{data.open} open</p>;
+}
+```
+
+Register it in your [route config](https://reactrouter.com/start/framework/routing),
+keeping your existing routes:
+
+```ts title="app/routes.ts"
+import { type RouteConfig, route } from "@react-router/dev/routes";
+
+export default [
+  // Keep your existing routes here.
+  route("queue", "routes/queue.tsx"),
+] satisfies RouteConfig;
+```
+
+Your existing `app/root.tsx` should render an `<Outlet />` for its child routes.
+
+The hook renders the loading state during SSR and starts the subscription when
+the route component mounts in the browser. Unmounting releases it. This standard
+Framework Mode setup does not need a `"use client"` directive or disabled SSR.
+Use Spinetab in the component, not in a server `loader` or `action`.
+
+## Check it across tabs
+
+Visit `/queue` in your running app. Navigate away in one tab: the subscription in
+the other tab continues.
+
+Open the page in two tabs of the same browser profile. With SharedWorker available,
+matching subscriptions share the upstream feed or polling schedule. Each component keeps its own value.
+For polling, a new subscriber can trigger a fresh read; check ongoing requests
+rather than expecting exactly one initial request.
+
+Polling reads every five seconds by default and pauses when no consumer is
+eligible, such as when all subscribing tabs are hidden. It reads again when a tab
+returns. If worker sharing is unavailable, each tab runs its own subscriptions;
+see [execution modes](/docs/concepts/modes/).
+
+`reconcile: "latest"` fits these full-state feeds. After a delivery gap, the next
+value restores the displayed state.
+Use a [refresh policy](/docs/concepts/continuity/) for feeds of incremental changes.
+
+## Next steps
+
+- Use [GraphQL, Socket.IO or a client library](/docs/choose-integration/) with this setup.
+- Add [authentication and user scopes](/docs/concepts/credentials/) for private data. Keep request-specific credentials out of server module singletons.
+- Read [continuity and recovery](/docs/concepts/continuity/) before using an event stream: reconnecting alone cannot recover missed events.
+- Check [compatible versions and restrictions](/docs/compatibility/) for your stack.
+
+See [Vite framework configuration](/docs/bundlers/#ssr-frameworks-using-vite)
+for build options and [React bindings](/docs/bindings/#react) for hook APIs.

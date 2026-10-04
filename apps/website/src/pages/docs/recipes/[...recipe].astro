@@ -1,0 +1,119 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import RecipeContent from "../../../components/docs/RecipeContent.astro";
+import RecipePicker from "../../../components/docs/RecipePicker.astro";
+import {
+	type Consumer,
+	consumers,
+	contexts,
+	type Recipe,
+	recipes,
+	retiredDestination,
+	retiredRecipes,
+	sections,
+	sources,
+} from "../../../recipes/catalogue";
+export function getStaticPaths() {
+	return [
+		...retiredRecipes.map((recipe) => ({
+			params: { recipe: recipe.id },
+			props: { redirect: retiredDestination(recipe) },
+		})),
+		{ params: { recipe: undefined }, props: {} },
+		...Object.entries(sections).map(([consumer, section]) => ({
+			params: { recipe: section.slug },
+			props: { sectionConsumer: consumer },
+		})),
+		...contexts.map((context) => ({
+			params: { recipe: context.id },
+			props: { context },
+		})),
+		...recipes.map((recipe) => ({
+			params: { recipe: recipe.id },
+			props: { recipe },
+		})),
+	];
+}
+if (Astro.props.redirect) return Astro.redirect(Astro.props.redirect);
+const explicitRecipe = Astro.props.recipe as Recipe | undefined;
+const sectionConsumer = (explicitRecipe?.consumer ??
+	Astro.props.sectionConsumer) as Consumer | undefined;
+const recipe =
+	explicitRecipe ??
+	(sectionConsumer
+		? recipes.find((r) => r.consumer === sectionConsumer)
+		: undefined);
+const context = recipe?.context ?? Astro.props.context;
+const section = sectionConsumer ? sections[sectionConsumer] : undefined;
+const title = section
+	? `${section.label} recipes`
+	: context
+		? `${context.label} recipes`
+		: "Recipes";
+const headings = recipe
+	? (
+			[
+				["before-you-start", "Before you start"],
+				["install", "1. Install"],
+				["configure", "2. Configure your app"],
+				["connect", "3. Connect and render"],
+				["mount", "4. Mount the view"],
+				["check", "Check the result"],
+			] as const
+		).map(([slug, text]) => ({ depth: 2, slug, text }))
+	: [];
+---
+
+<StarlightPage
+	frontmatter={{ title, description: recipe ? `${sources[recipe.source]} with ${consumers[recipe.consumer]} in ${recipe.context.label}: dependencies, configuration, component and cleanup.` : "Choose your framework, data layer and connection for a complete example." }}
+	headings={headings}
+>
+	{recipe && section ? <>
+    <nav aria-label="Recipe navigation"><a href="/docs/recipes/">All recipes</a></nav>
+    <p>{section.description}</p>
+    <div data-recipe-view data-default-url={recipes.find((r) => r.consumer === recipe.consumer)!.url}>
+      <RecipePicker selected={recipe} consumer={recipe.consumer} inline />
+      <RecipeContent recipe={recipe} />
+    </div>
+  </> : context ? <>
+    <nav aria-label="Recipe navigation"><a href="/docs/recipes/">All recipes</a></nav>
+    <p>Choose how to use subscriptions in {context.label}.</p>
+    <RecipePicker framework={context.framework} selected={recipes.find((r) => r.context.id === context.id)} />
+    <ul>{Object.entries(sections).map(([consumer, entry]) => {
+      const target = recipes.find((r) => r.context.id === context.id && r.consumer === consumer);
+      return target && <li><a href={target.url}>{entry.label}</a></li>;
+    })}</ul>
+  </> : <>
+    <p>Complete examples for your app, from installation to a working subscription.</p>
+    <div class="recipe-sections">
+      {Object.values(sections).map((entry) => <section>
+        <h2><a href={`/docs/recipes/${entry.slug}/`}>{entry.label}</a></h2>
+        <p>{entry.description}</p>
+      </section>)}
+    </div>
+  </>}
+</StarlightPage>
+<style>
+.recipe-sections {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.5rem 2rem;
+	margin-top: 2rem;
+}
+.recipe-sections section {
+	flex: 1 1 16rem;
+	min-width: 0;
+	margin: 0;
+}
+.recipe-sections h2 {
+	margin: 0;
+	font-size: var(--sl-text-xl);
+}
+.recipe-sections p {
+	margin-top: 0.5rem;
+	color: var(--sl-color-gray-2);
+}
+nav {
+	font-size: var(--sl-text-sm);
+}
+</style>
