@@ -22,6 +22,7 @@ import {
 
 let root: string;
 let browser: Browser;
+let installed = false;
 beforeAll(async () => {
 	root = await fixture("next");
 	const manifest = JSON.parse(
@@ -49,13 +50,14 @@ beforeAll(async () => {
 		"pnpm",
 		[
 			"install",
-			"--offline",
+			"--prefer-offline",
 			"--ignore-scripts",
 			"--config.auto-install-peers=false",
 		],
 		{ cwd: root, logFile: join(root, "install.log"), timeoutMs: 120_000 },
 	);
 	expect(install.code, install.output).toBe(0);
+	installed = true;
 	assertFresh(root);
 	mkdirSync(join(root, "app"));
 	writeFileSync(
@@ -66,7 +68,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
 	await browser?.close();
-	if (root) assertFresh(root);
+	if (installed) assertFresh(root);
 });
 
 const cases = {
