@@ -17,6 +17,17 @@ export default defineConfig({
 	test: {
 		projects: [
 			{
+				test: {
+					...common,
+					name: "tree-shaking",
+					environment: "node",
+					include: ["tests/tree-shaking/**/*.test.ts"],
+					fileParallelism: false,
+					testTimeout: 600_000,
+					hookTimeout: 600_000,
+				},
+			},
+			{
 				resolve: { alias },
 				test: {
 					...common,

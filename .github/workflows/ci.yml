@@ -93,6 +93,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build publication candidate
         run: pnpm --filter spinetab build
+      - name: Verify production tree shaking and worker retention
+        run: pnpm --filter spinetab test:tree-shaking
       - name: Pack and install isolated consumers
         run: pnpm --filter spinetab consumers:prepare
       - name: Verify consumer builds, declarations and peer isolation
@@ -104,6 +106,8 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: packed-consumer-release-results
-          path: packages/spinetab/test-results/consumers/
+          path: |
+            packages/spinetab/test-results/consumers/
+            packages/spinetab/test-results/tree-shaking/
           retention-days: 7
           if-no-files-found: error

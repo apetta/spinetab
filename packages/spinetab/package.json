@@ -412,6 +412,7 @@
 		"test:dom": "vitest run --project dom",
 		"test:integration": "vitest run --project integration",
 		"test:package": "vitest run --project package",
+		"test:tree-shaking": "vitest run --project tree-shaking --reporter=default --reporter=json --outputFile.json=test-results/tree-shaking/results.json",
 		"test:unit": "vitest run --project unit",
 		"typecheck": "tsc --noEmit"
 	},

@@ -6,7 +6,7 @@ import type { ClientStatus, SubscriptionStatus } from "./types.ts";
  */
 
 /** Server rendering status: identical on every server call. */
-export const SERVER_STATUS: ClientStatus = Object.freeze({
+export const SERVER_STATUS: ClientStatus = /* @__PURE__ */ Object.freeze({
 	mode: "inactive",
 	reason: "server",
 	health: "unknown",
@@ -14,15 +14,19 @@ export const SERVER_STATUS: ClientStatus = Object.freeze({
 }) as ClientStatus;
 
 /** Browser status before `start()` or the first subscribe. */
-export const INACTIVE_STATUS: ClientStatus = Object.freeze({
+export const INACTIVE_STATUS: ClientStatus = /* @__PURE__ */ Object.freeze({
 	mode: "inactive",
 	health: "unknown",
 	generation: 0,
 }) as ClientStatus;
 
 /** Status of an inert server-side subscription handle. */
-export const SERVER_SUBSCRIPTION_STATUS: SubscriptionStatus = Object.freeze({
-	active: false,
-	connection: Object.freeze({ state: "inactive", since: 0 }),
-	continuity: Object.freeze({ state: "continuous", since: 0 }),
-}) as SubscriptionStatus;
+export const SERVER_SUBSCRIPTION_STATUS: SubscriptionStatus =
+	/* @__PURE__ */ Object.freeze({
+		active: false,
+		connection: /* @__PURE__ */ Object.freeze({ state: "inactive", since: 0 }),
+		continuity: /* @__PURE__ */ Object.freeze({
+			state: "continuous",
+			since: 0,
+		}),
+	}) as SubscriptionStatus;

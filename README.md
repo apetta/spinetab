@@ -78,11 +78,14 @@ Validation tooling in the library, run with `pnpm --filter spinetab run <script>
 | `consumers:prepare` | Pack the library and prepare out-of-tree consumer applications      |
 | `test:consumers`    | Install, build and type-check the packed package in those consumers |
 | `e2e:consumers`     | Run the consumer applications in browsers                           |
+| `test:tree-shaking` | Verify unused-export removal and production worker retention        |
 | `perf`              | Run the Playwright performance scenarios                            |
 
 `perf:sizes`, `perf:aggregate` and `consumers:matrix` summarise their results. These
 scripts are not part of `pnpm test` or routine CI. A manually dispatched CI run
-also verifies packed consumer applications.
+also verifies tree shaking and packed consumer applications. Run the library
+build before `test:tree-shaking`; it packs that build and checks Vite, webpack,
+Rspack and Next.js (Turbopack and webpack).
 
 Before the first browser test run:
 
