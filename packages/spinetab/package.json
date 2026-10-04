@@ -1,7 +1,16 @@
 {
 	"name": "spinetab",
 	"description": "Share live subscriptions across browser tabs and recover after interruptions.",
-	"version": "0.0.0",
+	"version": "0.1.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/apetta/spinetab.git",
+		"directory": "packages/spinetab"
+	},
+	"homepage": "https://github.com/apetta/spinetab#readme",
+	"bugs": {
+		"url": "https://github.com/apetta/spinetab/issues"
+	},
 	"devDependencies": {
 		"@ai-sdk/react": "4.0.119",
 		"@apollo/client": "4.3.1",
@@ -382,6 +391,7 @@
 	"files": [
 		"dist",
 		"README.md",
+		"CHANGELOG.md",
 		"LICENSE"
 	],
 	"license": "MIT",
@@ -458,6 +468,5 @@
 		"vue": {
 			"optional": true
 		}
-	},
-	"private": true
+	}
 }
