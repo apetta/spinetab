@@ -9,6 +9,7 @@ import {
 	renderers,
 	sources,
 } from "../../recipes/catalogue";
+import Arrow from "../Arrow.astro";
 
 interface Props {
 	framework?: string;
@@ -95,7 +96,7 @@ const catalogue = available.map((r) => [
 		</label> : null}
 	</div>
 	<a class="recipe-link" data-recipe-link href={current.url}
-		>Open recipe <span aria-hidden="true">→</span></a
+		>Open recipe <Arrow direction="right" /></a
 	>
 
 	<p

@@ -1,0 +1,9 @@
+@import "@fontsource/gelasio/latin-400.css";
+@import "@fontsource/gelasio/latin-700.css";
+@import "@fontsource-variable/cabin/wght.css";
+@import "@fontsource-variable/cabin/wght-italic.css";
+
+:root {
+	--font-body: "Cabin Variable", "Trebuchet MS", Arial, sans-serif;
+	--font-heading: "Gelasio", Georgia, serif;
+}

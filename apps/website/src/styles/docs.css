@@ -1,5 +1,9 @@
+@import "./fonts.css";
+
 :root {
-	--sl-font: "Trebuchet MS", Arial, sans-serif;
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+	--sl-font: var(--font-body);
 	--sl-color-accent-low: #3d3349;
 	--sl-color-accent: #bba7cc;
 	--sl-color-accent-high: #dfcdeb;
@@ -57,7 +61,7 @@
 h1,
 h2,
 h3 {
-	font-family: Georgia, serif;
+	font-family: var(--font-heading);
 	font-weight: bold;
 	letter-spacing: -0.035em;
 }
@@ -177,7 +181,7 @@ mobile-starlight-toc .display-current {
 	background-color: var(--st-danger);
 }
 .starlight-aside__title {
-	font-family: Georgia, serif;
+	font-family: var(--font-heading);
 	letter-spacing: -0.02em;
 }
 .sl-markdown-content table {
@@ -212,7 +216,7 @@ mobile-starlight-toc .display-current {
 }
 .sl-link-card .title,
 .pagination-links .link-title {
-	font-family: Georgia, serif;
+	font-family: var(--font-heading);
 	letter-spacing: -0.02em;
 }
 .sl-link-card:has(a:focus-visible),

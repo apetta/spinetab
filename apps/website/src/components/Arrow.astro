@@ -1,0 +1,36 @@
+---
+interface Props {
+	direction?: "diagonal" | "right" | "both";
+	class?: string;
+}
+const { direction = "diagonal", class: className } = Astro.props;
+const paths = {
+	diagonal: "M5 19 19 5 M7 5h12v12",
+	right: "M4 12h16 M14 6l6 6-6 6",
+	both: "M3 12h26 M9 5l-7 7 7 7 M23 5l7 7-7 7",
+};
+---
+
+<svg
+	class:list={["arrow-icon", className]}
+	viewBox={direction === "both" ? "0 0 32 24" : "0 0 24 24"}
+	width="1em"
+	height="1em"
+	fill="none"
+	stroke="currentColor"
+	stroke-width="1.5"
+	stroke-linecap="round"
+	stroke-linejoin="round"
+	aria-hidden="true"
+	focusable="false"
+>
+	<path d={paths[direction]} />
+</svg>
+
+<style>
+.arrow-icon {
+	display: inline-block;
+	flex-shrink: 0;
+	vertical-align: -0.15em;
+}
+</style>

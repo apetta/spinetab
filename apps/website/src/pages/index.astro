@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import Arrow from "../components/Arrow.astro";
 import Spark from "../components/Spark.astro";
 ---
 
@@ -7,7 +8,7 @@ import Spark from "../components/Spark.astro";
 <html lang="en-GB">
 	<head>
 		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<link rel="canonical" href={new URL("/", Astro.site)}>
 		<link rel="sitemap" href="/sitemap-index.xml">
 		<meta
@@ -24,7 +25,7 @@ import Spark from "../components/Spark.astro";
 				<nav aria-label="Main navigation">
 					<a href="/docs/">Documentation</a>
 					<a class="nav-example" href="https://github.com/apetta/spinetab"
-						>GitHub <span aria-hidden="true">↗</span></a
+						>GitHub <Arrow /></a
 					>
 				</nav>
 			</header>
@@ -45,7 +46,7 @@ import Spark from "../components/Spark.astro";
 						</p>
 						<div class="hero-actions">
 							<a class="button" href="/docs/getting-started/"
-								>Get started <span aria-hidden="true">↗</span></a
+								>Get started <Arrow /></a
 							>
 						</div>
 					</div>
@@ -71,8 +72,8 @@ import Spark from "../components/Spark.astro";
 									<span class="window-dots">● ● ●</span><span>Tab one</span>
 								</div>
 								<div class="window-content">
-									<span class="connection-symbol">↔</span
-									><span>Shared<br>stream</span>
+									<Arrow direction="both" class="connection-symbol" />
+									<span>Shared<br>stream</span>
 								</div>
 								<div class="window-bottom">spinetab / shared connection</div>
 							</div>
@@ -242,7 +243,6 @@ import Spark from "../components/Spark.astro";
 									d="M358 92 V66"
 									marker-end="url(#shared-arrow)"
 								/>
-								<circle class="flow-packet packet-to-worker" r="3.5" />
 								<circle class="flow-packet packet-trunk" r="3.5" />
 								<circle class="flow-packet packet-to-left" r="3.5" />
 								<circle class="flow-packet packet-to-centre" r="3.5" />
@@ -331,7 +331,7 @@ import Spark from "../components/Spark.astro";
 						</div>
 						<div class="package-actions">
 							<a class="button" href="/docs/getting-started/"
-								>Get started <span aria-hidden="true">↗</span></a
+								>Get started <Arrow /></a
 							>
 							<code class="install-command">pnpm add spinetab</code>
 						</div>

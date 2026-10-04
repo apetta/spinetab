@@ -1,5 +1,10 @@
+@import "./fonts.css";
+
 :root {
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
 	color-scheme: light dark;
+	--section-space: clamp(5rem, 10vw, 8rem);
 	--paper: light-dark(#f6f4ee, #251e30);
 	--ink: light-dark(#352344, #f5eddb);
 	--line: light-dark(#352344, #bba7cc);
@@ -7,7 +12,7 @@
 	--yellow: light-dark(#f4df83, #e8cc71);
 	--spark-light: light-dark(#9b86af, #a08bb6);
 	--spark-deep: light-dark(#78618e, #715c86);
-	font-family: "Trebuchet MS", Arial, sans-serif;
+	font-family: var(--font-body);
 	color: var(--ink);
 	background: var(--paper);
 	line-height: 1.6;
@@ -48,15 +53,12 @@ nav,
 .site-header {
 	min-height: 7rem;
 	justify-content: space-between;
-	border-bottom: 1.5px solid var(--line);
 	gap: 1.5rem;
 }
 .wordmark {
 	text-transform: lowercase;
 	gap: 0.65rem;
-	font:
-		bold 1.8rem Georgia,
-		serif;
+	font: bold 1.8rem var(--font-heading);
 	letter-spacing: -0.06em;
 	text-decoration: none;
 }
@@ -79,16 +81,13 @@ nav a:hover {
 	display: flex;
 	align-items: center;
 	gap: 3rem;
-	padding-block: clamp(3rem, 7vw, 6.5rem);
+	padding-block: clamp(2.5rem, 5vw, 5rem) var(--section-space);
 }
 .hero-copy {
 	flex: 1 1 50%;
 }
 h1 {
-	font:
-		900 clamp(3rem, 5.5vw, 4.8rem) / 0.99 Georgia,
-		"Times New Roman",
-		serif;
+	font: 900 clamp(3rem, 5.5vw, 4.8rem) / 0.99 var(--font-heading);
 	letter-spacing: -0.065em;
 	margin: 0 0 1.65rem;
 }
@@ -189,15 +188,13 @@ h1 {
 	justify-content: center;
 	gap: 1.1rem;
 	height: 10.5rem;
-	font:
-		bold 2.7rem / 0.98 Georgia,
-		serif;
+	font: bold 2.7rem / 0.98 var(--font-heading);
 	letter-spacing: -0.05em;
 }
 .connection-symbol {
-	font:
-		4.5rem Georgia,
-		serif;
+	width: 1em;
+	height: 0.75em;
+	font-size: 4.5rem;
 }
 .window-bottom {
 	padding: 0.5rem 0.85rem;
@@ -292,9 +289,7 @@ h1 {
 	transform: rotate(-11deg);
 }
 h2 {
-	font:
-		bold 1.45rem / 1.15 Georgia,
-		serif;
+	font: bold 1.45rem / 1.15 var(--font-heading);
 	letter-spacing: -0.03em;
 	margin: 0;
 }
@@ -398,7 +393,7 @@ h2 {
 		font-size: 2.2rem;
 	}
 }
-@media (max-width: 640px) {
+@media (max-width: 760px) {
 	.site-header {
 		min-height: 6rem;
 	}
@@ -416,7 +411,7 @@ h2 {
 	.hero {
 		flex-direction: column;
 		align-items: stretch;
-		padding-top: 3rem;
+		padding-top: 2rem;
 		gap: 2.5rem;
 	}
 	h1 {
@@ -473,7 +468,7 @@ h2 {
 }
 
 .comparison {
-	padding-block: 1rem 4.5rem;
+	padding-block: 1rem var(--section-space);
 }
 .comparison-intro {
 	display: flex;
@@ -568,9 +563,7 @@ h2 {
 }
 .diagram-wordmark {
 	fill: #352344;
-	font:
-		bold 23px Georgia,
-		serif;
+	font: bold 23px var(--font-heading);
 	letter-spacing: -1px;
 }
 .diagram-worker-label {
@@ -650,7 +643,7 @@ h2 {
 	}
 }
 
-/* Both diagrams deliver to every tab at 70% of the cycle; keep the packet paths aligned with the SVG arrows. */
+/* The trunk and branches must meet at 42% of the cycle. */
 .flow-packet {
 	fill: #f4df83;
 	stroke: #352344;
@@ -668,12 +661,8 @@ h2 {
 .packet-direct-right {
 	offset-path: path("M358 214 V82");
 }
-.packet-to-worker {
-	offset-path: path("M210 214 V186");
-	animation-name: worker-update;
-}
 .packet-trunk {
-	offset-path: path("M210 112 V92");
+	offset-path: path("M210 214 V92");
 	animation-name: trunk-update;
 }
 .packet-to-left {
@@ -708,9 +697,8 @@ h2 {
 		opacity: 0;
 	}
 }
-@keyframes worker-update {
-	0%,
-	9% {
+@keyframes trunk-update {
+	0% {
 		offset-distance: 0%;
 		opacity: 0;
 	}
@@ -718,31 +706,11 @@ h2 {
 		offset-distance: 0%;
 		opacity: 1;
 	}
-	30% {
-		offset-distance: 100%;
-		opacity: 1;
-	}
-	32%,
-	100% {
-		offset-distance: 100%;
-		opacity: 0;
-	}
-}
-@keyframes trunk-update {
-	0%,
-	31% {
-		offset-distance: 0%;
-		opacity: 0;
-	}
-	32% {
-		offset-distance: 0%;
-		opacity: 1;
-	}
 	42% {
 		offset-distance: 100%;
 		opacity: 1;
 	}
-	43%,
+	42.01%,
 	100% {
 		offset-distance: 100%;
 		opacity: 0;
@@ -750,7 +718,7 @@ h2 {
 }
 @keyframes forwarded-update {
 	0%,
-	41% {
+	41.99% {
 		offset-distance: 0%;
 		opacity: 0;
 	}
