@@ -35,6 +35,19 @@ export default defineConfig({
 					include: ["tests/dom/**/*.test.{ts,tsx}"],
 				},
 			},
+			{
+				// Packed artefact, export resolution, isolation and consumer builds.
+				// Expects an existing `dist/`; run through root Turbo for ordering.
+				test: {
+					...common,
+					name: "package",
+					environment: "node",
+					include: ["tests/package/**/*.test.ts"],
+					exclude: ["tests/package/consumers/**"],
+					testTimeout: 600_000,
+					hookTimeout: 600_000,
+				},
+			},
 		],
 	},
 });

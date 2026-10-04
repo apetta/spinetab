@@ -398,8 +398,9 @@
 	"scripts": {
 		"build": "tsdown",
 		"dev": "tsdown --watch",
-		"test": "vitest run --project unit --project dom",
+		"test": "vitest run --project unit --project dom --project package",
 		"test:dom": "vitest run --project dom",
+		"test:package": "vitest run --project package",
 		"test:unit": "vitest run --project unit",
 		"typecheck": "tsc --noEmit"
 	},
