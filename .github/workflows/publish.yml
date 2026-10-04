@@ -7,10 +7,6 @@ on:
         description: Package version to release
         required: true
         default: "0.1.0"
-      bootstrap:
-        description: Use the temporary token for the first staged release
-        type: boolean
-        default: false
       verified_run_id:
         description: Retry publication using a previously verified release archive
         required: false
@@ -93,6 +89,5 @@ jobs:
           run-id: ${{ inputs.verified_run_id || github.run_id }}
       - name: Stage verified package
         env:
-          NODE_AUTH_TOKEN: ${{ inputs.bootstrap && secrets.NPM_BOOTSTRAP_TOKEN || '' }}
           RELEASE_VERSION: ${{ inputs.version }}
         run: npm stage publish "./release/spinetab-$RELEASE_VERSION.tgz" --access public --provenance
