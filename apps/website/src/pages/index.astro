@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import Spark from "../components/Spark.astro";
 ---
 
 <!doctype html>
@@ -9,7 +10,7 @@ import "../styles/global.css";
 		<meta name="viewport" content="width=device-width">
 		<meta
 			name="description"
-			content="Spinetab is an open-source TypeScript library for sharing connections across browser tabs. In development."
+			content="Share live subscriptions across browser tabs with Spinetab, a client-side TypeScript library for WebSocket, SSE, fetch streams and polling."
 		>
 		<title>Spinetab</title>
 	</head>
@@ -17,43 +18,33 @@ import "../styles/global.css";
 		<a class="skip-link" href="#main">Skip to content</a>
 		<div class="site-shell">
 			<header class="site-header">
-				<a class="wordmark" href="/" aria-label="Spinetab home"
-					><span class="brand-mark" aria-hidden="true"
-						><i></i><i></i><i></i></span
-					>Spinetab</a
-				>
+				<a class="wordmark" href="/" aria-label="Spinetab home">spinetab</a>
 				<nav aria-label="Main navigation">
 					<a href="/docs/">Documentation</a>
-					<a class="nav-example" href="/examples/"
-						>Examples <span aria-hidden="true">↗</span></a
+					<a class="nav-example" href="https://github.com/apetta/spinetab"
+						>GitHub <span aria-hidden="true">↗</span></a
 					>
 				</nav>
 			</header>
 			<main id="main">
 				<section class="hero" aria-labelledby="hero-title">
 					<div class="hero-copy">
-						<p class="release-note">
-							<span aria-hidden="true"></span>
-							In development
-						</p>
-						<h1 id="hero-title">One spine,<br>every tab.</h1>
+						<h1 id="hero-title">One connection,<br>every tab.</h1>
 						<p class="intro">
-							An open-source TypeScript library for sharing live subscriptions
-							to your server across browser tabs, using WebSocket, SSE, fetch
-							streams or polling.
-						</p>
-						<p class="development-note">
-							Powered by{" "}
+							Share live subscriptions to your server across tabs with{" "}
 							<a
 								href="https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker"
 								>SharedWorker</a
-							>.
+							>. Reconnect automatically after interruptions.
+						</p>
+						<p class="package-note">
+							A client-side TypeScript library. Works with your existing
+							backend.
 						</p>
 						<div class="hero-actions">
-							<a class="button" href="/docs/"
-								>Read the docs <span aria-hidden="true">↗</span></a
+							<a class="button" href="/docs/getting-started/"
+								>Get started <span aria-hidden="true">↗</span></a
 							>
-							<a class="text-link" href="/examples/">View examples</a>
 						</div>
 					</div>
 					<figure
@@ -85,18 +76,21 @@ import "../styles/global.css";
 							</div>
 							<div class="connection-wire"></div>
 							<div class="spine-plug"><span>1</span> connection</div>
-							<span class="art-spark spark-one">✳</span
-							><span class="art-spark spark-two">✳</span>
+							<Spark class="art-spark spark-one" />
+							<Spark class="art-spark spark-two" variant="two" />
 						</div>
 					</figure>
 				</section>
 				<section class="comparison" aria-labelledby="comparison-title">
 					<div class="comparison-intro">
-						<h2 id="comparison-title">How connection sharing works</h2>
+						<h2 id="comparison-title">
+							<Spark class="section-spark comparison-spark" />
+							How connection sharing works
+						</h2>
 						<p>
 							If your app opens a WebSocket or SSE connection in each tab, three
-							tabs create three server connections. Spinetab’s planned
-							SharedWorker mode shares one connection between them.
+							tabs create three server connections. Spinetab runs the client in
+							a SharedWorker so compatible tabs can share it.
 						</p>
 					</div>
 					<div class="comparison-panels">
@@ -105,32 +99,98 @@ import "../styles/global.css";
 								<h3>Without Spinetab</h3>
 								<span>3 connections</span>
 							</header>
-							<div
+							<svg
 								class="connection-diagram"
+								viewBox="0 0 420 260"
 								role="img"
-								aria-label="Three browser tabs each open a separate connection to the same server."
+								aria-label="The server sends the same update over three separate connections, one to each tab."
 							>
-								<div class="diagram-tabs" aria-hidden="true">
-									<span>Tab 1</span><span>Tab 2</span><span>Tab 3</span>
-								</div>
-								<div class="separate-connections" aria-hidden="true">
-									<span></span><span></span><span></span>
-								</div>
-								<div class="diagram-server" aria-hidden="true">Your server</div>
-							</div>
+								<defs>
+									<marker
+										id="separate-arrow"
+										viewBox="0 0 8 8"
+										refX="7"
+										refY="4"
+										markerWidth="8"
+										markerHeight="8"
+										markerUnits="userSpaceOnUse"
+										orient="auto"
+									>
+										<path class="diagram-arrow" d="M1 1 L7 4 L1 7" />
+									</marker>
+								</defs>
+								<path
+									class="diagram-link"
+									d="M62 214 V66"
+									marker-end="url(#separate-arrow)"
+								/>
+								<circle class="flow-packet packet-direct-left" r="3.5" />
+								<path
+									class="diagram-link"
+									d="M210 214 V66"
+									marker-end="url(#separate-arrow)"
+								/>
+								<circle class="flow-packet packet-direct-centre" r="3.5" />
+								<path
+									class="diagram-link"
+									d="M358 214 V66"
+									marker-end="url(#separate-arrow)"
+								/>
+								<circle class="flow-packet packet-direct-right" r="3.5" />
+								<rect
+									class="diagram-tab"
+									x="12"
+									y="8"
+									width="100"
+									height="48"
+									rx="6"
+								/>
+								<path class="diagram-link" d="M12 21 H112" />
+								<text class="diagram-label" x="62" y="43">Tab 1</text>
+								<rect
+									class="diagram-tab"
+									x="160"
+									y="8"
+									width="100"
+									height="48"
+									rx="6"
+								/>
+								<path class="diagram-link" d="M160 21 H260" />
+								<text class="diagram-label" x="210" y="43">Tab 2</text>
+								<rect
+									class="diagram-tab"
+									x="308"
+									y="8"
+									width="100"
+									height="48"
+									rx="6"
+								/>
+								<path class="diagram-link" d="M308 21 H408" />
+								<text class="diagram-label" x="358" y="43">Tab 3</text>
+								<rect
+									class="diagram-server-node"
+									x="12"
+									y="222"
+									width="396"
+									height="36"
+									rx="6"
+								/>
+								<text class="diagram-label" x="210" y="245">Your server</text>
+							</svg>
 							<ul class="comparison-details">
 								<li>
 									<strong>A connection per tab.</strong>
-									Three open tabs mean three connections for the server to
-									maintain.
+									<p>Each tab opens its own connection to the same server.</p>
 								</li>
 								<li>
 									<strong>Repeated subscriptions.</strong>
-									Tabs requesting the same data each subscribe separately.
+									<p>
+										Each tab requests its own copy of the same live updates.
+									</p>
 								</li>
 								<li>
 									<strong>Separate reconnects.</strong>
-									Each tab detects disconnects and retries on its own.
+									<p>Each tab reconnects and restores its own subscriptions.</p>
 								</li>
 							</ul>
 						</article>
@@ -139,67 +199,287 @@ import "../styles/global.css";
 								<h3>With Spinetab</h3>
 								<span>1 connection</span>
 							</header>
-							<div
+							<svg
 								class="connection-diagram"
+								viewBox="0 0 420 260"
 								role="img"
-								aria-label="Three browser tabs communicate with Spinetab in a SharedWorker, which owns one connection to the server."
+								aria-label="One server connection feeds the SharedWorker, which forwards each update to all three tabs."
 							>
-								<div class="diagram-tabs" aria-hidden="true">
-									<span>Tab 1</span><span>Tab 2</span><span>Tab 3</span>
-								</div>
-								<div class="shared-connections" aria-hidden="true">
-									<span></span><span></span><span></span>
-								</div>
-								<div class="diagram-worker" aria-hidden="true">
-									<strong>spinetab</strong><span>SharedWorker</span>
-								</div>
-								<div class="single-connection" aria-hidden="true"></div>
-								<div class="diagram-server" aria-hidden="true">Your server</div>
-							</div>
+								<defs>
+									<marker
+										id="shared-arrow"
+										viewBox="0 0 8 8"
+										refX="7"
+										refY="4"
+										markerWidth="8"
+										markerHeight="8"
+										markerUnits="userSpaceOnUse"
+										orient="auto"
+									>
+										<path class="diagram-arrow" d="M1 1 L7 4 L1 7" />
+									</marker>
+								</defs>
+								<path
+									class="diagram-link"
+									d="M210 214 V170"
+									marker-end="url(#shared-arrow)"
+								/>
+								<path class="diagram-link" d="M210 112 V92 H62 M210 92 H358" />
+								<path
+									class="diagram-link"
+									d="M62 92 V66"
+									marker-end="url(#shared-arrow)"
+								/>
+								<path
+									class="diagram-link"
+									d="M210 92 V66"
+									marker-end="url(#shared-arrow)"
+								/>
+								<path
+									class="diagram-link"
+									d="M358 92 V66"
+									marker-end="url(#shared-arrow)"
+								/>
+								<circle class="flow-packet packet-to-worker" r="3.5" />
+								<circle class="flow-packet packet-trunk" r="3.5" />
+								<circle class="flow-packet packet-to-left" r="3.5" />
+								<circle class="flow-packet packet-to-centre" r="3.5" />
+								<circle class="flow-packet packet-to-right" r="3.5" />
+								<rect
+									class="diagram-tab"
+									x="12"
+									y="8"
+									width="100"
+									height="48"
+									rx="6"
+								/>
+								<path class="diagram-link" d="M12 21 H112" />
+								<text class="diagram-label" x="62" y="43">Tab 1</text>
+								<rect
+									class="diagram-tab"
+									x="160"
+									y="8"
+									width="100"
+									height="48"
+									rx="6"
+								/>
+								<path class="diagram-link" d="M160 21 H260" />
+								<text class="diagram-label" x="210" y="43">Tab 2</text>
+								<rect
+									class="diagram-tab"
+									x="308"
+									y="8"
+									width="100"
+									height="48"
+									rx="6"
+								/>
+								<path class="diagram-link" d="M308 21 H408" />
+								<text class="diagram-label" x="358" y="43">Tab 3</text>
+								<rect
+									class="diagram-worker-node"
+									x="76"
+									y="120"
+									width="268"
+									height="40"
+									rx="6"
+								/>
+								<text class="diagram-wordmark" x="96" y="146">spinetab</text>
+								<text class="diagram-worker-label" x="218" y="145">
+									SharedWorker
+								</text>
+								<rect
+									class="diagram-server-node"
+									x="12"
+									y="222"
+									width="396"
+									height="36"
+									rx="6"
+								/>
+								<text class="diagram-label" x="210" y="245">Your server</text>
+							</svg>
 							<ul class="comparison-details">
 								<li>
-									<strong>One connection for all tabs.</strong>
-									The worker owns the connection and forwards updates to the
-									tabs.
+									<strong>A shared connection.</strong>
+									<p>One worker shares a server connection across your tabs.</p>
 								</li>
 								<li>
 									<strong>Shared subscriptions.</strong>
-									Matching requests share a subscription and receive the same
-									updates.
+									<p>
+										Matching requests share one subscription to live updates.
+									</p>
 								</li>
 								<li>
-									<strong>Shared reconnection.</strong>
-									The worker handles connection recovery for all tabs.
+									<strong>Coordinated recovery.</strong>
+									<p>
+										One worker reconnects and restores shared subscriptions.
+									</p>
 								</li>
 							</ul>
 						</article>
 					</div>
-					<p class="comparison-note">
-						Planned behaviour for tabs on the same origin and session,
-						requesting the same feed. Separate feeds or sessions may need
-						separate connections.
-					</p>
 				</section>
-				<section class="project-strip" aria-label="About this project">
-					<div class="strip-heading">
-						<span aria-hidden="true">✳</span>
-						<h2>Package and adapters</h2>
+				<section class="package-section" aria-labelledby="package-title">
+					<div class="package-heading">
+						<div>
+							<h2 id="package-title">
+								<Spark class="section-spark package-spark" variant="two" />
+								Package and adapters
+							</h2>
+							<p>One package. Import the parts your app uses.</p>
+						</div>
+						<div class="package-actions">
+							<a class="button" href="/docs/getting-started/"
+								>Get started <span aria-hidden="true">↗</span></a
+							>
+							<code class="install-command">pnpm add spinetab</code>
+						</div>
 					</div>
-					<p>
-						Framework bindings and protocol adapters are planned as optional
-						imports from the spinetab package.
-					</p>
-					<a href="/docs/"
-						>Package structure <span aria-hidden="true">↗</span></a
-					>
+					<div class="package-core">
+						<h3>Core</h3>
+						<p>
+							Connection sharing, subscription lifetimes and recovery. Your app
+							keeps control of its data and cache.
+						</p>
+						<div class="import-list">
+							<a href="/docs/getting-started/"><code>spinetab</code></a
+							><a href="/docs/your-worker/"><code>spinetab/worker</code></a>
+						</div>
+					</div>
+					<div class="package-groups">
+						<article class="package-group">
+							<h3>Transports</h3>
+							<p>Connect to your HTTP or WebSocket endpoints.</p>
+							<ul>
+								<li>
+									<a href="/docs/transports/websocket/"
+										><span>WebSocket</span><code>/websocket</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/transports/sse/"
+										><span>Server-sent events</span><code>/sse</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/transports/stream/"
+										><span>Fetch streams</span><code>/stream</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/transports/polling/"
+										><span>HTTP polling</span><code>/polling</code></a
+									>
+								</li>
+							</ul>
+						</article>
+						<article class="package-group">
+							<h3>Protocol adapters</h3>
+							<p>Share existing protocol clients in the worker.</p>
+							<ul>
+								<li>
+									<a href="/docs/protocols/graphql/#graphql-over-websocket"
+										><span>GraphQL over WebSocket</span
+										><code>/graphql-ws</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/protocols/graphql/#graphql-over-sse"
+										><span>GraphQL over SSE</span><code>/graphql-sse</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/protocols/socket-io/"
+										><span>Socket.IO</span><code>/socket-io</code></a
+									>
+								</li>
+							</ul>
+						</article>
+						<article class="package-group">
+							<h3>Library integrations</h3>
+							<p>Use shared subscriptions with your data libraries.</p>
+							<ul>
+								<li>
+									<a href="/docs/integrations/apollo/"
+										><span>Apollo Client</span><code>/apollo</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/integrations/tanstack-query/"
+										><span>TanStack Query</span><code>/tanstack-query</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/integrations/swr/"
+										><span>SWR</span><code>/swr</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/integrations/trpc/"
+										><span>tRPC</span><code>/trpc</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/integrations/ai-sdk/"
+										><span>AI SDK</span><code>/ai-sdk</code></a
+									>
+								</li>
+							</ul>
+						</article>
+						<article class="package-group">
+							<h3>Framework bindings</h3>
+							<p>Subscription cleanup and reactive connection status.</p>
+							<ul>
+								<li>
+									<a href="/docs/frameworks/#react"
+										><span>React</span><code>/react</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/frameworks/#vue"
+										><span>Vue</span><code>/vue</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/frameworks/#svelte"
+										><span>Svelte</span><code>/svelte</code></a
+									>
+								</li>
+								<li>
+									<a href="/docs/frameworks/#solid"
+										><span>Solid</span><code>/solid</code></a
+									>
+								</li>
+							</ul>
+						</article>
+					</div>
 				</section>
-				<p class="scaffold-note">
-					The library and live connection demos are not implemented yet.
-				</p>
 			</main>
 			<footer class="site-footer">
-				<span>spinetab</span><span>In development</span>
+				<span class="wordmark" data-spotlight
+					>spinetab<span
+						class="spotlight-highlight wordmark-highlight"
+						aria-hidden="true"
+						>spinetab</span
+					></span
+				>
+				<Spark class="section-spark footer-spark" />
 			</footer>
 		</div>
+		<script>
+		import "../scripts/spotlight";
+
+		const diagrams = document.querySelectorAll(".connection-diagram");
+		if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			const observer = new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						entry.target.classList.toggle("show-flow", entry.isIntersecting);
+					}
+				},
+				{ threshold: 0.5 },
+			);
+			for (const diagram of diagrams) observer.observe(diagram);
+		}
+		</script>
 	</body>
 </html>

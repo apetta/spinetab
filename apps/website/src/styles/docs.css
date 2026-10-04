@@ -1,30 +1,57 @@
 :root {
 	--sl-font: "Trebuchet MS", Arial, sans-serif;
-	--sl-color-accent-low: #483557;
-	--sl-color-accent: #ceb7ee;
-	--sl-color-accent-high: #ecddff;
+	--sl-color-accent-low: #3d3349;
+	--sl-color-accent: #bba7cc;
+	--sl-color-accent-high: #dfcdeb;
 	--sl-color-white: #f5eddb;
-	--sl-color-gray-1: #ede5f2;
-	--sl-color-gray-2: #c8bbd3;
-	--sl-color-gray-3: #a495b2;
-	--sl-color-gray-4: #756580;
-	--sl-color-gray-5: #46394f;
+	--sl-color-gray-1: #e7e0e9;
+	--sl-color-gray-2: #c4bacb;
+	--sl-color-gray-3: #a397ad;
+	--sl-color-gray-4: #776a81;
+	--sl-color-gray-5: #4c4057;
 	--sl-color-gray-6: #302739;
 	--sl-color-black: #251e30;
+	--st-line: #51455d;
+	--st-code-line: #796785;
+	--st-code-bg: #1d1726;
+	--st-raised: #2d2537;
+	--st-table-head: #302739;
+	--st-note: #302a39;
+	--st-tip: #28342e;
+	--st-caution: #373126;
+	--st-danger: #392b30;
 }
 :root[data-theme="light"] {
-	--sl-color-accent-low: #e7daf6;
-	--sl-color-accent: #67438c;
-	--sl-color-accent-high: #352344;
+	--sl-color-accent-low: #eae5ee;
+	--sl-color-accent: #70577e;
+	--sl-color-accent-high: #50375f;
 	--sl-color-white: #352344;
-	--sl-color-gray-1: #493651;
-	--sl-color-gray-2: #5c4969;
-	--sl-color-gray-3: #786486;
-	--sl-color-gray-4: #a995b6;
-	--sl-color-gray-5: #d8cbe4;
-	--sl-color-gray-6: #eee8f7;
-	--sl-color-gray-7: #f7f2fc;
-	--sl-color-black: #fffbee;
+	--sl-color-gray-1: #403744;
+	--sl-color-gray-2: #554e59;
+	--sl-color-gray-3: #706974;
+	--sl-color-gray-4: #969099;
+	--sl-color-gray-5: #d6d0d8;
+	--sl-color-gray-6: #eae7e2;
+	--sl-color-gray-7: #f0eee8;
+	--sl-color-black: #f6f4ee;
+	--st-line: #d5d0c9;
+	--st-code-line: #b5acbc;
+	--st-code-bg: #eeebe5;
+	--st-raised: #f0eee8;
+	--st-table-head: #eeebe5;
+	--st-note: #efebf0;
+	--st-tip: #eaf0e9;
+	--st-caution: #f3eedf;
+	--st-danger: #f3e9e5;
+}
+:root,
+:root[data-theme="light"] {
+	--sl-color-bg-nav: var(--sl-color-bg);
+	--sl-color-bg-sidebar: var(--sl-color-bg);
+	--sl-color-hairline: var(--st-line);
+	--sl-color-hairline-light: var(--st-line);
+	--sl-color-hairline-shade: var(--st-line);
+	--sl-color-bg-inline-code: var(--st-raised);
 }
 .site-title,
 h1,
@@ -39,33 +66,214 @@ h3 {
 	color: var(--sl-color-white);
 }
 header.header {
-	border-bottom: 1px solid var(--sl-color-gray-4);
+	border-bottom: 1px solid var(--st-line);
 }
-.sl-markdown-content a:focus-visible,
-button:focus-visible {
+:where(a, button, select, summary, input):focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 3px;
+}
+.header .social-icons:not(:has(a)) {
+	display: none;
+}
+starlight-theme-select select {
+	border-radius: 0.4rem;
+}
+@media (min-width: 50rem) {
+	site-search button[data-open-modal] {
+		background: var(--st-raised);
+		border-color: var(--st-line);
+		border-radius: 0.5rem;
+	}
+	site-search button[data-open-modal] > kbd {
+		align-items: center;
+		gap: 0.3rem;
+		min-height: 1.5rem;
+		padding: 0.125rem 0.4rem;
+		line-height: 1.25;
+		background: var(--sl-color-bg);
+		border: 1px solid var(--st-line);
+		border-radius: 0.3rem;
+	}
+}
+.sidebar-content .large {
+	font-size: var(--sl-text-sm);
+	font-weight: 600;
+}
+#starlight__sidebar {
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in srgb, var(--sl-color-gray-3) 40%, transparent)
+		transparent;
+}
+#starlight__sidebar:is(:hover, :focus-within) {
+	scrollbar-color: color-mix(in srgb, var(--sl-color-gray-3) 65%, transparent)
+		transparent;
+}
+@media (forced-colors: active), (pointer: coarse) {
+	#starlight__sidebar,
+	#starlight__sidebar:is(:hover, :focus-within) {
+		scrollbar-width: auto;
+		scrollbar-color: auto;
+	}
+}
+.sidebar-content summary {
+	padding-block: 0.5rem;
+}
+.sidebar-content a {
+	padding-block: 0.45rem;
+	border-radius: 0.25rem;
+}
+.sidebar-content a:hover {
+	background: var(--st-raised);
+}
+.sidebar-content a[aria-current="page"] {
+	color: var(--sl-color-accent-high);
+	background: var(--sl-color-accent-low);
+	box-shadow: inset 2px 0 var(--sl-color-accent);
+}
+mobile-starlight-toc .toggle {
+	border-color: transparent;
+	background: transparent;
+	padding-inline-start: 0;
+}
+mobile-starlight-toc .display-current {
+	color: var(--sl-color-gray-3);
+}
+#starlight__on-this-page {
+	font-family: var(--sl-font);
+	font-size: var(--sl-text-sm);
+	letter-spacing: normal;
+}
+.sl-markdown-content h2 {
+	margin-top: 2.5rem;
+}
+.sl-markdown-content code:not(pre code) {
+	border-radius: 0.3rem;
+}
+.expressive-code .frame.is-terminal .header::before {
+	background: linear-gradient(
+		to right,
+		#ff5f57 0 33.333%,
+		#febc2e 33.333% 66.667%,
+		#28c840 66.667% 100%
+	);
+	opacity: 1;
+}
+.starlight-aside {
+	--sl-color-asides-text-accent: var(--sl-color-white);
+	border: 1px solid var(--st-line);
+	border-radius: 0.6rem;
+	box-shadow: none;
+}
+.starlight-aside--note {
+	background-color: var(--st-note);
+}
+.starlight-aside--tip {
+	background-color: var(--st-tip);
+}
+.starlight-aside--caution {
+	background-color: var(--st-caution);
+}
+.starlight-aside--danger {
+	background-color: var(--st-danger);
+}
+.starlight-aside__title {
+	font-family: Georgia, serif;
+	letter-spacing: -0.02em;
+}
+.sl-markdown-content table {
+	width: max-content;
+	max-width: 100%;
+	border: 1px solid var(--st-line);
+	border-radius: 0.6rem;
+	font-size: var(--sl-text-sm);
+}
+.sl-markdown-content :is(th, td) {
+	padding: 0.55rem 0.85rem;
+}
+.sl-markdown-content th {
+	background: var(--st-table-head);
+	border-bottom: 1px solid var(--st-line);
+}
+.sl-markdown-content tr:last-child td {
+	border-bottom: 0;
+}
+.sl-link-card,
+.pagination-links a {
+	border: 1px solid var(--st-line);
+	border-radius: 0.75rem;
+	background: var(--st-raised);
+	box-shadow: none;
+	transition: border-color 120ms;
+}
+.sl-link-card:hover,
+.pagination-links a:hover {
+	border-color: var(--sl-color-accent);
+	background: var(--st-raised);
+}
+.sl-link-card .title,
+.pagination-links .link-title {
+	font-family: Georgia, serif;
+	letter-spacing: -0.02em;
+}
+.sl-link-card:has(a:focus-visible),
+.pagination-links a:focus-visible {
 	outline: 3px solid var(--sl-color-accent);
 	outline-offset: 4px;
 }
-.demo-shell {
-	padding: 1.75rem;
-	border: 2px solid var(--sl-color-gray-3);
-	border-radius: 0.75rem;
-	box-shadow: 4px 4px 0 var(--sl-color-gray-3);
-	background: var(--sl-color-gray-6);
+.sl-link-card a:focus-visible {
+	outline: none;
 }
-.demo-shell button {
-	padding: 0.65rem 1rem;
-	border: 2px solid #352344;
-	border-radius: 0.5rem;
-	background: #f4df83;
-	color: #352344;
-	font: bold 1rem var(--sl-font);
-	cursor: pointer;
+@media (prefers-reduced-motion: reduce) {
+	.sl-link-card,
+	.pagination-links a {
+		transition: none;
+	}
 }
-.demo-shell button:disabled {
-	opacity: 0.6;
-	cursor: wait;
+/* Page-coloured covers scroll with the table, revealing edge shadows only when more content is off-screen. */
+:root {
+	--st-scroll-shadow: color-mix(in srgb, var(--st-line) 70%, transparent);
 }
-.demo-shell [role="status"] {
-	margin-bottom: 0;
+.sl-markdown-content table {
+	background:
+		linear-gradient(to right, var(--sl-color-bg) 40%, transparent) left / 2rem
+		100% no-repeat local,
+		linear-gradient(to left, var(--sl-color-bg) 40%, transparent) right / 2rem
+		100% no-repeat local,
+		radial-gradient(
+			farthest-side at 0 50%,
+			var(--st-scroll-shadow),
+			transparent
+		)
+		left / 0.9rem 100% no-repeat scroll,
+		radial-gradient(
+			farthest-side at 100% 50%,
+			var(--st-scroll-shadow),
+			transparent
+		)
+		right / 0.9rem 100% no-repeat scroll;
+}
+.sl-markdown-content :is(th, td) code {
+	white-space: nowrap;
+}
+@media (max-width: 40rem) {
+	.sl-markdown-content :is(th, td) {
+		padding: 0.45rem 0.5rem;
+	}
+	.sl-markdown-content table:not(:has(tr > :nth-child(4))) :is(th, td) {
+		min-width: 6rem;
+	}
+	.sl-markdown-content table:has(tr > :nth-child(4)) td code {
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+}
+/* Draw focus rings inside the tabs so the scrolling tab list cannot clip them. */
+.sl-markdown-content starlight-tabs [role="tab"]:focus-visible {
+	outline: 3px solid var(--sl-color-accent);
+	outline-offset: -3px;
+}
+@media (max-width: 40rem) {
+	.sl-markdown-content starlight-tabs [role="tab"] {
+		padding-inline: 0.55rem;
+	}
 }
