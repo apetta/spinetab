@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — Unreleased
+## 0.1.0 — 2026-10-04
 
 During 0.x, breaking API changes use a minor version; patch releases remain
 backwards-compatible.

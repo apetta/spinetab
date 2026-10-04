@@ -39,7 +39,7 @@ describe("package manifest", () => {
 				url: "git+https://github.com/apetta/spinetab.git",
 				directory: "packages/spinetab",
 			},
-			homepage: "https://github.com/apetta/spinetab#readme",
+			homepage: "https://spinetab.com",
 			bugs: { url: "https://github.com/apetta/spinetab/issues" },
 		});
 	});

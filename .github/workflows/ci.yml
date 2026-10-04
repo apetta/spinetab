@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release:
+        description: Verify and upload the publication candidate
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -69,7 +75,7 @@ jobs:
 
   packed-consumers:
     name: Packed consumer release verification
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || inputs.release
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -101,6 +107,29 @@ jobs:
         run: pnpm --filter spinetab test:consumers
       - name: Verify packed development and production apps
         run: pnpm --filter spinetab e2e:consumers
+      - name: Preserve verified release tarball
+        if: inputs.release
+        run: |
+          node --input-type=module -e '
+            import { createHash } from "node:crypto";
+            import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+            import { join } from "node:path";
+            import { assertFreshPack } from "./packages/spinetab/tests/package/consumers/prepare.ts";
+            import { packDir } from "./packages/spinetab/tests/package/consumers/paths.ts";
+            const record = assertFreshPack("release upload");
+            const tarball = join(packDir(), record.file);
+            const sha256 = createHash("sha256").update(readFileSync(tarball)).digest("hex");
+            if (sha256 !== record.sha256) throw new Error("Verified tarball integrity changed");
+            mkdirSync("release", { recursive: true });
+            copyFileSync(tarball, join("release", record.file));
+          '
+      - name: Upload verified release
+        if: inputs.release
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-release
+          path: release/*.tgz
+          if-no-files-found: error
       - name: Upload consumer reports and failure traces
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}

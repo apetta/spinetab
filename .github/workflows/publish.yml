@@ -1,0 +1,61 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version to release
+        required: true
+        default: "0.1.0"
+      bootstrap:
+        description: Use the temporary token for the first staged release
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+    with:
+      release: true
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install --global npm@11.21.0
+      - name: Check release version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const pkg = JSON.parse(readFileSync("packages/spinetab/package.json"));
+            if (pkg.version !== process.env.RELEASE_VERSION) throw new Error("Release version must match package.json");
+          '
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-release
+          path: release
+      - name: Stage verified package
+        env:
+          NODE_AUTH_TOKEN: ${{ inputs.bootstrap && secrets.NPM_BOOTSTRAP_TOKEN || '' }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: npm stage publish "release/spinetab-$RELEASE_VERSION.tgz" --access public --provenance

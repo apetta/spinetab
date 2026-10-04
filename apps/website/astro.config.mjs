@@ -3,6 +3,7 @@ import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
+	site: "https://spinetab.com",
 	output: "static",
 	// Preserve spaces around inline prose when the formatter wraps HTML tags.
 	compressHTML: true,
