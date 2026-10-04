@@ -27,6 +27,10 @@ const pageEntries = {
 const runtimeEntries = {
 	runtime: "src/runtime/index.ts",
 	worker: "src/worker/index.ts",
+	"websocket/runtime": "src/transports/websocket/runtime.ts",
+	"sse/runtime": "src/transports/sse/runtime.ts",
+	"stream/runtime": "src/transports/stream/runtime.ts",
+	"polling/runtime": "src/transports/polling/runtime.ts",
 };
 
 // Build auto/wiring and auto/worker together so the lazy import remains a sibling reference.

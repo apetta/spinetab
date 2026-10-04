@@ -253,6 +253,30 @@
 				"types": "./dist/solid.d.cts",
 				"default": "./dist/solid.cjs"
 			}
+		},
+		"./websocket/runtime": {
+			"import": {
+				"types": "./dist/websocket/runtime.d.ts",
+				"default": "./dist/websocket/runtime.js"
+			}
+		},
+		"./sse/runtime": {
+			"import": {
+				"types": "./dist/sse/runtime.d.ts",
+				"default": "./dist/sse/runtime.js"
+			}
+		},
+		"./stream/runtime": {
+			"import": {
+				"types": "./dist/stream/runtime.d.ts",
+				"default": "./dist/stream/runtime.js"
+			}
+		},
+		"./polling/runtime": {
+			"import": {
+				"types": "./dist/polling/runtime.d.ts",
+				"default": "./dist/polling/runtime.js"
+			}
 		}
 	},
 	"files": [
