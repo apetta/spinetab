@@ -10,7 +10,7 @@ test("the website shell links to documentation and GitHub", async ({
 	);
 	await page
 		.getByRole("navigation", { name: "Main navigation" })
-		.getByRole("link", { name: "Documentation" })
+		.getByRole("link", { name: "Docs", exact: true })
 		.click();
 	await expect(page.getByRole("heading", { level: 1 })).toHaveText(
 		"Documentation",

@@ -1,0 +1,82 @@
+---
+title: Live transit
+description: Open two live vehicle boards and see one GraphQL connection serve both tabs, with Apollo Client and Spinetab.
+---
+
+import ExampleDemo from "../../../../components/examples/ExampleDemo";
+
+<ExampleDemo kind="transit" client:visible />
+
+## Try it across tabs
+
+Choose **Open a second tab**. Both boards receive the live feed; the connection
+display counts the actual upstream sockets. Choose a different vehicle in each
+tab: the position plot follows your selection, and Apollo caches stay local.
+
+Once both tabs are receiving data, choose **Compare per-tab connections**. The
+boards keep working while each tab opens its own connection. Switch back to
+sharing to see them join one connection again.
+
+Keep the tabs in the same browser profile. If SharedWorker is unavailable, the
+example reports local execution instead of claiming the connection is shared.
+
+## How it works
+
+Entur publishes vehicle changes through GraphQL over WebSocket. The
+[Spinetab Apollo link](/docs/integrations/apollo/) shares matching subscription
+operations; Apollo still owns each tab's cache and React renders its own board.
+The HTTP link handles the current-state query.
+
+The core integration is a split link:
+
+```ts
+import { graphqlWs } from "spinetab/graphql-ws";
+import { spinetabSplit } from "spinetab/apollo";
+
+const endpoint = graphqlWs(
+  "wss://api.entur.io/realtime/v2/vehicles/subscriptions",
+  {
+    anonymous: true,
+    connectionParams: {
+      headers: { "ET-Client-Name": "your-company-your-app" },
+    },
+  },
+);
+
+const link = spinetabSplit(client, endpoint, http, {
+  reconcile: ({ signal }) => refresh(signal),
+});
+```
+
+Here `client` is the Spinetab browser client, `http` is Apollo's HTTP link and
+`refresh` refreshes and merges the current fleet after uncertain delivery.
+Vehicle batches contain changes, so this example merges reports by vehicle ID
+and timestamp. A reconnect alone cannot restore changes missed while offline.
+The [complete source](https://github.com/apetta/spinetab/blob/main/apps/website/src/components/examples/transit-feed.ts)
+includes the query, snapshot merge, cleanup and comparison instrumentation.
+
+For your own app, start with the [Astro setup](/docs/setup/astro/) and
+[Apollo recipe](/docs/recipes/apollo/). Use your own truthful Entur application
+identifier and retain the data attribution.
+
+## About the feed
+
+The board shows recent bus reports across Oslo and its surroundings, ordered
+by line and vehicle. It is a vehicle board, not departures from a particular
+stop. Scroll the list to explore the fleet; it keeps up to 80 recent reports.
+Coverage depends on the operators publishing data to Entur, so this is not a
+complete inventory of every bus in Oslo. Destinations, delays and stop status
+come from the same live feed. Delays are reported in seconds; missing timings
+are labelled unavailable. Stop names are not supplied by this feed. Each tab starts with a current-state query, then
+merges live changes; sharing the feed does not replicate Apollo caches.
+Times are the
+provider's reported times in Oslo; update frequency varies by vehicle. An empty
+or quiet board does not mean the connection failed. The coordinate plot centres on the selected vehicle, with north up and a fixed
+scale. Nearby markers show other reports from the board; vehicles outside the
+view are clipped.
+Coordinates and bearings are reports, not predictions or arrival estimates.
+
+Data is provided by [Entur](https://developer.entur.no/docs/open-services/vehicle-positions)
+under the [Norwegian Licence for Open Government Data (NLOD)](https://data.norge.no/nlod/en/).
+This example filters the feed and presents selected fields. Read Entur's
+[terms of service](https://developer.entur.no/terms-of-service) before reusing it.

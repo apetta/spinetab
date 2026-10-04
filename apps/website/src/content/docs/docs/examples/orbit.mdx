@@ -1,0 +1,60 @@
+---
+title: Orbit
+description: Open a second tab and watch one ISS position request update both views.
+---
+
+import ExampleDemo from "../../../../components/examples/ExampleDemo";
+
+<ExampleDemo kind="orbit" client:visible />
+
+## Try it across tabs
+
+Open a second tab using the button above. Choose **Map** in one and **Globe** in
+the other: each view stays independent while both receive the same position.
+The tab badges show the latest position timestamps.
+
+Choose **Compare per-tab connections** to see each tab start its own polling
+schedule, then return to sharing. Expand **Inspect the actual requests** to see
+when each HTTP read starts.
+
+The globe follows the reported position. Its trail joins positions received in
+this session; it does not predict the ISS orbit. The readout uses the provider's
+timestamp, altitude and speed.
+
+## How it works
+
+Spinetab polls [Where the ISS at?](https://wheretheiss.at/w/developer) and writes
+each complete position into a tab-local TanStack Query cache. Components read
+that cache as usual. They do not run a second polling loop.
+
+```ts title="orbit-feed.ts"
+import { polling, pollEvery } from "spinetab/polling";
+import { bindQuery } from "spinetab/tanstack-query";
+
+const positions = polling<OrbitSample>(
+  "https://api.wheretheiss.at/v1/satellites/25544",
+);
+
+const binding = bindQuery(spinetab, positions, {
+  queryClient,
+  queryKey: ["iss"],
+  reconcile: "latest",
+  ...pollEvery(5_000, { whileHidden: true, onJoin: "await" }),
+});
+
+// Release the subscription when the view unmounts.
+binding.unsubscribe();
+```
+
+This excerpt assumes an existing client and query cache. The
+[Astro and TanStack Query recipe](/docs/recipes/astro-react/query/polling/)
+covers configuration, mounting and cleanup. The demo keeps polling in hidden
+tabs during the comparison so both modes have the same eligibility.
+
+The [complete source](https://github.com/apetta/spinetab/blob/main/apps/website/src/components/examples/orbit-feed.ts)
+includes position validation, cache updates and cleanup.
+
+The live API is public and needs no key. Provider outages and browser suspension
+can interrupt the experiment; the demo reports those states rather than
+substituting generated positions. Geography is made with
+[Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/).

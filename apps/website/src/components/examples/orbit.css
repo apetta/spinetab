@@ -1,0 +1,254 @@
+.orbit-view {
+	--orbit-ocean-light: #c7bdd7;
+	--orbit-ocean-deep: #8c7ba3;
+	--orbit-land: #dad1df;
+	--orbit-grid: #635371;
+	--orbit-marker: #f4df83;
+	display: flex;
+	align-items: center;
+	gap: clamp(0.75rem, 2vw, 1.75rem);
+	color: var(--sl-color-white);
+	font-family: var(--font-body);
+}
+
+:root[data-theme="light"] .orbit-view {
+	--orbit-ocean-light: #e2dbe9;
+	--orbit-ocean-deep: #bcaccd;
+	--orbit-land: #f4f1e8;
+	--orbit-grid: #8e7b9b;
+	--orbit-marker: #e3c568;
+}
+
+.orbit-globe {
+	flex: 1 1 68%;
+	min-width: 0;
+	margin: 0;
+}
+
+.orbit-globe svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+
+.orbit-globe figcaption {
+	margin: 0.25rem 0 0;
+	color: var(--sl-color-gray-3);
+	font-size: 0.75rem;
+	line-height: 1.5;
+	text-align: center;
+}
+
+.orbit-ocean-light {
+	stop-color: var(--orbit-ocean-light);
+}
+
+.orbit-ocean-deep {
+	stop-color: var(--orbit-ocean-deep);
+}
+
+.orbit-dial {
+	fill: none;
+	stroke: var(--sl-color-gray-5);
+	stroke-dasharray: 1 8;
+	stroke-width: 1.5;
+}
+
+.orbit-dial-ticks {
+	fill: none;
+	stroke: var(--sl-color-gray-4);
+	stroke-width: 1.25;
+}
+
+.orbit-land {
+	fill: var(--orbit-land);
+	stroke: var(--orbit-ocean-deep);
+	stroke-width: 0.4;
+	stroke-linejoin: round;
+}
+
+.orbit-graticule {
+	fill: none;
+	stroke: var(--orbit-grid);
+	stroke-width: 0.6;
+	opacity: 0.4;
+}
+
+.orbit-rim {
+	fill: none;
+	stroke: var(--orbit-grid);
+	stroke-width: 1;
+}
+
+.orbit-trail {
+	fill: none;
+	stroke: #352344;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-dasharray: 3 4;
+}
+
+.orbit-station-ring {
+	fill: var(--orbit-marker);
+	fill-opacity: 0.16;
+	stroke: #352344;
+	stroke-opacity: 0.45;
+	stroke-width: 0.75;
+}
+
+.orbit-station-leader {
+	fill: none;
+	stroke: #352344;
+	stroke-width: 1;
+}
+
+.orbit-station-label {
+	fill: #352344;
+	font-family: var(--font-body);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.orbit-solar-panels {
+	fill: var(--orbit-marker);
+	stroke: #352344;
+	stroke-width: 1.3;
+}
+
+.orbit-station-body {
+	fill: #f6f4ee;
+	stroke: #352344;
+	stroke-width: 1.3;
+}
+
+.orbit-panel-lines {
+	fill: none;
+	stroke: #352344;
+	stroke-width: 0.6;
+}
+
+.orbit-readout {
+	flex: 0 1 32%;
+	min-width: 8rem;
+	padding-block: 1rem;
+}
+
+.orbit-telemetry {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.orbit-telemetry dt {
+	margin-bottom: 0.25rem;
+	color: var(--sl-color-gray-3);
+	font-size: 0.8rem;
+}
+
+.orbit-telemetry dd {
+	margin: 0;
+	font-size: clamp(1rem, 2vw, 1.25rem);
+	line-height: 1.4;
+}
+
+.orbit-telemetry dd span {
+	margin-left: 0.2em;
+	color: var(--sl-color-gray-2);
+	font-size: 0.8rem;
+}
+
+.orbit-altitude dd {
+	font-family: var(--font-heading);
+	font-size: clamp(2.75rem, 5vw, 3.75rem);
+	letter-spacing: -0.045em;
+	line-height: 1.05;
+}
+
+.orbit-source-time {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	margin: 1.5rem 0 0;
+	color: var(--sl-color-gray-3);
+	font-size: 0.75rem;
+	line-height: 1.5;
+	font-variant-numeric: tabular-nums;
+}
+
+.orbit-source-time time {
+	color: var(--sl-color-gray-2);
+}
+
+.orbit-view[data-stale] .orbit-station {
+	opacity: 0.6;
+}
+
+@container example (max-width: 30rem) {
+	.orbit-view {
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.orbit-globe {
+		width: 100%;
+		max-width: 28rem;
+	}
+
+	.orbit-readout {
+		width: 100%;
+		padding: 0;
+	}
+
+	.orbit-telemetry {
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 0.75rem 1rem;
+		justify-content: space-between;
+	}
+
+	.orbit-telemetry .orbit-altitude dd {
+		font-size: 2.25rem;
+	}
+
+	.orbit-telemetry dd {
+		font-size: 0.95rem;
+	}
+
+	.orbit-source-time {
+		flex-direction: row;
+		gap: 0.35rem;
+		margin-top: 1rem;
+	}
+}
+
+.orbit-view-switch {
+	display: flex;
+	justify-content: center;
+	gap: 0.25rem;
+	margin: 0 0 0.5rem;
+	padding: 0;
+	border: 0;
+	min-width: 0;
+}
+.orbit-view-switch button {
+	min-height: 44px;
+	min-width: 4.5rem;
+	padding: 0.4rem 0.85rem;
+	border: 1px solid transparent;
+	border-radius: 2rem;
+	font-size: 0.8rem;
+	background: transparent;
+	color: var(--sl-color-gray-2);
+}
+.orbit-view-switch button[aria-pressed="true"] {
+	border-color: var(--st-line);
+	background: var(--st-raised);
+	color: var(--sl-color-white);
+}
+.orbit-view-switch button:hover {
+	color: var(--sl-color-white);
+}

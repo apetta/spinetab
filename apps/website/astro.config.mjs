@@ -16,6 +16,7 @@ export default defineConfig({
 		sitemap({ filter: (page) => !retiredPaths.has(new URL(page).pathname) }),
 		starlight({
 			title: "Spinetab",
+			favicon: "/favicon.svg",
 			customCss: ["./src/styles/docs.css"],
 			sidebar: [
 				{
@@ -37,6 +38,10 @@ export default defineConfig({
 						"docs/setup/sveltekit",
 						"docs/setup/react-router",
 					],
+				},
+				{
+					label: "Examples",
+					items: ["docs/examples/orbit", "docs/examples/live-transit"],
 				},
 				{
 					label: "Subscriptions",

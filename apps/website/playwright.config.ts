@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.WEBSITE_TEST_PORT ?? 4322);
-const baseURL = `http://127.0.0.1:${port}`;
+const existingURL = process.env.WEBSITE_TEST_URL;
+const baseURL = existingURL ?? `http://127.0.0.1:${port}`;
 const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
@@ -32,12 +33,14 @@ export default defineConfig({
 			use: { ...devices["Desktop Safari"] },
 		},
 	],
-	webServer: {
-		command: `pnpm start --port ${port} --ignore-lock`,
-		url: baseURL,
-		reuseExistingServer: false,
-		timeout: 120_000,
-		stdout: "pipe",
-		stderr: "pipe",
-	},
+	webServer: existingURL
+		? undefined
+		: {
+				command: `pnpm start --port ${port} --ignore-lock`,
+				url: baseURL,
+				reuseExistingServer: false,
+				timeout: 120_000,
+				stdout: "pipe",
+				stderr: "pipe",
+			},
 });

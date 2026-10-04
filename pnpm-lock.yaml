@@ -26,9 +26,12 @@ importers:
 
   apps/website:
     dependencies:
+      '@apollo/client':
+        specifier: 4.3.1
+        version: 4.3.1(graphql-ws@6.3.0(crossws@0.3.5)(graphql@17.0.2)(ws@8.22.0))(graphql@17.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rxjs@7.8.2)
       '@astrojs/react':
         specifier: 7.0.0
-        version: 7.0.0(@types/node@24.13.2)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(terser@5.51.2)(yaml@2.9.1)
+        version: 7.0.0(@types/node@24.13.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(esbuild@0.28.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(terser@5.51.2)(yaml@2.9.1)
       '@astrojs/sitemap':
         specifier: 3.7.4
         version: 3.7.4
@@ -41,40 +44,64 @@ importers:
       '@fontsource/gelasio':
         specifier: 5.3.0
         version: 5.3.0
+      '@tanstack/query-core':
+        specifier: 5.104.0
+        version: 5.104.0
       astro:
         specifier: 7.3.5
         version: 7.3.5(@types/node@24.13.2)(terser@5.51.2)(yaml@2.9.1)
+      d3-geo:
+        specifier: 3.1.1
+        version: 3.1.1
+      graphql:
+        specifier: 17.0.2
+        version: 17.0.2
+      graphql-ws:
+        specifier: 6.3.0
+        version: 6.3.0(crossws@0.3.5)(graphql@17.0.2)(ws@8.22.0)
       react:
-        specifier: 19.2.7
-        version: 19.2.7
+        specifier: 19.3.0
+        version: 19.3.0
       react-dom:
-        specifier: 19.2.7
-        version: 19.2.7(react@19.2.7)
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      rxjs:
+        specifier: 7.8.2
+        version: 7.8.2
       spinetab:
         specifier: workspace:*
         version: link:../../packages/spinetab
     devDependencies:
       '@astrojs/check':
         specifier: 0.9.10
-        version: 0.9.10(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@6.0.3)
+        version: 0.9.10(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@6.0.3)
       '@playwright/test':
         specifier: 1.63.0
         version: 1.63.0
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript
+      '@types/d3-geo':
+        specifier: 3.1.0
+        version: 3.1.0
       '@types/node':
         specifier: 24.13.2
         version: 24.13.2
       '@types/react':
-        specifier: 19.2.17
-        version: 19.2.17
+        specifier: 19.3.0
+        version: 19.3.0
       '@types/react-dom':
-        specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.17)
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       typescript:
         specifier: 6.0.3
         version: 6.0.3
+      ws:
+        specifier: 8.22.0
+        version: 8.22.0
 
   packages/spinetab:
     devDependencies:
@@ -1385,6 +1412,9 @@ packages:
   '@types/cors@2.8.19':
     resolution: {integrity: sha512-mFNylyeyqN93lfe/9CSxOGREz8cpzAhH+E93xJ4xWQf62V8sQ/24reV2nyzUWM6H6Xji+GGHpkbLe7pVoUEskg==}
 
+  '@types/d3-geo@3.1.0':
+    resolution: {integrity: sha512-856sckF0oP/diXtS4jNsiQw/UuK5fQG8l/a9VVLeSouf1/PPbBE1i1W852zVwKwYCBkFJJB7nCFTbk6UMEXBOQ==}
+
   '@types/debug@4.1.13':
     resolution: {integrity: sha512-KSVgmQmzMwPlmtljOomayoR89W4FynCAi3E8PPs7vmDVPe84hT+vGPKkJfThkmXs0x0jAaa9U8uW8bbfyS2fWw==}
 
@@ -1396,6 +1426,9 @@ packages:
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
+
+  '@types/geojson@7946.0.16':
+    resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
 
   '@types/hast@3.0.5':
     resolution: {integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==}
@@ -1418,18 +1451,10 @@ packages:
   '@types/node@24.13.2':
     resolution: {integrity: sha512-fRa09kZTgu8o71KFcDjUFuc7F+dEbZYZmkI0mg5YBTRs0yMKjYHsq/c0urDKeDb+D5qVgXOdFcuu+DZPKOITwA==}
 
-  '@types/react-dom@19.2.3':
-    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
-    peerDependencies:
-      '@types/react': ^19.2.0
-
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
     peerDependencies:
       '@types/react': ^19.3.0
-
-  '@types/react@19.2.17':
-    resolution: {integrity: sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw==}
 
   '@types/react@19.3.0':
     resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
@@ -2035,6 +2060,14 @@ packages:
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
+  d3-array@3.2.4:
+    resolution: {integrity: sha512-tdQAmyA18i4J7wprpYq8ClcxZy3SC31QMeByyCFyRt7BVHdREQZ5lpzoe5mFEYZUWe+oq8HBvk9JjpibyEV4Jg==}
+    engines: {node: '>=12'}
+
+  d3-geo@3.1.1:
+    resolution: {integrity: sha512-637ln3gXKXOwhalDzinUgY83KzNWZRKbYubaG+fGVuc/dxO64RRljtCTnf5ecMyE1RIdtqpkVcq0IbtU2S8j2Q==}
+    engines: {node: '>=12'}
+
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
     engines: {node: '>=6.0'}
@@ -2373,6 +2406,10 @@ packages:
   import-without-cache@0.4.1:
     resolution: {integrity: sha512-vXoV9PjKHEednCUu01e98TkImxy67e3BJXbTIOmIq4Hyzw3IAwYRcuPkfeTzJzwyyts4kjuA73x+pWJLc4f86A==}
     engines: {node: ^22.18.0 || >=24.0.0}
+
+  internmap@2.0.3:
+    resolution: {integrity: sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg==}
+    engines: {node: '>=12'}
 
   iron-webcrypto@1.2.1:
     resolution: {integrity: sha512-feOM6FaSr6rEABp/eDfVseKyTMDt+KGpeB35SkVn9Tyn0CqvVsY3EwI0v5i8nMHyJnzCIQf7nsy3p41TPkJZhg==}
@@ -2907,19 +2944,10 @@ packages:
   radix3@1.1.2:
     resolution: {integrity: sha512-b484I/7b8rDEdSDKckSSBA8knMpcdsXudlE/LNL639wFoHKwLbEkQFZHWEYwDC0wa0FKUcCY+GAF73Z7wxNVFA==}
 
-  react-dom@19.2.7:
-    resolution: {integrity: sha512-t0BRVXvbiE/o20Hfw669rLbMCDWtYZLvmJigy2f0MxsXF+71pxhR3xOkspmsO8h3ZlNzyibAmtCa3l4lYKk6gQ==}
-    peerDependencies:
-      react: ^19.2.7
-
   react-dom@19.3.0:
     resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
     peerDependencies:
       react: ^19.3.0
-
-  react@19.2.7:
-    resolution: {integrity: sha512-HNe9WslTbXmFK8o8cmwgAeJFSBvt1bPdHCVKtaaV+WlAN36mpT4hcRpwbf3fY56ar2oIXzsBpOAiIRHAdY0OlQ==}
-    engines: {node: '>=0.10.0'}
 
   react@19.3.0:
     resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
@@ -3014,9 +3042,6 @@ packages:
   sax@1.6.1:
     resolution: {integrity: sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q==}
     engines: {node: '>=11.0.0'}
-
-  scheduler@0.27.0:
-    resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
 
   scheduler@0.28.0:
     resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
@@ -3812,9 +3837,9 @@ snapshots:
     transitivePeerDependencies:
       - '@emnapi/runtime'
 
-  '@astrojs/check@0.9.10(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@6.0.3)':
+  '@astrojs/check@0.9.10(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@6.0.3)':
     dependencies:
-      '@astrojs/language-server': 2.17.1(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@6.0.3)
+      '@astrojs/language-server': 2.17.1(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@6.0.3)
       chokidar: 4.0.3
       kleur: 4.1.5
       typescript: 6.0.3
@@ -3866,9 +3891,9 @@ snapshots:
   '@astrojs/compiler-binding-linux-x64-musl@0.5.1':
     optional: true
 
-  '@astrojs/compiler-binding-wasm32-wasi@0.4.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)':
+  '@astrojs/compiler-binding-wasm32-wasi@0.4.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.2.4(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)
+      '@napi-rs/wasm-runtime': 1.2.4(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -3893,7 +3918,7 @@ snapshots:
   '@astrojs/compiler-binding-win32-x64-msvc@0.5.1':
     optional: true
 
-  '@astrojs/compiler-binding@0.4.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)':
+  '@astrojs/compiler-binding@0.4.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
     optionalDependencies:
       '@astrojs/compiler-binding-android-arm64': 0.4.1
       '@astrojs/compiler-binding-darwin-arm64': 0.4.1
@@ -3902,7 +3927,7 @@ snapshots:
       '@astrojs/compiler-binding-linux-arm64-musl': 0.4.1
       '@astrojs/compiler-binding-linux-x64-gnu': 0.4.1
       '@astrojs/compiler-binding-linux-x64-musl': 0.4.1
-      '@astrojs/compiler-binding-wasm32-wasi': 0.4.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)
+      '@astrojs/compiler-binding-wasm32-wasi': 0.4.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
       '@astrojs/compiler-binding-win32-arm64-msvc': 0.4.1
       '@astrojs/compiler-binding-win32-x64-msvc': 0.4.1
     transitivePeerDependencies:
@@ -3923,9 +3948,9 @@ snapshots:
       '@astrojs/compiler-binding-win32-arm64-msvc': 0.5.1
       '@astrojs/compiler-binding-win32-x64-msvc': 0.5.1
 
-  '@astrojs/compiler-rs@0.4.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)':
+  '@astrojs/compiler-rs@0.4.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
     dependencies:
-      '@astrojs/compiler-binding': 0.4.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)
+      '@astrojs/compiler-binding': 0.4.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -3946,7 +3971,7 @@ snapshots:
       smol-toml: 1.9.0
       unified: 11.0.5
 
-  '@astrojs/language-server@2.17.1(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@6.0.3)':
+  '@astrojs/language-server@2.17.1(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.9))(prettier@3.9.9)(typescript@6.0.3)':
     dependencies:
       '@astrojs/astro2tsx': 0.1.2(@emnapi/runtime@1.11.3)
       '@astrojs/yaml2ts': 0.2.4
@@ -3967,7 +3992,7 @@ snapshots:
       vscode-uri: 3.2.0
     optionalDependencies:
       prettier: 3.9.9
-      prettier-plugin-astro: 1.1.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(prettier@3.9.9)
+      prettier-plugin-astro: 1.1.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.9)
     transitivePeerDependencies:
       - '@emnapi/runtime'
       - typescript
@@ -3990,15 +4015,15 @@ snapshots:
     dependencies:
       prismjs: 1.30.0
 
-  '@astrojs/react@7.0.0(@types/node@24.13.2)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(terser@5.51.2)(yaml@2.9.1)':
+  '@astrojs/react@7.0.0(@types/node@24.13.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(esbuild@0.28.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(terser@5.51.2)(yaml@2.9.1)':
     dependencies:
       '@astrojs/internal-helpers': 0.11.0
-      '@types/react': 19.2.17
-      '@types/react-dom': 19.2.3(@types/react@19.2.17)
+      '@types/react': 19.3.0
+      '@types/react-dom': 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react': 6.1.1(vite@8.3.1(@types/node@24.13.2)(esbuild@0.28.2)(terser@5.51.2)(yaml@2.9.1))
       devalue: 5.9.4
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
       ultrahtml: 1.7.0
       vite: 8.3.1(@types/node@24.13.2)(esbuild@0.28.2)(terser@5.51.2)(yaml@2.9.1)
     transitivePeerDependencies:
@@ -4473,13 +4498,6 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
-  '@napi-rs/wasm-runtime@1.2.4(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)':
-    dependencies:
-      '@emnapi/core': 1.11.1
-      '@emnapi/runtime': 1.11.3
-      '@tybys/wasm-util': 0.10.4
-    optional: true
-
   '@napi-rs/wasm-runtime@1.2.4(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
     dependencies:
       '@emnapi/core': 1.11.3
@@ -4760,6 +4778,10 @@ snapshots:
     dependencies:
       '@types/node': 24.13.2
 
+  '@types/d3-geo@3.1.0':
+    dependencies:
+      '@types/geojson': 7946.0.16
+
   '@types/debug@4.1.13':
     dependencies:
       '@types/ms': 2.1.0
@@ -4771,6 +4793,8 @@ snapshots:
       '@types/estree': 1.0.9
 
   '@types/estree@1.0.9': {}
+
+  '@types/geojson@7946.0.16': {}
 
   '@types/hast@3.0.5':
     dependencies:
@@ -4794,17 +4818,9 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
-  '@types/react-dom@19.2.3(@types/react@19.2.17)':
-    dependencies:
-      '@types/react': 19.2.17
-
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
       '@types/react': 19.3.0
-
-  '@types/react@19.2.17':
-    dependencies:
-      csstype: 3.2.3
 
   '@types/react@19.3.0':
     dependencies:
@@ -5452,6 +5468,14 @@ snapshots:
 
   csstype@3.2.3: {}
 
+  d3-array@3.2.4:
+    dependencies:
+      internmap: 2.0.3
+
+  d3-geo@3.1.1:
+    dependencies:
+      d3-array: 3.2.4
+
   debug@4.4.3:
     dependencies:
       ms: 2.1.3
@@ -5827,6 +5851,8 @@ snapshots:
       typescript: 6.0.3
 
   import-without-cache@0.4.1: {}
+
+  internmap@2.0.3: {}
 
   iron-webcrypto@1.2.1: {}
 
@@ -6370,9 +6396,9 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  prettier-plugin-astro@1.1.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(prettier@3.9.9):
+  prettier-plugin-astro@1.1.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.9):
     dependencies:
-      '@astrojs/compiler-rs': 0.4.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)
+      '@astrojs/compiler-rs': 0.4.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
       '@prettier/parse-srcset': 3.1.0
       prettier: 3.9.9
       sass-formatter: 0.8.0
@@ -6393,17 +6419,10 @@ snapshots:
 
   radix3@1.1.2: {}
 
-  react-dom@19.2.7(react@19.2.7):
-    dependencies:
-      react: 19.2.7
-      scheduler: 0.27.0
-
   react-dom@19.3.0(react@19.3.0):
     dependencies:
       react: 19.3.0
       scheduler: 0.28.0
-
-  react@19.2.7: {}
 
   react@19.3.0: {}
 
@@ -6521,8 +6540,6 @@ snapshots:
       '@bruits/satteri-win32-x64-msvc': 0.10.5
 
   sax@1.6.1: {}
-
-  scheduler@0.27.0: {}
 
   scheduler@0.28.0: {}
 
