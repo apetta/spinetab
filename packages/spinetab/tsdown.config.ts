@@ -34,6 +34,8 @@ const runtimeEntries = {
 	"graphql-ws/runtime": "src/protocols/graphql-ws/runtime.ts",
 	"graphql-sse/runtime": "src/protocols/graphql-sse/runtime.ts",
 	"socket-io/runtime": "src/protocols/socket-io/runtime.ts",
+	"trpc/runtime": "src/integrations/trpc/runtime.ts",
+	"ai-sdk/runtime": "src/integrations/ai-sdk/runtime.ts",
 };
 
 // Build auto/wiring and auto/worker together so the lazy import remains a sibling reference.

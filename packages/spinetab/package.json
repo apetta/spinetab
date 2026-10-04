@@ -295,6 +295,18 @@
 				"types": "./dist/socket-io/runtime.d.ts",
 				"default": "./dist/socket-io/runtime.js"
 			}
+		},
+		"./trpc/runtime": {
+			"import": {
+				"types": "./dist/trpc/runtime.d.ts",
+				"default": "./dist/trpc/runtime.js"
+			}
+		},
+		"./ai-sdk/runtime": {
+			"import": {
+				"types": "./dist/ai-sdk/runtime.d.ts",
+				"default": "./dist/ai-sdk/runtime.js"
+			}
 		}
 	},
 	"files": [
@@ -314,16 +326,38 @@
 	"sideEffects": false,
 	"type": "module",
 	"peerDependencies": {
+		"@apollo/client": "^4.3.1",
+		"@tanstack/query-core": "^5.104.0",
+		"@trpc/client": "^11.19.0",
+		"@trpc/server": "^11.19.0",
+		"ai": "^7.0.116",
 		"graphql": "^17.0.2",
 		"graphql-sse": "^2.6.1",
 		"graphql-ws": "^6.3.0",
 		"react": "^19.3.0",
+		"rxjs": "^7.8.2",
 		"socket.io-client": "^4.8.4",
 		"solid-js": "^1.9.15",
 		"svelte": "^5.57.1",
+		"swr": "^2.5.1",
 		"vue": "^3.5.43"
 	},
 	"peerDependenciesMeta": {
+		"@apollo/client": {
+			"optional": true
+		},
+		"@tanstack/query-core": {
+			"optional": true
+		},
+		"@trpc/client": {
+			"optional": true
+		},
+		"@trpc/server": {
+			"optional": true
+		},
+		"ai": {
+			"optional": true
+		},
 		"graphql": {
 			"optional": true
 		},
@@ -336,6 +370,9 @@
 		"react": {
 			"optional": true
 		},
+		"rxjs": {
+			"optional": true
+		},
 		"socket.io-client": {
 			"optional": true
 		},
@@ -343,6 +380,9 @@
 			"optional": true
 		},
 		"svelte": {
+			"optional": true
+		},
+		"swr": {
 			"optional": true
 		},
 		"vue": {
