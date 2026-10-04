@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -49,6 +49,15 @@ jobs:
         run: pnpm exec prettier --check .
       - name: Typecheck, unit tests, E2E
         run: pnpm exec turbo run typecheck test e2e
+      - name: Preserve tested website build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-build
+          path: apps/website/dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
       # The library suite runs Chromium, Firefox and WebKit against the fixture
       # server; the website suite covers navigation, themes and recipes. Both HTML reports are kept
       # for a week. Packed-consumer and performance runs are not routine gates.
@@ -72,6 +81,40 @@ jobs:
             apps/website/test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  deploy:
+    name: Deploy website to Cloudflare Pages
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Download tested website build
+        uses: actions/download-artifact@v8
+        with:
+          name: website-build
+          path: apps/website/dist/
+      - name: Deploy tested website build
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: npm
+          wranglerVersion: "4.147.0"
+          command: pages deploy apps/website/dist --project-name=spinetab --branch=main --commit-hash=${{ github.sha }}
 
   packed-consumers:
     name: Packed consumer release verification
