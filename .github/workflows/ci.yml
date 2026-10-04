@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,7 +17,7 @@ jobs:
   check:
     name: Lint, Typecheck, Test, E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     # Match @playwright/test in apps/website/package.json. The image includes
     # the matching browser binaries and their system dependencies.
     container:
@@ -42,11 +43,67 @@ jobs:
         run: pnpm exec prettier --check .
       - name: Typecheck, unit tests, E2E
         run: pnpm exec turbo run typecheck test e2e
-      - name: Upload Playwright report
+      # The library suite runs Chromium, Firefox and WebKit against the fixture
+      # server; the website suite covers navigation, themes and recipes. Both HTML reports are kept
+      # for a week. Packed-consumer and performance runs are not routine gates.
+      - name: Upload Playwright reports
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
-          path: apps/website/playwright-report/
+          name: playwright-reports
+          path: |
+            packages/spinetab/playwright-report/
+            apps/website/playwright-report/
           retention-days: 7
           if-no-files-found: ignore
+      - name: Upload Playwright failure output
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: playwright-test-results
+          path: |
+            packages/spinetab/test-results/playwright/
+            apps/website/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  packed-consumers:
+    name: Packed consumer release verification
+    if: github.event_name == 'workflow_dispatch'
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      SPINETAB_CONSUMERS_RUN_ID: release-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build publication candidate
+        run: pnpm --filter spinetab build
+      - name: Pack and install isolated consumers
+        run: pnpm --filter spinetab consumers:prepare
+      - name: Verify consumer builds, declarations and peer isolation
+        run: pnpm --filter spinetab test:consumers
+      - name: Verify packed development and production apps
+        run: pnpm --filter spinetab e2e:consumers
+      - name: Upload consumer reports and failure traces
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: packed-consumer-release-results
+          path: packages/spinetab/test-results/consumers/
+          retention-days: 7
+          if-no-files-found: error
