@@ -11,6 +11,9 @@ on:
         description: Use the temporary token for the first staged release
         type: boolean
         default: false
+      verified_run_id:
+        description: Retry publication using a previously verified release archive
+        required: false
 
 permissions:
   contents: read
@@ -21,26 +24,58 @@ concurrency:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && inputs.verified_run_id == ''
     uses: ./.github/workflows/ci.yml
     with:
       release: true
 
   publish:
     needs: verify
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      (needs.verify.result == 'success' ||
+      (needs.verify.result == 'skipped' && inputs.verified_run_id != ''))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
+      actions: read
       id-token: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
       - run: npm install --global npm@11.21.0
+      - name: Check previously verified release
+        if: inputs.verified_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_RUN_ID: ${{ inputs.verified_run_id }}
+        run: |
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { execFileSync } from "node:child_process";
+            const id = process.env.VERIFIED_RUN_ID;
+            assert(/^\d+$/.test(id), "Run ID must be numeric");
+            const repo = process.env.GITHUB_REPOSITORY;
+            const api = path => JSON.parse(execFileSync("gh", ["api", path], { encoding: "utf8" }));
+            const run = api(`repos/${repo}/actions/runs/${id}`);
+            assert.equal(run.path, ".github/workflows/publish.yml");
+            assert.equal(run.head_branch, "main");
+            assert.equal(run.event, "workflow_dispatch");
+            assert.equal(run.status, "completed");
+            const jobs = api(`repos/${repo}/actions/runs/${id}/jobs?per_page=100`).jobs;
+            for (const name of ["verify / Lint, Typecheck, Test, E2E", "verify / Packed consumer release verification"]) {
+              assert(jobs.some(job => job.name === name && job.conclusion === "success"), `Missing successful ${name}`);
+            }
+            execFileSync("git", ["diff", "--exit-code", run.head_sha, "HEAD", "--", "packages/spinetab", "README.md", "LICENSE"], { stdio: "inherit" });
+            console.log(`Reusing verified archive from ${run.head_sha} (run ${id})`);
+          '
       - name: Check release version
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -54,8 +89,10 @@ jobs:
         with:
           name: npm-release
           path: release
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.verified_run_id || github.run_id }}
       - name: Stage verified package
         env:
           NODE_AUTH_TOKEN: ${{ inputs.bootstrap && secrets.NPM_BOOTSTRAP_TOKEN || '' }}
           RELEASE_VERSION: ${{ inputs.version }}
-        run: npm stage publish "release/spinetab-$RELEASE_VERSION.tgz" --access public --provenance
+        run: npm stage publish "./release/spinetab-$RELEASE_VERSION.tgz" --access public --provenance
