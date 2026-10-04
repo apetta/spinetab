@@ -53,8 +53,8 @@ pnpm dev
 ```
 
 The website runs at `http://127.0.0.1:4321` (documentation under `/docs/`). Turbo builds the library before
-starting the website and the library watcher. No environment files or Git hooks are
-required.
+starting the website and the library watcher. No environment files are required.
+`pnpm install` also installs the repository's Git hooks.
 
 ## Commands
 
@@ -129,7 +129,9 @@ reports as artefacts, and the raw test output when a run fails.
   behind its own subpath. Pin each optional peer range to the version it is tested
   against.
 - Run `pnpm check` and `pnpm exec turbo run typecheck test e2e` before opening a
-  pull request. CI enforces them; no Git hooks or particular editor are needed.
+  pull request. CI enforces them.
+- Pre-commit formats and lints staged files. Pre-push checks formatting and lint,
+  then builds, type-checks and tests the workspace. Browser E2E runs in CI.
 
 Application state, caches, backend replay and server helpers are outside the
 library's scope.
