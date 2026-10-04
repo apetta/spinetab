@@ -1,11 +1,13 @@
 # SharedWorker
 
-The worker host belongs here. `index.ts` reserves the ESM-only `spinetab/worker`
-entry; importing it does not register handlers or start a worker.
+`index.ts` is the ESM-only `spinetab/worker` entry: `serveSharedWorker(runtime)`
+over the host in `src/core/host.ts`. Importing it registers nothing; the
+application's own worker entry calls it synchronously, before any top-level
+await, so the first page's `connect` is never missed. Early ports are buffered
+(64) and answered with `startupError` when setup fails or exceeds 10 s.
 
-Applications own their small worker entry and import only selected adapter code.
-Their bundler must see the worker URL expression. Adapter runtime logic must also
-support explicit lazy local loading; a worker URL alone cannot provide fallback.
-
-The host, handshake, recovery and supported consumer builds still need implementation
-and tests. Add adapter runtime/worker subpaths only when those contracts are proved.
+The bundler plugin generates the worker entry and selects its adapters. An
+application can provide its own worker file with `defineWorker`, or wire the
+SharedWorker and lazy local runtime explicitly. A worker URL alone cannot provide
+fallback. Tests live in `tests/unit/core/worker-host.test.ts` and the browser
+suites through `tests/fixtures/harness`.

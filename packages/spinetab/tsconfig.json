@@ -1,8 +1,19 @@
 {
 	"extends": "@repo/typescript-config/bundler.json",
 	"compilerOptions": {
-		"lib": ["ES2022", "DOM", "DOM.Iterable"]
+		"lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+		"allowImportingTsExtensions": true,
+		"paths": {
+			"spinetab/wiring": ["./src/wiring.ts"],
+			"spinetab/worker-config": ["./src/worker-config.ts"]
+		}
 	},
 	"include": ["src", "tests", "*.config.ts"],
-	"exclude": ["node_modules", "dist", ".turbo", "coverage"]
+	"exclude": [
+		"node_modules",
+		"dist",
+		".turbo",
+		"coverage",
+		"tests/fixtures/consumers"
+	]
 }

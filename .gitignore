@@ -2,7 +2,6 @@
 node_modules/
 
 # Build outputs
-build/
 dist/
 .astro/
 .next/
@@ -16,10 +15,13 @@ next-env.d.ts
 coverage/
 test-results/
 playwright-report/
+playwright-report-consumers/
 blob-report/
 **/playwright/.cache/
 
 # Local
+CLAUDE.local.md
+AGENTS.local.md
 /docs/
 .env*
 !.env.example
