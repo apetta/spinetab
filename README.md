@@ -8,6 +8,8 @@ Use your existing HTTP, WebSocket or protocol endpoints. Optional integrations
 connect Spinetab to Apollo, TanStack Query, SWR, tRPC and AI SDK; bindings cover
 React, Vue, Svelte and Solid.
 
+Spinetab is maintained by agents.
+
 ## Install
 
 ```sh
