@@ -103,6 +103,7 @@ starlight-theme-select select {
 	font-size: var(--sl-text-sm);
 	font-weight: 600;
 }
+:root,
 #starlight__sidebar {
 	scrollbar-width: thin;
 	scrollbar-color: color-mix(in srgb, var(--sl-color-gray-3) 40%, transparent)
@@ -113,6 +114,7 @@ starlight-theme-select select {
 		transparent;
 }
 @media (forced-colors: active), (pointer: coarse) {
+	:root,
 	#starlight__sidebar,
 	#starlight__sidebar:is(:hover, :focus-within) {
 		scrollbar-width: auto;

@@ -16,6 +16,19 @@
 	color: var(--ink);
 	background: var(--paper);
 	line-height: 1.6;
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(
+			in srgb,
+			light-dark(#706974, #a397ad) 40%,
+			transparent
+		)
+		transparent;
+}
+@media (forced-colors: active), (pointer: coarse) {
+	:root {
+		scrollbar-width: auto;
+		scrollbar-color: auto;
+	}
 }
 @media (prefers-color-scheme: light) {
 	:root {
