@@ -2,6 +2,7 @@ import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
+import agentDocs from "./src/integrations/agent-docs.ts";
 import { retiredRecipes } from "./src/recipes/catalogue.ts";
 
 const retiredPaths = new Set(retiredRecipes.map((recipe) => recipe.url));
@@ -18,12 +19,14 @@ export default defineConfig({
 			title: "Spinetab",
 			favicon: "/favicon.svg",
 			customCss: ["./src/styles/docs.css"],
+			components: { PageTitle: "./src/components/DocsPageTitle.astro" },
 			sidebar: [
 				{
 					label: "Start here",
 					items: [
 						{ label: "Overview", slug: "docs" },
 						"docs/getting-started",
+						"docs/using-agents",
 						"docs/choose-integration",
 						"docs/frameworks",
 					],
@@ -106,5 +109,6 @@ export default defineConfig({
 				{ label: "GitHub", link: "https://github.com/apetta/spinetab" },
 			],
 		}),
+		agentDocs(),
 	],
 });

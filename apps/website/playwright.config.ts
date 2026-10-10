@@ -16,27 +16,27 @@ export default defineConfig({
 	reporter: [["list"], ["html", { open: "never" }]],
 	use: { baseURL, trace: "on-first-retry", screenshot: "only-on-failure" },
 	projects: [
-		{ name: "content", testMatch: "recipes-http.spec.ts" },
+		{ name: "content", testMatch: /(?:recipes|agent-docs)-http\.spec\.ts/ },
 		{
 			name: "chromium",
-			testIgnore: "recipes-http.spec.ts",
+			testIgnore: /(?:recipes|agent-docs)-http\.spec\.ts/,
 			use: { ...devices["Desktop Chrome"] },
 		},
 		{
 			name: "firefox",
-			testIgnore: "recipes-http.spec.ts",
+			testIgnore: /(?:recipes|agent-docs)-http\.spec\.ts/,
 			use: { ...devices["Desktop Firefox"] },
 		},
 		{
 			name: "webkit",
-			testIgnore: "recipes-http.spec.ts",
+			testIgnore: /(?:recipes|agent-docs)-http\.spec\.ts/,
 			use: { ...devices["Desktop Safari"] },
 		},
 	],
 	webServer: existingURL
 		? undefined
 		: {
-				command: `pnpm start --port ${port} --ignore-lock`,
+				command: `pnpm exec wrangler pages dev dist --port ${port} --ip 127.0.0.1`,
 				url: baseURL,
 				reuseExistingServer: false,
 				timeout: 120_000,

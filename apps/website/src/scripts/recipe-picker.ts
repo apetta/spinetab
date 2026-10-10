@@ -124,6 +124,16 @@ for (const root of document.querySelectorAll<HTMLElement>(
 			renderedURL = url;
 			restore(url);
 			if (push) history.pushState(null, "", url);
+			const markdownURL = `${url.replace(/\/$/, "")}.md`;
+			document
+				.querySelector(".page-actions docs-copy")
+				?.setAttribute("data-src", markdownURL);
+			document
+				.querySelector("[data-page-markdown]")
+				?.setAttribute("href", markdownURL);
+			document
+				.querySelector('link[rel="alternate"][type="text/markdown"]')
+				?.setAttribute("href", markdownURL);
 			const entry = entries.find((r) => r[3] === url)!;
 			message.textContent = `Showing ${contexts.find((c) => c.id === entry[0])!.label} · ${sources[entry[2]]}.`;
 		} catch {

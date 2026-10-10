@@ -1,0 +1,31 @@
+---
+title: Using agents
+description: Give your coding agent the Spinetab documentation and a setup prompt for your existing app.
+---
+
+import CopyAction from "../../../components/CopyAction.astro";
+
+## Start with your app
+
+Copy this prompt into your agent, then describe the live feature you want to add.
+
+<CopyAction
+  label="Copy prompt"
+  text={`Add Spinetab to this app for the live feature I describe.
+
+First inspect the framework, installed versions, data library and API. Read https://spinetab.com/llms.txt and https://spinetab.com/recipe-index.md, then fetch the matching guide and recipe from the same host. Ask about missing endpoint or authentication details.
+
+Follow the app's conventions and retain its data library's hooks. Read the credentials and continuity guides before handling private data or recovery.
+
+Run relevant checks. Verify matching subscriptions in two tabs share one connection or polling schedule, and check cleanup. Report per-tab fallback and anything you could not verify.`}
+/>
+
+## Give your agent the docs
+
+- [llms.txt](/llms.txt) — the starting point for setup, integrations and API guidance.
+- [recipe-index.md](/recipe-index.md) — complete examples by framework, data library and transport.
+
+Every docs page has **Copy Markdown** and **View Markdown** actions for sharing
+just the context you need.
+
+The Markdown is generated from these docs and updates with every release.

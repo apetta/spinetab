@@ -58,6 +58,17 @@ The website runs at `http://127.0.0.1:4321` (documentation under `/docs/`). Turb
 starting the website and the library watcher. No environment files are required.
 `pnpm install` also installs the repository's Git hooks.
 
+The website build generates `/llms.txt`, `/recipe-index.md` and a Markdown version
+of every public page (`/index.md` for the homepage, `/docs/setup/nextjs.md` for
+`/docs/setup/nextjs/`). The exporter uses rendered documentation and original recipe
+files; edit those sources rather than maintaining separate Markdown copies.
+HTML pages advertise their Markdown counterparts with `rel="alternate"` links.
+The exporter omits `aria-hidden="true"` decoration and elements marked
+`data-markdown-exclude`. Hidden documentation panels remain included.
+The website E2E suite serves the build with Cloudflare Pages locally, including
+the `_headers` rules and cache revalidation behaviour.
+CI repeats the documentation HTTP checks against the deployed Pages URL.
+
 ## Commands
 
 Run from the repository root:

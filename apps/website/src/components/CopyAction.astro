@@ -1,0 +1,239 @@
+---
+import AgentIcons from "./AgentIcons.astro";
+
+interface Props {
+	label: string;
+	src?: string;
+	text?: string;
+}
+const { label, src, text } = Astro.props;
+const promptId = text ? `prompt-${crypto.randomUUID()}` : undefined;
+---
+
+<docs-copy data-src={src} class:list={{ "has-prompt": !!text }}>
+	<div class="copy-controls" data-markdown-exclude data-pagefind-ignore>
+		<button type="button" class="copy-button" hidden>
+			{text && <AgentIcons />}
+			<span>{label}</span>
+			<svg
+				class:list={{ "action-icon": true, "markdown-icon": !text }}
+				width="16"
+				height="16"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				<g class="copy-icon">
+					<rect x="8" y="8" width="12" height="12" rx="2" />
+					<path d="M16 8V4H4v12h4" />
+				</g>
+				<path class="check-icon" d="m5 12 4 4L19 6" />
+			</svg>
+		</button>
+		{text && <button type="button" class="disclosure" aria-controls={promptId} aria-expanded="false" hidden>View prompt<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m5 8 5 5 5-5" /></svg></button>}
+		<span role="status" aria-live="polite"></span>
+	</div>
+	{text && <pre id={promptId} data-copy-text>{text}</pre>}
+</docs-copy>
+
+<script>
+class DocsCopy extends HTMLElement {
+	connectedCallback() {
+		const button = this.querySelector<HTMLButtonElement>(".copy-button");
+		const disclosure = this.querySelector<HTMLButtonElement>(".disclosure");
+		const status = this.querySelector('[role="status"]');
+		const content = this.querySelector<HTMLElement>("[data-copy-text]");
+		if (!button || !status) return;
+		// Preview prompts must fetch documentation from the same deployment.
+		if (content)
+			content.textContent =
+				content.textContent?.replaceAll(
+					"https://spinetab.com",
+					location.origin,
+				) ?? "";
+		if (content && disclosure) {
+			content.hidden = true;
+			disclosure.hidden = false;
+			disclosure.onclick = () => {
+				content.hidden = !content.hidden;
+				disclosure.setAttribute("aria-expanded", String(!content.hidden));
+			};
+		}
+		button.hidden = false;
+		button.onclick = async () => {
+			button.disabled = true;
+			delete this.dataset.copied;
+			status.textContent = "";
+			try {
+				if (this.dataset.src) {
+					if (
+						!navigator.clipboard?.write ||
+						typeof ClipboardItem === "undefined"
+					)
+						throw new Error("Clipboard unavailable");
+					const text = fetch(this.dataset.src).then(async (response) => {
+						if (
+							!response.ok ||
+							!response.headers.get("content-type")?.startsWith("text/markdown")
+						) {
+							throw new Error("Markdown unavailable");
+						}
+						return response.text();
+					});
+					// Safari requires clipboard.write() to start in the click handler.
+					await navigator.clipboard.write([
+						new ClipboardItem({
+							"text/plain": text.then(
+								(value) => new Blob([value], { type: "text/plain" }),
+							),
+						}),
+					]);
+				} else {
+					await navigator.clipboard.writeText(content?.textContent ?? "");
+				}
+				this.dataset.copied = "true";
+				status.textContent = "Copied";
+			} catch {
+				if (content && disclosure) {
+					content.hidden = false;
+					disclosure.setAttribute("aria-expanded", "true");
+				}
+				status.textContent = this.dataset.src
+					? "Couldn’t copy. Use View Markdown."
+					: "Couldn’t copy. Select the prompt below.";
+			} finally {
+				button.disabled = false;
+			}
+		};
+	}
+}
+customElements.define("docs-copy", DocsCopy);
+</script>
+
+<style>
+docs-copy {
+	display: block;
+	min-width: 0;
+}
+.copy-controls {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+}
+button > *,
+.copy-controls > * {
+	margin: 0;
+}
+button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	min-height: 2.75rem;
+	padding: 0.4rem 0.75rem;
+	border: 1px solid var(--st-line);
+	border-radius: 0.4rem;
+	background: transparent;
+	color: var(--sl-color-gray-1);
+	font: inherit;
+	font-size: var(--sl-text-sm);
+	cursor: pointer;
+	transition:
+		border-color 160ms,
+		background-color 160ms;
+}
+button[hidden],
+pre[hidden] {
+	display: none;
+}
+.copy-button:hover {
+	border-color: var(--sl-color-accent);
+	background: var(--st-raised);
+}
+.copy-button:disabled {
+	cursor: wait;
+}
+.has-prompt {
+	margin-block: 1.5rem 2rem;
+}
+.has-prompt .copy-button {
+	min-height: 3.25rem;
+	gap: 0.75rem;
+	padding: 0.6rem 1rem;
+	border-radius: 999px;
+	background: var(--st-raised);
+	color: var(--sl-color-white);
+	font-size: 1rem;
+	font-weight: 600;
+}
+.has-prompt .copy-button:hover {
+	background: var(--sl-color-accent-low);
+}
+.action-icon {
+	display: none;
+	color: var(--sl-color-gray-2);
+}
+.markdown-icon {
+	display: block;
+}
+svg {
+	flex-shrink: 0;
+}
+.check-icon {
+	display: none;
+}
+[data-copied] .copy-icon {
+	display: none;
+}
+[data-copied] .check-icon {
+	display: block;
+}
+.disclosure {
+	padding-inline: 0.25rem;
+	border: 0;
+	color: var(--sl-color-gray-2);
+}
+.disclosure:hover {
+	color: var(--sl-color-white);
+}
+.disclosure svg {
+	transition: transform 160ms;
+}
+.disclosure[aria-expanded="true"] svg {
+	transform: rotate(180deg);
+}
+pre {
+	margin: 1.75rem 0 0;
+	padding: 1.1rem 1.25rem;
+	border: 1px solid var(--st-line);
+	border-radius: 0.6rem;
+	background: var(--st-raised);
+	color: var(--sl-color-gray-1);
+	font: inherit;
+	font-size: 0.9rem;
+	line-height: 1.65;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+[role="status"] {
+	position: absolute;
+	top: calc(100% + 0.2rem);
+	left: 0;
+	width: max-content;
+	max-width: min(20rem, 80vw);
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-sm);
+}
+@media (prefers-reduced-motion: reduce) {
+	button,
+	svg {
+		transition: none;
+	}
+}
+</style>

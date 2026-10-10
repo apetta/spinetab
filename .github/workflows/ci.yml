@@ -96,11 +96,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          package-manager-cache: false
+          cache: pnpm
+      - name: Install validation dependencies
+        run: pnpm install --frozen-lockfile
       - name: Download tested website build
         uses: actions/download-artifact@v8
         with:
@@ -112,9 +116,15 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          packageManager: npm
-          wranglerVersion: "4.147.0"
-          command: pages deploy apps/website/dist --project-name=spinetab --branch=main --commit-hash=${{ github.sha }}
+          workingDirectory: apps/website
+          packageManager: pnpm
+          command: pages deploy dist --project-name=spinetab --branch=main --commit-hash=${{ github.sha }}
+      - name: Verify deployed documentation routes and caching
+        env:
+          WEBSITE_TEST_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          test -n "$WEBSITE_TEST_URL"
+          pnpm --filter website e2e --project content
 
   packed-consumers:
     name: Packed consumer release verification

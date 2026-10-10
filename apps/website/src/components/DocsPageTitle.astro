@@ -1,0 +1,34 @@
+---
+import Default from "@astrojs/starlight/components/PageTitle.astro";
+import CopyAction from "./CopyAction.astro";
+
+const path = `${Astro.url.pathname.replace(/\/$/, "")}.md`;
+const isDocs = Astro.url.pathname.startsWith("/docs");
+---
+
+<Default><slot /></Default>
+{isDocs && (
+  <div class="page-actions" data-markdown-exclude data-pagefind-ignore>
+    <CopyAction label="Copy Markdown" src={path} />
+    <a data-page-markdown href={path}>View Markdown</a>
+  </div>
+)}
+
+<style>
+.page-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	margin-top: 1.25rem;
+	margin-bottom: 1.5rem;
+	font-size: var(--sl-text-sm);
+}
+a {
+	color: var(--sl-color-gray-2);
+	text-underline-offset: 0.2em;
+}
+a:hover {
+	color: var(--sl-color-white);
+}
+</style>
