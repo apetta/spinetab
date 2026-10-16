@@ -1,4 +1,9 @@
 {
 	"model": "claude-opus-5-5",
-	"effortLevel": "high"
+	"effortLevel": "high",
+	"attribution": {
+		"commit": "Co-authored-by: Claude <noreply@anthropic.com>",
+		"pr": "Generated with [Claude Code](https://claude.com/claude-code).",
+		"sessionUrl": false
+	}
 }

@@ -18,6 +18,10 @@ before changing behaviour. Use British English and factual, concise public copy.
 - Agents propose changes through PRs. Do not push to main, approve your own PR,
   merge directly, publish packages or change automation policy. The trusted
   review and merge workflow owns those decisions.
+- Credit agent-authored commits with `Co-authored-by: Claude <noreply@anthropic.com>`
+  or `Co-authored-by: Codex <noreply@openai.com>`, matching the implementing agent.
+  Preserve existing co-authors; reviewing alone does not earn authorship. Keep
+  private cloud session URLs out of public commits and PRs.
 - Keep generated Markdown and `llms.txt` generated from their source. Verify UI
   changes with agent-browser and the existing browser tests. Distinguish local,
   CI, deployed and physical-device evidence.
