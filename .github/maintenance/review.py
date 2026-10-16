@@ -17,7 +17,7 @@ CHECK = "Lint, Typecheck, Test, E2E"
 REVIEWER = "github-actions[bot]"
 MARKER = "<!-- spinetab-maintenance-review -->"
 PROTECTED = (".github/", ".claude/", ".agents/", ".codex/", ".husky/")
-PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs", "turbo.json", "turbo.jsonc", "biome.json", "biome.jsonc", ".prettierignore"}
+PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs", ".pnpmfile.cjs", "pnpm-workspace.yaml", "turbo.json", "turbo.jsonc", "biome.json", "biome.jsonc", ".prettierignore"}
 HARNESS_CONFIG = re.compile(r"^(?:vitest(?:\.[\w-]+)*\.(?:config|workspace)|playwright(?:\.[\w-]+)*\.config|lint-staged\.config)\.[cm]?[jt]s$|^\.prettierrc(?:\..+)?$")
 
 
@@ -150,14 +150,14 @@ def prepare():
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     run_event = event.get("workflow_run")
     if run_event:
-        require(run_event["name"] in {"CI", "CodeQL"} and run_event["conclusion"] == "success", "Not successful candidate CI")
+        require(run_event["name"] in {"CI", "CodeQL", "Maintenance readiness"} and run_event["conclusion"] == "success", "Not successful candidate CI")
         if run_event["name"] == "CI":
             require(run_event["path"] == CI_PATH, "Unexpected CI workflow")
-        require(run_event["event"] == "pull_request", "Not a PR CI event")
+        if run_event["name"] == "Maintenance readiness":
+            require(run_event["path"] == ".github/workflows/maintenance-ready.yml" and run_event["event"] == "pull_request_target" and run_event["actor"]["login"] == "apetta", "Unexpected readiness workflow")
+        else:
+            require(run_event["event"] == "pull_request", "Not a PR CI event")
     number = event.get("inputs", {}).get("pr_number")
-    if event.get("pull_request"):
-        require(event.get("action") == "labeled" and event.get("label", {}).get("name") == "agent:ready" and event["sender"]["login"] == "apetta", "Unexpected readiness event")
-        number = event["pull_request"]["number"]
     require(not number or re.fullmatch(r"[1-9][0-9]*", str(number)), "Invalid PR number")
     candidates = [api(f"/pulls/{number}")] if number else pages("/pulls?state=open&sort=created&direction=asc")
     for candidate in candidates:

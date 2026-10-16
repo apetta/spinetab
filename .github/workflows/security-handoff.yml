@@ -54,11 +54,12 @@ jobs:
                       instance = alert['most_recent_instance']
                       work.append({'kind': 'code-scanning', 'alert': alert['number'], 'url': alert['html_url'], 'rule': alert['rule']['id'], 'path': instance['location']['path'], 'line': instance['location']['start_line']})
           if not work:
-              print('No security work to dispatch')
+              print('Security handoff processed')
               raise SystemExit(0)
           encoded = json.dumps({'repository': 'apetta/spinetab', 'security_work': work}, sort_keys=True)
           Path('security-work.json').write_text(encoded)
-          key = hashlib.sha256((os.environ['ROUTINE_ID'] + encoded).encode()).hexdigest()
+          identity = [{key: value for key, value in item.items() if key not in ['run', 'url', 'line']} for item in work]
+          key = hashlib.sha256((os.environ['ROUTINE_ID'] + json.dumps(identity, sort_keys=True)).encode()).hexdigest()
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write('key=security-handoff-v1-' + key + '\n')
           PY
@@ -91,7 +92,7 @@ jobs:
           session = result.get('claude_code_session_url', '')
           if not session.startswith('https://claude.ai/code/'):
               raise SystemExit('Claude did not return a session URL; inspect the routine before retrying')
-          print('Dispatched security work: ' + session)
+          print('Security handoff processed')
           Path('security-handoff-ack').write_text('dispatched\n')
           PY
       - name: Remember successful dispatch without storing alert details

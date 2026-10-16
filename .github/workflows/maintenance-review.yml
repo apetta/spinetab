@@ -1,10 +1,8 @@
 name: Maintenance review
 
 on:
-  pull_request_target:
-    types: [labeled]
   workflow_run:
-    workflows: [CI, CodeQL]
+    workflows: [CI, CodeQL, Maintenance readiness]
     types: [completed]
   schedule:
     - cron: "37 7 * * *"
@@ -31,11 +29,9 @@ jobs:
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.MAINTENANCE_ENABLED == 'true' &&
-      (github.event_name != 'pull_request_target' ||
-      (github.actor == 'apetta' && github.event.label.name == 'agent:ready' &&
-      github.event.pull_request.head.repo.full_name == github.repository)) &&
       (github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'))
+      (github.event.workflow_run.conclusion == 'success' &&
+      contains(fromJSON('["pull_request","pull_request_target"]'), github.event.workflow_run.event)))
     runs-on: ubuntu-latest
     environment: maintenance
     timeout-minutes: 20

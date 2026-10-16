@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -57,7 +58,7 @@ class GuardTests(unittest.TestCase):
         for path in [".github/workflows/ci.yml", ".claude/settings.json", "AGENTS.md", ".npmrc",
                      "packages/spinetab/AGENTS.md", "apps/website/.mcp.json",
                      "apps/website/.claude/settings.json", ".npm-extension.mjs", "apps/website/.env.local",
-                     "turbo.json", "packages/spinetab/vitest.config.ts",
+                     "turbo.json", ".pnpmfile.cjs", "pnpm-workspace.yaml", "packages/spinetab/vitest.config.ts",
                      "apps/website/playwright.config.ts", "packages/spinetab/playwright.consumers.config.ts"]:
             with self.subTest(path=path):
                 self.files[0] = {"filename": "README.md", "previous_filename": path, "status": "renamed"}
@@ -223,6 +224,42 @@ class GuardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "head changed"):
                 review.merge()
             request.assert_not_called()
+
+
+class PrepareTriggerTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name) / "event.json"
+        self.event = {"workflow_run": {"name": "Maintenance readiness", "conclusion": "success",
+                                      "path": ".github/workflows/maintenance-ready.yml",
+                                      "event": "pull_request_target", "actor": {"login": "apetta"}}}
+
+    def prepare(self):
+        self.path.write_text(json.dumps(self.event))
+        with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(self.path), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
+             patch.object(review, "output"), patch.object(review, "api", return_value=[]) as request:
+            review.prepare()
+            return request
+
+    def test_completed_trusted_readiness_can_start_review(self):
+        request = self.prepare()
+        request.assert_called_once_with("/pulls?state=open&sort=created&direction=asc&per_page=100&page=1")
+
+    def test_untrusted_readiness_origin_is_rejected(self):
+        for key, value in [("path", ".github/workflows/other.yml"), ("event", "pull_request"),
+                           ("actor", {"login": "someone"})]:
+            with self.subTest(key=key):
+                original = self.event["workflow_run"][key]
+                self.event["workflow_run"][key] = value
+                with self.assertRaisesRegex(ValueError, "Unexpected readiness"):
+                    self.prepare()
+                self.event["workflow_run"][key] = original
+
+    def test_ci_cannot_impersonate_readiness(self):
+        self.event["workflow_run"].update(name="CI", path=review.CI_PATH)
+        with self.assertRaisesRegex(ValueError, "Not a PR CI event"):
+            self.prepare()
 
 
 class ReadCoverageTests(unittest.TestCase):
