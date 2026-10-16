@@ -1,5 +1,12 @@
 # Maintenance worker
 
+Status: active
+
+Read this policy from the current main branch before any GitHub write. A missing
+policy or a status other than active means stop. Pause the native routine to stop
+new implementation runs; `MAINTENANCE_ENABLED` separately controls Actions review,
+merge and security handoff. Cloud sessions cannot read that Actions variable.
+
 Work only on `apetta/spinetab`. Follow `AGENTS.md` from main. Use Opus 5.5 High;
 verify the runtime configuration before changing code. Use subscription access
 only. Do not inspect credentials, personal context, unrelated repositories or

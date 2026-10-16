@@ -116,8 +116,8 @@ jobs:
           if-no-files-found: error
           retention-days: 1
       # The library suite runs Chromium, Firefox and WebKit against the fixture
-      # server; the website suite covers navigation, themes and recipes. Both HTML reports are kept
-      # for a week. Packed-consumer and performance runs are not routine gates.
+      # server; the website suite covers navigation, themes and recipes. Reports
+      # are kept for a week. Library changes also verify packed consumers below.
       - name: Upload Playwright reports
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: ${{ !cancelled() }}
