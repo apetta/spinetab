@@ -1,0 +1,18 @@
+name: Maintenance readiness
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions: {}
+
+jobs:
+  ready:
+    if: >-
+      github.repository == 'apetta/spinetab' && github.actor == 'apetta' &&
+      github.event.label.name == 'agent:ready' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo 'Readiness event received; independent review follows completion.'

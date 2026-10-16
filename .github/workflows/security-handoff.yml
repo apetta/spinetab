@@ -1,0 +1,110 @@
+name: Security handoff
+
+on:
+  check_run:
+    types: [completed]
+  workflow_run:
+    workflows: [Security]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  security-events: read
+
+concurrency:
+  group: security-handoff
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  notify-maintainer:
+    if: >-
+      github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
+      vars.MAINTENANCE_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'check_run' && github.event.check_run.name == 'CodeQL' &&
+      github.event.check_run.app.id == 57789 && github.event.check_run.check_suite.head_branch == 'main') ||
+      (github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
+    runs-on: ubuntu-latest
+    environment: maintenance
+    timeout-minutes: 3
+    steps:
+      - name: Identify security work without exposing alert details
+        id: work
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROUTINE_ID: ${{ vars.CLAUDE_MAINTENANCE_ROUTINE_ID }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, urllib.request
+          from pathlib import Path
+          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          run = event.get('workflow_run', {})
+          work = []
+          if run.get('name') == 'Security' and run.get('conclusion') == 'failure':
+              work.append({'kind': 'dependency-audit', 'run': run['id'], 'commit': run['head_sha']})
+          if event.get('check_run') or run.get('name') == 'Security' or os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch':
+              request = urllib.request.Request('https://api.github.com/repos/apetta/spinetab/code-scanning/alerts?state=open&per_page=100', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  alerts = json.load(response)
+              if len(alerts) == 100:
+                  raise SystemExit('Security evidence needs pagination; inspect before dispatching')
+              for alert in alerts:
+                  if alert['most_recent_instance']['ref'] == 'refs/heads/main' and alert['rule'].get('security_severity_level') in ['high', 'critical']:
+                      instance = alert['most_recent_instance']
+                      work.append({'kind': 'code-scanning', 'alert': alert['number'], 'url': alert['html_url'], 'rule': alert['rule']['id'], 'path': instance['location']['path'], 'line': instance['location']['start_line']})
+          if not work:
+              print('Security handoff processed')
+              raise SystemExit(0)
+          encoded = json.dumps({'repository': 'apetta/spinetab', 'security_work': work}, sort_keys=True)
+          Path('security-work.json').write_text(encoded)
+          identity = [{key: value for key, value in item.items() if key not in ['run', 'url', 'line']} for item in work]
+          key = hashlib.sha256((os.environ['ROUTINE_ID'] + json.dumps(identity, sort_keys=True)).encode()).hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+              stream.write('key=security-handoff-v1-' + key + '\n')
+          PY
+      - name: Check whether this evidence was already dispatched
+        if: steps.work.outputs.key != '' && github.event_name != 'workflow_dispatch'
+        id: previous
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: security-handoff-ack
+          key: ${{ steps.work.outputs.key }}
+          lookup-only: true
+      - name: Trigger the repository-scoped Claude routine
+        if: steps.work.outputs.key != '' && steps.previous.outputs.cache-hit != 'true'
+        env:
+          ROUTINE_ID: ${{ vars.CLAUDE_MAINTENANCE_ROUTINE_ID }}
+          ROUTINE_TOKEN: ${{ secrets.CLAUDE_MAINTENANCE_TRIGGER_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          from pathlib import Path
+          routine = os.environ['ROUTINE_ID']
+          if not re.fullmatch('trig_[A-Za-z0-9]+', routine) or not os.environ['ROUTINE_TOKEN']:
+              raise SystemExit('Repository-scoped Claude trigger is not configured')
+          payload = {'text': Path('security-work.json').read_text()}
+          request = urllib.request.Request('https://api.anthropic.com/v1/claude_code/routines/' + routine + '/fire', method='POST', data=json.dumps(payload).encode(), headers={'Authorization': 'Bearer ' + os.environ['ROUTINE_TOKEN'], 'anthropic-version': '2023-06-01', 'anthropic-beta': 'experimental-cc-routine-2026-04-01', 'Content-Type': 'application/json'})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              if response.status not in [200, 201, 202]:
+                  raise SystemExit('Claude rejected the handoff')
+              result = json.load(response)
+          session = result.get('claude_code_session_url', '')
+          if not session.startswith('https://claude.ai/code/'):
+              raise SystemExit('Claude did not return a session URL; inspect the routine before retrying')
+          print('Security handoff processed')
+          Path('security-handoff-ack').write_text('dispatched\n')
+          PY
+      - name: Remember successful dispatch without storing alert details
+        if: steps.work.outputs.key != '' && steps.previous.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: security-handoff-ack
+          key: ${{ steps.work.outputs.key }}
+      - name: Remove transient security evidence
+        if: always()
+        run: rm -f security-work.json security-handoff-ack

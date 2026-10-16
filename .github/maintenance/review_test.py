@@ -1,0 +1,320 @@
+import copy
+import importlib.util
+import json
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+spec = importlib.util.spec_from_file_location("review", Path(__file__).with_name("review.py"))
+review = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(review)
+
+
+class GuardTests(unittest.TestCase):
+    def setUp(self):
+        self.pr = {"number": 12, "state": "open", "draft": False, "changed_files": 1,
+                   "user": {"login": "apetta"}, "labels": [{"name": "agent:ready"}],
+                   "base": {"ref": "main", "repo": {"full_name": review.REPO}},
+                   "head": {"ref": "claude/fix-recovery", "sha": "a" * 40,
+                            "repo": {"full_name": review.REPO}}}
+        self.files = [{"filename": "packages/spinetab/src/runtime.ts", "status": "modified"}]
+        self.run = {"id": 42, "run_attempt": 1, "repository": {"full_name": review.REPO},
+                    "path": review.CI_PATH, "event": "pull_request", "head_sha": "a" * 40,
+                    "head_branch": self.pr["head"]["ref"], "status": "completed", "conclusion": "success"}
+        self.approval = {"id": 9, "user": {"login": review.REVIEWER}, "state": "APPROVED",
+                         "commit_id": "a" * 40, "body": review.MARKER + "\nHead: " + "a" * 40
+                         + "\nBase: " + "b" * 40 + "\nCI: 42:1\nReview run: 99"}
+
+    def check(self):
+        review.eligible(self.pr, self.files)
+
+    def test_agent_change_is_eligible(self):
+        self.check()
+
+    def test_dependabot_does_not_need_agent_label(self):
+        self.pr["user"]["login"] = "dependabot[bot]"
+        self.pr["labels"] = []
+        self.pr["head"]["ref"] = "dependabot/npm_and_yarn/next-17"
+        self.check()
+
+    def test_fork_cannot_reach_subscription_review(self):
+        self.pr["head"]["repo"]["full_name"] = "someone/spinetab"
+        with self.assertRaisesRegex(ValueError, "Forks"):
+            self.check()
+
+    def test_untrusted_author_is_rejected(self):
+        self.pr["user"]["login"] = "someone"
+        with self.assertRaisesRegex(ValueError, "Author"):
+            self.check()
+
+    def test_owner_must_explicitly_mark_agent_work_ready(self):
+        self.pr["labels"] = []
+        with self.assertRaisesRegex(ValueError, "label"):
+            self.check()
+
+    def test_protected_files_including_renames_are_rejected(self):
+        for path in [".github/workflows/ci.yml", ".claude/settings.json", "AGENTS.md", ".npmrc",
+                     "packages/spinetab/AGENTS.md", "apps/website/.mcp.json",
+                     "apps/website/.claude/settings.json", ".npm-extension.mjs", "apps/website/.env.local",
+                     "turbo.json", ".pnpmfile.cjs", "pnpm-workspace.yaml", "packages/spinetab/vitest.config.ts",
+                     "apps/website/playwright.config.ts", "packages/spinetab/playwright.consumers.config.ts"]:
+            with self.subTest(path=path):
+                self.files[0] = {"filename": "README.md", "previous_filename": path, "status": "renamed"}
+                with self.assertRaises(ValueError):
+                    self.check()
+
+    def test_incomplete_file_listing_is_rejected(self):
+        self.pr["changed_files"] = 2
+        with self.assertRaisesRegex(ValueError, "Incomplete"):
+            self.check()
+
+    def test_changed_head_is_rejected_before_ci_or_merge(self):
+        def fake(path, *args):
+            if path == "/pulls/12":
+                return self.pr
+            if "/files" in path:
+                return self.files
+            if path == "/git/ref/heads/main":
+                return {"object": {"sha": "b" * 40}}
+            self.fail("Unexpected API operation: " + path)
+
+        with patch.object(review, "api", side_effect=fake):
+            with self.assertRaisesRegex(ValueError, "head changed"):
+                review.current(12, "c" * 40)
+
+    def test_changed_base_is_rejected(self):
+        values = [self.pr, self.files, {"object": {"sha": "b" * 40}}]
+        with patch.object(review, "api", side_effect=values):
+            with self.assertRaisesRegex(ValueError, "Base changed"):
+                review.current(12, "a" * 40, "c" * 40)
+
+    def test_successful_ci_on_current_commit(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 0, "check_runs": []},
+                         {"total_count": 0, "statuses": [], "state": "pending"}]):
+            self.assertEqual(review.ci(self.pr)["id"], 42)
+
+    def test_dependency_bump_preserves_package_policy(self):
+        files = [{"filename": "package.json", "status": "modified"}]
+        with patch.object(review, "content", side_effect=['{"scripts":{"test":"vitest"},"dependencies":{"x":"1"}}',
+                                                        '{"scripts":{"test":"vitest"},"dependencies":{"x":"2"}}']):
+            review.manifest_policy(files, "base", "head")
+
+    def test_changed_test_script_is_rejected(self):
+        files = [{"filename": "package.json", "status": "modified"}]
+        with patch.object(review, "content", side_effect=['{"scripts":{"test":"vitest"}}', '{"scripts":{"test":"true"}}']):
+            with self.assertRaisesRegex(ValueError, "Package scripts"):
+                review.manifest_policy(files, "base", "head")
+
+    def test_shared_typescript_change_requires_consumer_checks(self):
+        files = [{"filename": "packages/typescript/base.json", "status": "modified"}]
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]}]):
+            with self.assertRaisesRegex(ValueError, "Packed consumer"):
+                review.ci(self.pr, files=files)
+
+    def test_failed_check_named_review_is_not_exempt(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 1, "check_runs": [{"name": "review", "status": "completed", "conclusion": "failure"}]}]):
+            with self.assertRaisesRegex(ValueError, "Another check"):
+                review.ci(self.pr)
+
+    def test_failed_legacy_status_blocks_merge(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 0, "check_runs": []},
+                         {"total_count": 1, "statuses": [{"state": "failure"}], "state": "failure"}]):
+            with self.assertRaisesRegex(ValueError, "Another status"):
+                review.ci(self.pr)
+
+    def test_incomplete_status_listing_blocks_merge(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 0, "check_runs": []},
+                         {"total_count": 2, "statuses": [{"state": "success"}], "state": "success"}]):
+            with self.assertRaisesRegex(ValueError, "Incomplete status"):
+                review.ci(self.pr)
+
+    def test_library_change_requires_packed_consumer_checks(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]}]):
+            with self.assertRaisesRegex(ValueError, "Packed consumer"):
+                review.ci(self.pr, files=self.files)
+
+    def test_new_failed_ci_invalidates_old_success(self):
+        failed = dict(self.run, id=43, conclusion="failure")
+        with patch.object(review, "api", return_value={"workflow_runs": [self.run, failed]}):
+            with self.assertRaisesRegex(ValueError, "not successful"):
+                review.ci(self.pr)
+
+    def test_skipped_test_job_is_not_a_pass(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "skipped"}]}]):
+            with self.assertRaisesRegex(ValueError, "did not pass"):
+                review.ci(self.pr)
+
+    def approve(self, reviews):
+        with patch.dict(os.environ, {"GITHUB_RUN_ID": "99"}):
+            return review.approved(self.pr, reviews, 9, "b" * 40, self.run)
+
+    def test_current_independent_approval(self):
+        self.assertEqual(self.approve([self.approval])["id"], 9)
+
+    def test_changed_commit_invalidates_approval(self):
+        self.approval["commit_id"] = "d" * 40
+        with self.assertRaisesRegex(ValueError, "current head"):
+            self.approve([self.approval])
+
+    def test_self_approval_is_rejected(self):
+        self.pr["user"]["login"] = review.REVIEWER
+        with self.assertRaisesRegex(ValueError, "Self-approval"):
+            self.approve([self.approval])
+
+    def test_dismissed_or_superseded_approval_is_rejected(self):
+        later = copy.deepcopy(self.approval)
+        later.update(id=10, state="DISMISSED")
+        with self.assertRaisesRegex(ValueError, "superseded"):
+            self.approve([self.approval, later])
+
+    def test_another_reviewer_can_block_merge(self):
+        other = {"id": 10, "user": {"login": "maintainer"}, "state": "CHANGES_REQUESTED"}
+        with self.assertRaisesRegex(ValueError, "Outstanding"):
+            self.approve([self.approval, other])
+
+    def test_approval_from_another_run_is_rejected(self):
+        self.approval["body"] = self.approval["body"].replace("Review run: 99", "Review run: 98")
+        with self.assertRaisesRegex(ValueError, "Unrelated"):
+            self.approve([self.approval])
+
+    def test_merge_is_atomic_and_dispatches_the_actual_merge_commit(self):
+        merged_sha = "c" * 40
+        def fake(path, method="GET", data=None):
+            if method == "PUT":
+                self.assertEqual(path, "/pulls/12/merge")
+                self.assertEqual(data, {"sha": self.pr["head"]["sha"], "merge_method": "squash"})
+                return {"merged": True, "sha": merged_sha}
+            if method == "POST":
+                self.assertEqual(path, "/actions/workflows/ci.yml/dispatches")
+                self.assertEqual(data, {"ref": "main", "inputs": {"deploy": True, "expected_sha": merged_sha}})
+                return None
+            self.assertEqual(path, "/pulls/12")
+            return {"merged": True, "merge_commit_sha": merged_sha}
+
+        with patch.dict(os.environ, {"DECISION": "approve", "REVIEW_ID": "9", "GITHUB_RUN_ID": "99"}), \
+             patch.object(review, "evidence", return_value=(self.pr, "b" * 40, self.run)), \
+             patch.object(review, "pages", return_value=[self.approval]), \
+             patch.object(review, "api", side_effect=fake) as request:
+            review.merge()
+            self.assertEqual(request.call_count, 3)
+
+    def test_changed_head_before_merge_cannot_dispatch_downstream(self):
+        with patch.dict(os.environ, {"DECISION": "approve"}), \
+             patch.object(review, "evidence", side_effect=ValueError("PR head changed")), \
+             patch.object(review, "api") as request:
+            with self.assertRaisesRegex(ValueError, "head changed"):
+                review.merge()
+            request.assert_not_called()
+
+
+class PrepareTriggerTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name) / "event.json"
+        self.event = {"workflow_run": {"name": "Maintenance readiness", "conclusion": "success",
+                                      "path": ".github/workflows/maintenance-ready.yml",
+                                      "event": "pull_request_target", "actor": {"login": "apetta"}}}
+
+    def prepare(self):
+        self.path.write_text(json.dumps(self.event))
+        with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(self.path), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
+             patch.object(review, "output"), patch.object(review, "api", return_value=[]) as request:
+            review.prepare()
+            return request
+
+    def test_completed_trusted_readiness_can_start_review(self):
+        request = self.prepare()
+        request.assert_called_once_with("/pulls?state=open&sort=created&direction=asc&per_page=100&page=1")
+
+    def test_untrusted_readiness_origin_is_rejected(self):
+        for key, value in [("path", ".github/workflows/other.yml"), ("event", "pull_request"),
+                           ("actor", {"login": "someone"})]:
+            with self.subTest(key=key):
+                original = self.event["workflow_run"][key]
+                self.event["workflow_run"][key] = value
+                with self.assertRaisesRegex(ValueError, "Unexpected readiness"):
+                    self.prepare()
+                self.event["workflow_run"][key] = original
+
+    def test_ci_cannot_impersonate_readiness(self):
+        self.event["workflow_run"].update(name="CI", path=review.CI_PATH)
+        with self.assertRaisesRegex(ValueError, "Not a PR CI event"):
+            self.prepare()
+
+    def test_github_security_check_can_start_review(self):
+        self.event = {"check_run": {"name": "CodeQL", "app": {"id": 57789},
+                                    "conclusion": "success", "head_sha": "a" * 40}}
+        self.prepare().assert_called_once()
+
+    def test_another_app_cannot_impersonate_codeql(self):
+        self.event = {"check_run": {"name": "CodeQL", "app": {"id": 15368},
+                                    "conclusion": "success", "head_sha": "a" * 40}}
+        with self.assertRaisesRegex(ValueError, "Unexpected security check"):
+            self.prepare()
+
+
+class ReadCoverageTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name) / "review-input.json"
+        self.path.write_text("one\ntwo\nthree\nfour")
+
+    def result(self, start, count, capped=False):
+        return {"tool_use_result": {"type": "text", "file": {
+            "filePath": str(self.path), "startLine": start, "numLines": count,
+            "totalLines": 4, "truncatedByTokenCap": capped}}}
+
+    def test_every_line_was_received(self):
+        review.complete_reads([self.result(1, 2), self.result(3, 2)], self.path)
+
+    def test_reading_only_the_start_and_end_is_not_enough(self):
+        with self.assertRaisesRegex(ValueError, "all evidence"):
+            review.complete_reads([self.result(1, 1), self.result(4, 1)], self.path)
+
+    def test_token_capped_last_line_must_be_read_again(self):
+        with self.assertRaisesRegex(ValueError, "all evidence"):
+            review.complete_reads([self.result(1, 2, capped=True), self.result(3, 2)], self.path)
+
+    def test_overlap_completes_a_token_capped_read(self):
+        review.complete_reads([self.result(1, 2, capped=True), self.result(2, 3)], self.path)
+
+    def test_missing_sdk_read_metadata_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "all evidence"):
+            review.complete_reads([{"type": "user", "message": {"content": "Read succeeded"}}], self.path)
+
+    def test_reading_another_file_is_rejected(self):
+        result = self.result(1, 4)
+        result["tool_use_result"]["file"]["filePath"] = str(self.path.with_name("other.json"))
+        with self.assertRaisesRegex(ValueError, "Unexpected read result"):
+            review.complete_reads([result], self.path)
+
+    def test_wrong_total_line_count_is_rejected(self):
+        result = self.result(1, 4)
+        result["tool_use_result"]["file"]["totalLines"] = 5
+        with self.assertRaisesRegex(ValueError, "mismatch"):
+            review.complete_reads([result], self.path)
+
+
+if __name__ == "__main__":
+    unittest.main()

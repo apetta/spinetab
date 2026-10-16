@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the verified main commit after an automated merge
+        type: boolean
+        default: false
+      expected_sha:
+        description: Exact main commit for an automated deployment
+        type: string
   workflow_call:
     inputs:
       release:
@@ -20,6 +28,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    name: Maintenance guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      package: ${{ steps.scope.outputs.package }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test maintenance safeguards
+        run: python3 -m unittest discover -s .github/maintenance -p '*_test.py'
+      - name: Identify consumer verification scope
+        id: scope
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          pr = event.get('pull_request')
+          paths = subprocess.check_output(['git', 'diff', '--name-only', pr['base']['sha'], pr['head']['sha']], text=True).splitlines() if pr else []
+          package = any(path.startswith('packages/') or path in ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'] for path in paths)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+              stream.write(f'package={str(package).lower()}\n')
+          PY
+
   check:
     name: Lint, Typecheck, Test, E2E
     runs-on: ubuntu-latest
@@ -32,12 +67,32 @@ jobs:
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     steps:
+      - name: Validate automated deployment target
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          expected = os.environ['EXPECTED_SHA']
+          if os.environ['GITHUB_REF'] != 'refs/heads/main' or not re.fullmatch('[0-9a-f]{40}', expected):
+              raise SystemExit('Automated deployment requires an exact main commit')
+          request = urllib.request.Request('https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY'] + '/git/ref/heads/main', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              current = json.load(response)['object']['sha']
+          if current != expected:
+              raise SystemExit('Main advanced; let the newer CI run deploy instead')
+          PY
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.expected_sha || github.ref }}
+          persist-credentials: false
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
@@ -50,8 +105,10 @@ jobs:
       - name: Typecheck, unit tests, E2E
         run: pnpm exec turbo run typecheck test e2e
       - name: Preserve tested website build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v7
+        if: >-
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: website-build
           path: apps/website/dist/
@@ -59,10 +116,10 @@ jobs:
           if-no-files-found: error
           retention-days: 1
       # The library suite runs Chromium, Firefox and WebKit against the fixture
-      # server; the website suite covers navigation, themes and recipes. Both HTML reports are kept
-      # for a week. Packed-consumer and performance runs are not routine gates.
+      # server; the website suite covers navigation, themes and recipes. Reports
+      # are kept for a week. Library changes also verify packed consumers below.
       - name: Upload Playwright reports
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-reports
@@ -72,7 +129,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
       - name: Upload Playwright failure output
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: ${{ failure() }}
         with:
           name: playwright-test-results
@@ -84,52 +141,79 @@ jobs:
 
   deploy:
     name: Deploy website to Cloudflare Pages
-    needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, scope]
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
     permissions:
       contents: read
     environment:
       name: production
       url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
-          cache: pnpm
-      - name: Install validation dependencies
-        run: pnpm install --frozen-lockfile
+          package-manager-cache: false
+      - name: Create isolated deployment workspace
+        run: |
+          mkdir deployment
+          echo '{"private":true}' > deployment/package.json
+      - name: Install trusted deployment tooling before credentials are available
+        working-directory: deployment
+        run: |
+          npm install --ignore-scripts --save-exact wrangler@4.147.0
+          npx --no-install wrangler --version
       - name: Download tested website build
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: website-build
-          path: apps/website/dist/
+          path: deployment/dist/
       - name: Deploy tested website build
         id: deploy
-        uses: cloudflare/wrangler-action@v4
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/website
-          packageManager: pnpm
-          command: pages deploy dist --project-name=spinetab --branch=main --commit-hash=${{ github.sha }}
+          workingDirectory: deployment
+          packageManager: npm
+          wranglerVersion: "4.147.0"
+          command: pages deploy dist --project-name=spinetab --branch=main --commit-hash=${{ inputs.expected_sha || github.sha }}
+
+  verify-deployment:
+    name: Verify deployed documentation
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Verify deployed documentation routes and caching
         env:
-          WEBSITE_TEST_URL: ${{ steps.deploy.outputs.deployment-url }}
+          WEBSITE_TEST_URL: ${{ needs.deploy.outputs.url }}
         run: |
           test -n "$WEBSITE_TEST_URL"
           pnpm --filter website e2e --project content
 
   packed-consumers:
     name: Packed consumer release verification
-    if: github.event_name == 'workflow_dispatch' || inputs.release
-    needs: check
+    if: >-
+      (github.event_name == 'pull_request' && needs.scope.outputs.package == 'true') ||
+      (github.event_name == 'workflow_dispatch' && !inputs.deploy) || inputs.release
+    needs: [check, scope]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     container:
@@ -140,11 +224,11 @@ jobs:
       SPINETAB_CONSUMERS_RUN_ID: release-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
@@ -178,13 +262,13 @@ jobs:
           '
       - name: Upload verified release
         if: inputs.release
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: npm-release
           path: release/*.tgz
           if-no-files-found: error
       - name: Upload consumer reports and failure traces
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: ${{ !cancelled() }}
         with:
           name: packed-consumer-release-results
