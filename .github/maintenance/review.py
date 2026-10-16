@@ -17,7 +17,7 @@ CHECK = "Lint, Typecheck, Test, E2E"
 REVIEWER = "github-actions[bot]"
 MARKER = "<!-- spinetab-maintenance-review -->"
 PROTECTED = (".github/", ".claude/", ".agents/", ".codex/", ".husky/")
-PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules"}
+PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs"}
 
 
 def require(condition, message):
@@ -76,7 +76,8 @@ def eligible(pr, files):
     require(0 < len(files) == pr["changed_files"] <= 40, "Incomplete or oversized change")
     for item in files:
         for path in (item["filename"], item.get("previous_filename", item["filename"])):
-            require(not path.startswith(PROTECTED) and path not in PROTECTED_FILES, "Automation policy or credentials configuration needs human review")
+            parts = path.split("/")
+            require(not any(part + "/" in PROTECTED for part in parts[:-1]) and parts[-1] not in PROTECTED_FILES, "Automation policy or credentials configuration needs human review")
             require(not any(part.startswith(".env") for part in path.split("/")), "Environment files need human review")
         require(item["status"] in {"added", "modified", "removed", "renamed"}, "Unsupported file change")
 

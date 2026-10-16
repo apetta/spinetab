@@ -46,7 +46,8 @@ jobs:
                   alerts = json.load(response)
               for alert in alerts:
                   if alert['most_recent_instance']['ref'] == 'refs/heads/main' and alert['rule'].get('security_severity_level') in ['high', 'critical']:
-                      work.append({'kind': 'code-scanning', 'alert': alert['number'], 'url': alert['html_url']})
+                      instance = alert['most_recent_instance']
+                      work.append({'kind': 'code-scanning', 'alert': alert['number'], 'url': alert['html_url'], 'rule': alert['rule']['id'], 'path': instance['location']['path'], 'line': instance['location']['start_line']})
           if not work:
               print('No security work to dispatch')
               raise SystemExit(0)

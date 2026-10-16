@@ -53,7 +53,9 @@ class GuardTests(unittest.TestCase):
             self.check()
 
     def test_protected_files_including_renames_are_rejected(self):
-        for path in [".github/workflows/ci.yml", ".claude/settings.json", "AGENTS.md", ".npmrc", "apps/website/.env.local"]:
+        for path in [".github/workflows/ci.yml", ".claude/settings.json", "AGENTS.md", ".npmrc",
+                     "packages/spinetab/AGENTS.md", "apps/website/.mcp.json",
+                     "apps/website/.claude/settings.json", ".npm-extension.mjs", "apps/website/.env.local"]:
             with self.subTest(path=path):
                 self.files[0] = {"filename": "README.md", "previous_filename": path, "status": "renamed"}
                 with self.assertRaises(ValueError):
