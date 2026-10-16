@@ -25,7 +25,8 @@ concurrency:
 jobs:
   analyse:
     if: >-
-      github.repository == 'apetta/spinetab' && vars.MAINTENANCE_ENABLED == 'true' &&
+      github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
+      vars.MAINTENANCE_ENABLED == 'true' &&
       (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'))
     runs-on: ubuntu-latest
@@ -39,7 +40,6 @@ jobs:
       ci_attempt: ${{ steps.prepare.outputs.ci_attempt }}
       decision: ${{ steps.verify.outputs.decision }}
       reason: ${{ steps.verify.outputs.reason }}
-      policy_sha: ${{ steps.checkout.outputs.commit }}
     env:
       ANTHROPIC_API_KEY: ""
       CLAUDE_CODE_EFFORT_LEVEL: high
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         id: checkout
         with:
-          ref: main
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Test trusted guards
         run: python3 -m unittest discover -s .github/maintenance -p '*_test.py'
@@ -122,7 +122,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.analyse.outputs.policy_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Submit independent current-head review
         id: review
@@ -150,7 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.analyse.outputs.policy_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Merge the approved commit and trigger downstream CI
         run: python3 .github/maintenance/review.py merge
