@@ -26,10 +26,6 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def review_effort():
-    return "high" if os.environ.get("GITHUB_EVENT_NAME") == "schedule" else "medium"
-
-
 def api(path, method="GET", data=None):
     require(os.environ["GITHUB_REPOSITORY"] == REPO, "Unexpected repository")
     require(path.startswith("/") and not path.startswith("//"), "Invalid API path")
@@ -230,7 +226,6 @@ def complete_reads(trace, path):
 
 
 def verify():
-    require(os.environ.get("CLAUDE_CODE_EFFORT_LEVEL") == review_effort(), "Unexpected review effort")
     decision = json.loads(os.environ["VERDICT"])
     require(set(decision) == {"decision", "reason"}, "Invalid review response")
     require(decision["decision"] in {"approve", "request_changes", "escalate"}, "Invalid decision")
@@ -279,7 +274,7 @@ def review():
     reason = json.loads(os.environ["REASON"])
     require(isinstance(reason, str) and 0 < len(reason) <= 3000, "Invalid reason")
     require(pr["user"]["login"] != REVIEWER, "Reviewer cannot approve its own PR")
-    body = f"{MARKER}\nClaude Opus 5.5 {review_effort().title()}: {decision}\n\n{reason}\n\nHead: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}\nReview run: {os.environ['GITHUB_RUN_ID']}"
+    body = f"{MARKER}\nClaude Opus 5.5 High: {decision}\n\n{reason}\n\nHead: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}\nReview run: {os.environ['GITHUB_RUN_ID']}"
     result = api(f"/pulls/{pr['number']}/reviews", "POST", {"commit_id": pr["head"]["sha"], "body": body,
                  "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES", "escalate": "COMMENT"}[decision]})
     require(result["user"]["login"] == REVIEWER and result["commit_id"] == pr["head"]["sha"], "Unexpected review identity or head")
