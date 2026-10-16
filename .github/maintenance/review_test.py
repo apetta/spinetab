@@ -261,6 +261,17 @@ class PrepareTriggerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Not a PR CI event"):
             self.prepare()
 
+    def test_github_security_check_can_start_review(self):
+        self.event = {"check_run": {"name": "CodeQL", "app": {"id": 57789},
+                                    "conclusion": "success", "head_sha": "a" * 40}}
+        self.prepare().assert_called_once()
+
+    def test_another_app_cannot_impersonate_codeql(self):
+        self.event = {"check_run": {"name": "CodeQL", "app": {"id": 15368},
+                                    "conclusion": "success", "head_sha": "a" * 40}}
+        with self.assertRaisesRegex(ValueError, "Unexpected security check"):
+            self.prepare()
+
 
 class ReadCoverageTests(unittest.TestCase):
     def setUp(self):

@@ -1,8 +1,10 @@
 name: Maintenance review
 
 on:
+  check_run:
+    types: [completed]
   workflow_run:
-    workflows: [CI, CodeQL, Maintenance readiness]
+    workflows: [CI, Maintenance readiness]
     types: [completed]
   schedule:
     - cron: "37 7 * * *"
@@ -29,6 +31,9 @@ jobs:
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.MAINTENANCE_ENABLED == 'true' &&
+      (github.event_name != 'check_run' ||
+      (github.event.check_run.name == 'CodeQL' && github.event.check_run.app.id == 57789 &&
+      github.event.check_run.conclusion == 'success')) &&
       (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       contains(fromJSON('["pull_request","pull_request_target"]'), github.event.workflow_run.event)))

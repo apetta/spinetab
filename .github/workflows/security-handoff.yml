@@ -1,8 +1,10 @@
 name: Security handoff
 
 on:
+  check_run:
+    types: [completed]
   workflow_run:
-    workflows: [Security, CodeQL]
+    workflows: [Security]
     types: [completed]
   workflow_dispatch:
 
@@ -22,6 +24,8 @@ jobs:
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.MAINTENANCE_ENABLED == 'true' &&
       (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'check_run' && github.event.check_run.name == 'CodeQL' &&
+      github.event.check_run.app.id == 57789 && github.event.check_run.check_suite.head_branch == 'main') ||
       (github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
       contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
@@ -43,7 +47,7 @@ jobs:
           work = []
           if run.get('name') == 'Security' and run.get('conclusion') == 'failure':
               work.append({'kind': 'dependency-audit', 'run': run['id'], 'commit': run['head_sha']})
-          if run.get('name') == 'CodeQL' or os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch':
+          if event.get('check_run') or os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch':
               request = urllib.request.Request('https://api.github.com/repos/apetta/spinetab/code-scanning/alerts?state=open&per_page=100', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
               with urllib.request.urlopen(request, timeout=30) as response:
                   alerts = json.load(response)

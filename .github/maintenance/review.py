@@ -150,19 +150,25 @@ def prepare():
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     run_event = event.get("workflow_run")
     if run_event:
-        require(run_event["name"] in {"CI", "CodeQL", "Maintenance readiness"} and run_event["conclusion"] == "success", "Not successful candidate CI")
+        require(run_event["name"] in {"CI", "Maintenance readiness"} and run_event["conclusion"] == "success", "Not successful candidate CI")
         if run_event["name"] == "CI":
             require(run_event["path"] == CI_PATH, "Unexpected CI workflow")
         if run_event["name"] == "Maintenance readiness":
             require(run_event["path"] == ".github/workflows/maintenance-ready.yml" and run_event["event"] == "pull_request_target" and run_event["actor"]["login"] == "apetta", "Unexpected readiness workflow")
         else:
             require(run_event["event"] == "pull_request", "Not a PR CI event")
+    check_event = event.get("check_run")
+    if check_event:
+        require(check_event["name"] == "CodeQL" and check_event["app"]["id"] == 57789 and check_event["conclusion"] == "success", "Unexpected security check")
+        require(re.fullmatch(r"[0-9a-f]{40}", check_event["head_sha"]), "Invalid security check commit")
     number = event.get("inputs", {}).get("pr_number")
     require(not number or re.fullmatch(r"[1-9][0-9]*", str(number)), "Invalid PR number")
     candidates = [api(f"/pulls/{number}")] if number else pages("/pulls?state=open&sort=created&direction=asc")
     for candidate in candidates:
         try:
             if run_event and candidate["head"]["sha"] != run_event["head_sha"]:
+                continue
+            if check_event and candidate["head"]["sha"] != check_event["head_sha"]:
                 continue
             pr, files, main = current(candidate["number"])
             run = ci(pr, run_event["id"] if run_event and run_event["name"] == "CI" else None, files)
