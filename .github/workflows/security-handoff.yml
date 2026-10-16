@@ -47,7 +47,7 @@ jobs:
           work = []
           if run.get('name') == 'Security' and run.get('conclusion') == 'failure':
               work.append({'kind': 'dependency-audit', 'run': run['id'], 'commit': run['head_sha']})
-          if event.get('check_run') or os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch':
+          if event.get('check_run') or run.get('name') == 'Security' or os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch':
               request = urllib.request.Request('https://api.github.com/repos/apetta/spinetab/code-scanning/alerts?state=open&per_page=100', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
               with urllib.request.urlopen(request, timeout=30) as response:
                   alerts = json.load(response)
