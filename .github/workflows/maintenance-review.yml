@@ -51,7 +51,7 @@ jobs:
       reason: ${{ steps.verify.outputs.reason }}
     env:
       ANTHROPIC_API_KEY: ""
-      CLAUDE_CODE_EFFORT_LEVEL: high
+      CLAUDE_CODE_EFFORT_LEVEL: ${{ github.event_name == 'schedule' && 'high' || 'medium' }}
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -92,7 +92,7 @@ jobs:
             repositories, delegate or post anything. Return the structured decision
             and a concise British English explanation with paths for any findings.
           claude_args: >-
-            --model claude-opus-5-5 --effort high --max-turns 18
+            --model claude-opus-5-5 --effort ${{ env.CLAUDE_CODE_EFFORT_LEVEL }} --max-turns 18
             --restricted --permission-mode dontAsk --tools Read
             --allowedTools Read(review-input.json) --disallowedTools mcp__*
             --strict-mcp-config --mcp-config '{"mcpServers":{}}'

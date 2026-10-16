@@ -226,6 +226,23 @@ class GuardTests(unittest.TestCase):
             request.assert_not_called()
 
 
+class EffortTests(unittest.TestCase):
+    def test_reactive_reviews_use_medium_and_daily_reviews_use_high(self):
+        for event, expected in [("workflow_run", "medium"), ("check_run", "medium"),
+                                ("workflow_dispatch", "medium"), ("schedule", "high")]:
+            with self.subTest(event=event), patch.dict(os.environ, {"GITHUB_EVENT_NAME": event}):
+                self.assertEqual(review.review_effort(), expected)
+
+    def test_mismatched_effort_stops_before_reading_model_output(self):
+        for event, configured in [("schedule", "medium"), ("workflow_run", "high")]:
+            with self.subTest(event=event), patch.dict(os.environ, {
+                "GITHUB_EVENT_NAME": event, "CLAUDE_CODE_EFFORT_LEVEL": configured
+            }), patch.object(review.Path, "read_text") as read:
+                with self.assertRaisesRegex(ValueError, "Unexpected review effort"):
+                    review.verify()
+                read.assert_not_called()
+
+
 class PrepareTriggerTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()

@@ -7,8 +7,9 @@ policy or a status other than active means stop. Pause the native routine to sto
 new implementation runs; `MAINTENANCE_ENABLED` separately controls Actions review,
 merge and security handoff. Cloud sessions cannot read that Actions variable.
 
-Work only on `apetta/spinetab`. Follow `AGENTS.md` from main. Use Opus 5.5 High;
-verify the runtime configuration before changing code. Use subscription access
+Work only on `apetta/spinetab`. Follow `AGENTS.md` from main. Use Opus 5.5 at
+Medium effort for reactive PR work, High for security investigations and daily
+sweeps. Verify the runtime configuration before changing code. Use subscription access
 only. Do not inspect credentials, personal context, unrelated repositories or
 personal connectors. Context7 and grep may be used for public documentation and
 public code examples. Send only generic public queries, never private source,
