@@ -12,6 +12,7 @@ next-env.d.ts
 *.tgz
 
 # Testing
+__pycache__/
 coverage/
 test-results/
 playwright-report/

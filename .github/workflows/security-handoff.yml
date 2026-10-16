@@ -1,0 +1,62 @@
+name: Security handoff
+
+on:
+  workflow_run:
+    workflows: [Security, CodeQL]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  security-events: read
+
+concurrency:
+  group: security-handoff
+  cancel-in-progress: false
+
+jobs:
+  notify-maintainer:
+    if: >-
+      github.repository == 'apetta/spinetab' && vars.MAINTENANCE_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Trigger the repository-scoped Claude routine
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROUTINE_ID: ${{ vars.CLAUDE_MAINTENANCE_ROUTINE_ID }}
+          ROUTINE_TOKEN: ${{ secrets.CLAUDE_MAINTENANCE_TRIGGER_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          from pathlib import Path
+          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          run = event.get('workflow_run', {})
+          work = []
+          if run.get('name') == 'Security' and run.get('conclusion') == 'failure':
+              work.append({'kind': 'dependency-audit', 'run': run['id'], 'commit': run['head_sha']})
+          if run.get('name') == 'CodeQL' or os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch':
+              request = urllib.request.Request('https://api.github.com/repos/apetta/spinetab/code-scanning/alerts?state=open&per_page=100', headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  alerts = json.load(response)
+              for alert in alerts:
+                  if alert['most_recent_instance']['ref'] == 'refs/heads/main' and alert['rule'].get('security_severity_level') in ['high', 'critical']:
+                      work.append({'kind': 'code-scanning', 'alert': alert['number'], 'url': alert['html_url']})
+          if not work:
+              print('No security work to dispatch')
+              raise SystemExit(0)
+          routine = os.environ['ROUTINE_ID']
+          if not re.fullmatch('trig_[A-Za-z0-9]+', routine) or not os.environ['ROUTINE_TOKEN']:
+              raise SystemExit('Repository-scoped Claude trigger is not configured')
+          payload = {'text': json.dumps({'repository': 'apetta/spinetab', 'security_work': work})}
+          request = urllib.request.Request('https://api.anthropic.com/v1/claude_code/routines/' + routine + '/fire', method='POST', data=json.dumps(payload).encode(), headers={'Authorization': 'Bearer ' + os.environ['ROUTINE_TOKEN'], 'anthropic-version': '2023-06-01', 'anthropic-beta': 'experimental-cc-routine-2026-04-01', 'Content-Type': 'application/json'})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              if response.status not in [200, 201, 202]:
+                  raise SystemExit('Claude rejected the handoff')
+          print('Dispatched security work to the scoped Claude routine')
+          PY
