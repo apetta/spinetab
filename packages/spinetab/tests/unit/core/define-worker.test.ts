@@ -69,8 +69,6 @@ function sharedWorkerGlobal() {
 	return { addEventListener, listeners, connect };
 }
 
-const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
-
 describe("defineWorker", () => {
 	it("refuses an adapter array: adapters must be a function", () => {
 		const { adapter } = createTestAdapter();
@@ -116,9 +114,9 @@ describe("defineWorker", () => {
 		expect(scope.addEventListener).toHaveBeenCalledTimes(1);
 		expect(scope.addEventListener.mock.calls[0]?.[0]).toBe("connect");
 		const received = scope.connect();
-		await tick();
-		const welcome = received.find((message) => message.t === "welcome");
-		expect(welcome).toMatchObject({ limits: { maxConnections: 7 } });
+		await expect
+			.poll(() => received.find((message) => message.t === "welcome"))
+			.toMatchObject({ limits: { maxConnections: 7 } });
 	});
 
 	it("passes credentialOrigins through: an invalid list is a startup error for every page", async () => {
@@ -128,10 +126,9 @@ describe("defineWorker", () => {
 		});
 		expect(() => factory()).toThrow(/credentialOrigins/);
 		const received = scope.connect();
-		await tick();
-		expect(
-			received.find((message) => message.t === "startupError"),
-		).toMatchObject({ code: "worker-startup-error" });
+		await expect
+			.poll(() => received.find((message) => message.t === "startupError"))
+			.toMatchObject({ code: "worker-startup-error" });
 	});
 
 	it("builds the local runtime from the module default, as the client loads it", async () => {
@@ -233,12 +230,13 @@ describe("the realm check", () => {
 			revision: null,
 			heartbeatMs: 20_000,
 		});
-		await tick();
-		expect(received).toEqual([
-			expect.objectContaining({
-				t: "startupError",
-				code: "worker-startup-error",
-			}),
-		]);
+		await expect
+			.poll(() => received)
+			.toEqual([
+				expect.objectContaining({
+					t: "startupError",
+					code: "worker-startup-error",
+				}),
+			]);
 	});
 });
