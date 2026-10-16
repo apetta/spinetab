@@ -285,6 +285,9 @@ describe("C1-F4 every timeout stays within MAX_TIMER_MS", () => {
 		runtimes.push(runtime);
 		const raw = new RawPage(runtime);
 		raw.hello();
+		await expect
+			.poll(() => raw.ofType("welcome"), { timeout: 2_000 })
+			.toHaveLength(1);
 		await wait(100);
 		expect(raw.ofType("welcome")).toHaveLength(1);
 		expect(arms).toBeLessThanOrEqual(2);
