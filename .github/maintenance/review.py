@@ -17,7 +17,8 @@ CHECK = "Lint, Typecheck, Test, E2E"
 REVIEWER = "github-actions[bot]"
 MARKER = "<!-- spinetab-maintenance-review -->"
 PROTECTED = (".github/", ".claude/", ".agents/", ".codex/", ".husky/")
-PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs"}
+PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs", "turbo.json", "turbo.jsonc", "biome.json", "biome.jsonc", ".prettierignore"}
+HARNESS_CONFIG = re.compile(r"^(?:vitest(?:\.[\w-]+)*\.(?:config|workspace)|playwright(?:\.[\w-]+)*\.config|lint-staged\.config)\.[cm]?[jt]s$|^\.prettierrc(?:\..+)?$")
 
 
 def require(condition, message):
@@ -78,6 +79,7 @@ def eligible(pr, files):
         for path in (item["filename"], item.get("previous_filename", item["filename"])):
             parts = path.split("/")
             require(not any(part + "/" in PROTECTED for part in parts[:-1]) and parts[-1] not in PROTECTED_FILES, "Automation policy or credentials configuration needs human review")
+            require(not HARNESS_CONFIG.fullmatch(parts[-1]), "Test or lint configuration needs human review")
             require(not any(part.startswith(".env") for part in path.split("/")), "Environment files need human review")
         require(item["status"] in {"added", "modified", "removed", "renamed"}, "Unsupported file change")
 
@@ -94,7 +96,18 @@ def current(number, expected_head=None, expected_base=None):
     comparison = api(f"/compare/{main}...{head}")
     require(comparison["merge_base_commit"]["sha"] == main, "Branch must include the current main commit")
     require(comparison["status"] == "ahead", "No current change to merge")
+    manifest_policy(files, main, head)
     return pr, files, main
+
+
+def manifest_policy(files, base, head):
+    for item in files:
+        if Path(item["filename"]).name != "package.json":
+            continue
+        before = json.loads(content(item.get("previous_filename", item["filename"]), base)) if item["status"] != "added" else {}
+        after = json.loads(content(item["filename"], head)) if item["status"] != "removed" else {}
+        for key in ("scripts", "packageManager", "pnpm", "workspaces"):
+            require(before.get(key) == after.get(key), "Package scripts or toolchain policy needs human review")
 
 
 def ci(pr, run_id=None, files=()):
@@ -109,13 +122,15 @@ def ci(pr, run_id=None, files=()):
     jobs = api(f"/actions/runs/{run['id']}/jobs?per_page=100")["jobs"]
     require(any(job["name"] == CHECK and job["conclusion"] == "success" for job in jobs), "Required test job did not pass")
     require(any(job["name"] == "Maintenance guards" and job["conclusion"] == "success" for job in jobs), "Maintenance guard tests did not pass")
-    if any(item["filename"].startswith("packages/spinetab/") or item["filename"] in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"} for item in files):
+    if any(item["filename"].startswith("packages/") or item["filename"] in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"} for item in files):
         require(any(job["name"] == "Packed consumer release verification" and job["conclusion"] == "success" for job in jobs), "Packed consumer verification did not pass")
     checks = api(f"/commits/{pr['head']['sha']}/check-runs?per_page=100")
     require(checks["total_count"] == len(checks["check_runs"]), "Incomplete check evidence")
     for check in checks["check_runs"]:
-        if check["name"] not in {"analyse", "review", "merge"}:
-            require(check["status"] == "completed" and check["conclusion"] in {"success", "neutral", "skipped"}, "Another check is pending or failed")
+        require(check["status"] == "completed" and check["conclusion"] in {"success", "neutral", "skipped"}, "Another check is pending or failed")
+    statuses = api(f"/commits/{pr['head']['sha']}/status?per_page=100")
+    require(statuses["total_count"] == len(statuses["statuses"]), "Incomplete status evidence")
+    require(not statuses["statuses"] or statuses["state"] == "success", "Another status is pending or failed")
     return run
 
 
@@ -140,6 +155,10 @@ def prepare():
             require(run_event["path"] == CI_PATH, "Unexpected CI workflow")
         require(run_event["event"] == "pull_request", "Not a PR CI event")
     number = event.get("inputs", {}).get("pr_number")
+    if event.get("pull_request"):
+        require(event.get("action") == "labeled" and event.get("label", {}).get("name") == "agent:ready" and event["sender"]["login"] == "apetta", "Unexpected readiness event")
+        number = event["pull_request"]["number"]
+    require(not number or re.fullmatch(r"[1-9][0-9]*", str(number)), "Invalid PR number")
     candidates = [api(f"/pulls/{number}")] if number else pages("/pulls?state=open&sort=created&direction=asc")
     for candidate in candidates:
         try:
@@ -152,7 +171,7 @@ def prepare():
             if any(review["user"]["login"] == REVIEWER and MARKER in review["body"] and signature in review["body"] for review in previous):
                 continue
             evidence = {"repository": REPO, "pr": pr["number"], "head": pr["head"]["sha"], "base": main,
-                        "title": pr["title"], "description": (pr["body"] or "")[:12000],
+                        "title": pr["title"], "description": (pr["body"] or "")[:12000].splitlines(keepends=True),
                         "ci": {"id": run["id"], "attempt": run["run_attempt"], "url": run["html_url"], "conclusion": "success"}, "files": []}
             for item in files:
                 path = item["filename"]
@@ -160,14 +179,16 @@ def prepare():
                 if path == "pnpm-lock.yaml":
                     before = content(path, main, 1_000_000) if item["status"] != "added" else ""
                     after = content(path, pr["head"]["sha"], 1_000_000) if item["status"] != "removed" else ""
-                    record["patch"] = "".join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile="before/pnpm-lock.yaml", tofile="after/pnpm-lock.yaml"))
-                    require(len(record["patch"]) < 100000, "Lockfile diff needs a smaller review")
+                    patch = "".join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile="before/pnpm-lock.yaml", tofile="after/pnpm-lock.yaml"))
+                    require(len(patch) < 100000, "Lockfile diff needs a smaller review")
+                    record["patch"] = patch.splitlines(keepends=True)
                 else:
-                    record["before"] = content(item.get("previous_filename", path), main) if item["status"] != "added" else None
-                    record["after"] = content(path, pr["head"]["sha"]) if item["status"] != "removed" else None
+                    record["before"] = content(item.get("previous_filename", path), main).splitlines(keepends=True) if item["status"] != "added" else None
+                    record["after"] = content(path, pr["head"]["sha"]).splitlines(keepends=True) if item["status"] != "removed" else None
                 evidence["files"].append(record)
             encoded = json.dumps(evidence, indent=2)
             require(len(encoded) <= 600000, "Review is too large; split the change")
+            require(all(len(line) <= 8000 for line in encoded.splitlines()), "Long evidence lines need human review")
             current(pr["number"], pr["head"]["sha"], main)
             Path("review-input.json").write_text(encoded)
             output(ready="true", pr=pr["number"], head=pr["head"]["sha"], base=main,
@@ -177,6 +198,25 @@ def prepare():
         except (ValueError, UnicodeDecodeError) as error:
             print(f"PR #{candidate['number']}: {error}")
     print("No eligible unreviewed candidate; nothing to change")
+
+
+def complete_reads(trace, path):
+    path = Path(path).resolve()
+    total = len(path.read_text().splitlines())
+    covered = set()
+    for message in trace:
+        result = message.get("tool_use_result")
+        file = result.get("file") if isinstance(result, dict) else None
+        if not isinstance(file, dict):
+            continue
+        require(Path(file["filePath"]).resolve() == path, "Unexpected read result")
+        start, count = file["startLine"], file["numLines"]
+        require(file["totalLines"] == total and isinstance(start, int) and isinstance(count, int), "Read metadata mismatch")
+        require(1 <= start <= total + 1 and 0 <= count <= total - start + 1, "Invalid read range")
+        # A token cap can cut the last line. The next read must include it again.
+        end = start + count - int(bool(file.get("truncatedByTokenCap")))
+        covered.update(range(start, max(start, end)))
+    require(len(covered) == total and total > 0, "Reviewer did not read all evidence")
 
 
 def verify():
@@ -197,6 +237,8 @@ def verify():
                     require(Path(block["input"]["file_path"]).resolve() == Path("review-input.json").resolve(), "Unexpected reviewer file")
                     reads += 1
     require(reads > 0, "Reviewer did not read its evidence")
+    if decision["decision"] == "approve":
+        complete_reads(trace, "review-input.json")
     auth = json.loads(subprocess.check_output(["claude", "auth", "status"], text=True))
     require(auth["authMethod"] == "oauth_token", "Subscription authentication required")
     output(decision=decision["decision"], reason=json.dumps(decision["reason"]))

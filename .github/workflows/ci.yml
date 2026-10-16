@@ -50,7 +50,7 @@ jobs:
           event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
           pr = event.get('pull_request')
           paths = subprocess.check_output(['git', 'diff', '--name-only', pr['base']['sha'], pr['head']['sha']], text=True).splitlines() if pr else []
-          package = any(path.startswith('packages/spinetab/') or path in ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'] for path in paths)
+          package = any(path.startswith('packages/') or path in ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'] for path in paths)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write(f'package={str(package).lower()}\n')
           PY

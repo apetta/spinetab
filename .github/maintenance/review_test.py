@@ -2,6 +2,7 @@ import copy
 import importlib.util
 import os
 from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -55,7 +56,9 @@ class GuardTests(unittest.TestCase):
     def test_protected_files_including_renames_are_rejected(self):
         for path in [".github/workflows/ci.yml", ".claude/settings.json", "AGENTS.md", ".npmrc",
                      "packages/spinetab/AGENTS.md", "apps/website/.mcp.json",
-                     "apps/website/.claude/settings.json", ".npm-extension.mjs", "apps/website/.env.local"]:
+                     "apps/website/.claude/settings.json", ".npm-extension.mjs", "apps/website/.env.local",
+                     "turbo.json", "packages/spinetab/vitest.config.ts",
+                     "apps/website/playwright.config.ts", "packages/spinetab/playwright.consumers.config.ts"]:
             with self.subTest(path=path):
                 self.files[0] = {"filename": "README.md", "previous_filename": path, "status": "renamed"}
                 with self.assertRaises(ValueError):
@@ -90,8 +93,55 @@ class GuardTests(unittest.TestCase):
         with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
                          {"jobs": [{"name": review.CHECK, "conclusion": "success"},
                                    {"name": "Maintenance guards", "conclusion": "success"}]},
-                         {"total_count": 0, "check_runs": []}]):
+                         {"total_count": 0, "check_runs": []},
+                         {"total_count": 0, "statuses": [], "state": "pending"}]):
             self.assertEqual(review.ci(self.pr)["id"], 42)
+
+    def test_dependency_bump_preserves_package_policy(self):
+        files = [{"filename": "package.json", "status": "modified"}]
+        with patch.object(review, "content", side_effect=['{"scripts":{"test":"vitest"},"dependencies":{"x":"1"}}',
+                                                        '{"scripts":{"test":"vitest"},"dependencies":{"x":"2"}}']):
+            review.manifest_policy(files, "base", "head")
+
+    def test_changed_test_script_is_rejected(self):
+        files = [{"filename": "package.json", "status": "modified"}]
+        with patch.object(review, "content", side_effect=['{"scripts":{"test":"vitest"}}', '{"scripts":{"test":"true"}}']):
+            with self.assertRaisesRegex(ValueError, "Package scripts"):
+                review.manifest_policy(files, "base", "head")
+
+    def test_shared_typescript_change_requires_consumer_checks(self):
+        files = [{"filename": "packages/typescript/base.json", "status": "modified"}]
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]}]):
+            with self.assertRaisesRegex(ValueError, "Packed consumer"):
+                review.ci(self.pr, files=files)
+
+    def test_failed_check_named_review_is_not_exempt(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 1, "check_runs": [{"name": "review", "status": "completed", "conclusion": "failure"}]}]):
+            with self.assertRaisesRegex(ValueError, "Another check"):
+                review.ci(self.pr)
+
+    def test_failed_legacy_status_blocks_merge(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 0, "check_runs": []},
+                         {"total_count": 1, "statuses": [{"state": "failure"}], "state": "failure"}]):
+            with self.assertRaisesRegex(ValueError, "Another status"):
+                review.ci(self.pr)
+
+    def test_incomplete_status_listing_blocks_merge(self):
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 0, "check_runs": []},
+                         {"total_count": 2, "statuses": [{"state": "success"}], "state": "success"}]):
+            with self.assertRaisesRegex(ValueError, "Incomplete status"):
+                review.ci(self.pr)
 
     def test_library_change_requires_packed_consumer_checks(self):
         with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
@@ -173,6 +223,49 @@ class GuardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "head changed"):
                 review.merge()
             request.assert_not_called()
+
+
+class ReadCoverageTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name) / "review-input.json"
+        self.path.write_text("one\ntwo\nthree\nfour")
+
+    def result(self, start, count, capped=False):
+        return {"tool_use_result": {"type": "text", "file": {
+            "filePath": str(self.path), "startLine": start, "numLines": count,
+            "totalLines": 4, "truncatedByTokenCap": capped}}}
+
+    def test_every_line_was_received(self):
+        review.complete_reads([self.result(1, 2), self.result(3, 2)], self.path)
+
+    def test_reading_only_the_start_and_end_is_not_enough(self):
+        with self.assertRaisesRegex(ValueError, "all evidence"):
+            review.complete_reads([self.result(1, 1), self.result(4, 1)], self.path)
+
+    def test_token_capped_last_line_must_be_read_again(self):
+        with self.assertRaisesRegex(ValueError, "all evidence"):
+            review.complete_reads([self.result(1, 2, capped=True), self.result(3, 2)], self.path)
+
+    def test_overlap_completes_a_token_capped_read(self):
+        review.complete_reads([self.result(1, 2, capped=True), self.result(2, 3)], self.path)
+
+    def test_missing_sdk_read_metadata_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "all evidence"):
+            review.complete_reads([{"type": "user", "message": {"content": "Read succeeded"}}], self.path)
+
+    def test_reading_another_file_is_rejected(self):
+        result = self.result(1, 4)
+        result["tool_use_result"]["file"]["filePath"] = str(self.path.with_name("other.json"))
+        with self.assertRaisesRegex(ValueError, "Unexpected read result"):
+            review.complete_reads([result], self.path)
+
+    def test_wrong_total_line_count_is_rejected(self):
+        result = self.result(1, 4)
+        result["tool_use_result"]["file"]["totalLines"] = 5
+        with self.assertRaisesRegex(ValueError, "mismatch"):
+            review.complete_reads([result], self.path)
 
 
 if __name__ == "__main__":
