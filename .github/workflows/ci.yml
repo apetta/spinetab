@@ -149,7 +149,7 @@ jobs:
 
   deploy:
     name: Deploy website to Cloudflare Pages
-    needs: [verified, scope]
+    needs: [check, scope]
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
@@ -220,7 +220,7 @@ jobs:
 
   release:
     name: Prepare release PR
-    needs: [verified, scope, verify-deployment]
+    needs: [check, scope, verify-deployment]
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.RELEASE_PLEASE_ENABLED == 'true' &&
