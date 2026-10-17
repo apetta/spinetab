@@ -154,6 +154,12 @@ export class SpinetabChatTransport<UI_MESSAGE extends UIMessage = UIMessage>
 	readonly #credentials: SpinetabChatTransportOptions["credentials"];
 	readonly #onInterrupted: SpinetabChatTransportOptions["onInterrupted"];
 	readonly #limits: { maxMessages: number; maxBytes: number };
+	/**
+	 * Every `reconnectToStream` stream starts at position 0, so the chat resets
+	 * the interrupted message at the replay's first `start` chunk instead of
+	 * appending duplicate parts (ai 7.0.138 `ChatTransport.resumeStreamIsReplay`).
+	 */
+	readonly resumeStreamIsReplay = true;
 
 	constructor(options: SpinetabChatTransportOptions) {
 		if (typeof options !== "object" || options === null) {
