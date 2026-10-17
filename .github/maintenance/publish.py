@@ -111,8 +111,9 @@ def release_decision(sha, version):
         if review["state"] in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
             latest[review["user"]["login"]] = review
     require(not any(review["state"] == "CHANGES_REQUESTED" for review in latest.values()), "Outstanding release change request")
-    independent = latest.get("github-actions[bot]")
+    independent = latest.get("spinetab-agent[bot]")
     require(independent and independent["state"] == "APPROVED"
+            and independent["user"]["login"] != pr["user"]["login"]
             and independent["commit_id"] == pr["head"]["sha"]
             and "<!-- spinetab-maintenance-review -->" in (independent["body"] or "")
             and f"Head: {pr['head']['sha']}" in independent["body"].splitlines(), "Missing current-head independent release approval")
