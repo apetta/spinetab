@@ -221,6 +221,8 @@ def prepare():
                 record = {"path": path, "status": item["status"]}
                 if Path(path).name == "pnpm-lock.yaml":
                     previous = item.get("previous_filename", path)
+                    if previous != path:
+                        record["previous_path"] = previous
                     before = content(previous, main, 1_000_000) if item["status"] != "added" else ""
                     after = content(path, pr["head"]["sha"], 1_000_000) if item["status"] != "removed" else ""
                     patch = "".join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile=f"before/{previous}", tofile=f"after/{path}"))

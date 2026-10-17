@@ -408,10 +408,19 @@ class PrepareLockfileTests(unittest.TestCase):
         evidence, outputs = self.prepare([{"filename": path, "previous_filename": previous, "status": "renamed"}],
                                          "version: 1.9.15\n", "version: 1.9.17\n")
         self.assertTrue(any(call.kwargs.get("ready") == "true" for call in outputs))
+        self.assertEqual(evidence["files"][0]["previous_path"], previous)
         patch_text = "".join(evidence["files"][0]["patch"])
         self.assertIn(f"--- before/{previous}\n", patch_text)
         self.assertIn(f"+++ after/{path}\n", patch_text)
         self.assertIn("-version: 1.9.15\n+version: 1.9.17\n", patch_text)
+
+    def test_rename_only_keeps_original_lockfile_identity(self):
+        previous = "packages/spinetab/tests/fixtures/consumers/old/pnpm-lock.yaml"
+        path = "packages/spinetab/tests/fixtures/consumers/new/pnpm-lock.yaml"
+        evidence, outputs = self.prepare([{"filename": path, "previous_filename": previous, "status": "renamed"}],
+                                         "version: 1.9.17\n", "version: 1.9.17\n")
+        self.assertTrue(any(call.kwargs.get("ready") == "true" for call in outputs))
+        self.assertEqual(evidence["files"][0], {"path": path, "status": "renamed", "previous_path": previous, "patch": []})
 
     def test_large_fixture_lock_diff_still_fails_closed(self):
         evidence, outputs = self.prepare(["packages/spinetab/tests/fixtures/consumers/alpha/pnpm-lock.yaml"],
