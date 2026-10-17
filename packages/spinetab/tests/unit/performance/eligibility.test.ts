@@ -168,12 +168,17 @@ describe("repEligibility", () => {
 		{ passed: false },
 		{ ignored: true },
 		{ policy: "unknown" },
-	])("rejects missing, adverse, bypassed or malformed observed-host evidence: %j", (change) => {
-		expect(
-			repEligibility(environment({ "01": { ...observed(), ...change } }), "01")
-				.eligible,
-		).toBe(false);
-	});
+	])(
+		"rejects missing, adverse, bypassed or malformed observed-host evidence: %j",
+		(change) => {
+			expect(
+				repEligibility(
+					environment({ "01": { ...observed(), ...change } }),
+					"01",
+				).eligible,
+			).toBe(false);
+		},
+	);
 
 	it("keeps budget and repetition gates for observed-host measurements", () => {
 		const accepted = evaluateRun({
@@ -302,37 +307,42 @@ describe("evaluateRun pinned eligibility", () => {
 			{ passed: "true", ignored: "false" },
 			/malformed load gate metadata/,
 		],
-	])("keeps a %s load gate informational, never acceptance", (_name, loadGate, reason) => {
-		const run = evaluateRun({
-			records: ten,
-			environment: environment(reps(1, 10, loadGate)),
-			rows,
-		});
-		for (const id of ACCEPTANCE) {
-			const { evaluation, ineligible } = result(run, id);
-			expect(evaluation.status, id).toBe("informational");
-			// Raw diagnostic value kept, with the explicit reason.
-			expect(evaluation.measured, id).toBe(1);
-			expect(evaluation.reason, id).toMatch(reason);
-			expect(evaluation.reason, id).toMatch(/never acceptance/);
-			expect(ineligible?.runs, id).toBe(10);
-		}
-		expect(result(run, "env.pinned-runs").evaluation).toMatchObject({
-			measured: 0,
-			status: "fail",
-		});
-		expect(result(run, "env.pinned-runs").evaluation.reason).toMatch(reason);
-		expect(result(run, "env.manifest").evaluation).toMatchObject({
-			measured: 0,
-			status: "fail",
-		});
-		// A passing structural observation is reported, not accepted.
-		expect(status(run, SAFETY)).toBe("informational");
-		expect(Object.values(run.counts).reduce((a, b) => a + b)).toBe(rows.length);
-		expect(run.counts.pass).toBeUndefined();
-		expect(run.eligibility.records.ineligible).toBe(10);
-		expect(Object.keys(run.eligibility.reasons)[0]).toMatch(reason);
-	});
+	])(
+		"keeps a %s load gate informational, never acceptance",
+		(_name, loadGate, reason) => {
+			const run = evaluateRun({
+				records: ten,
+				environment: environment(reps(1, 10, loadGate)),
+				rows,
+			});
+			for (const id of ACCEPTANCE) {
+				const { evaluation, ineligible } = result(run, id);
+				expect(evaluation.status, id).toBe("informational");
+				// Raw diagnostic value kept, with the explicit reason.
+				expect(evaluation.measured, id).toBe(1);
+				expect(evaluation.reason, id).toMatch(reason);
+				expect(evaluation.reason, id).toMatch(/never acceptance/);
+				expect(ineligible?.runs, id).toBe(10);
+			}
+			expect(result(run, "env.pinned-runs").evaluation).toMatchObject({
+				measured: 0,
+				status: "fail",
+			});
+			expect(result(run, "env.pinned-runs").evaluation.reason).toMatch(reason);
+			expect(result(run, "env.manifest").evaluation).toMatchObject({
+				measured: 0,
+				status: "fail",
+			});
+			// A passing structural observation is reported, not accepted.
+			expect(status(run, SAFETY)).toBe("informational");
+			expect(Object.values(run.counts).reduce((a, b) => a + b)).toBe(
+				rows.length,
+			);
+			expect(run.counts.pass).toBeUndefined();
+			expect(run.eligibility.records.ineligible).toBe(10);
+			expect(Object.keys(run.eligibility.reasons)[0]).toMatch(reason);
+		},
+	);
 
 	it.each([
 		["no environment manifest", undefined, /no environment manifest/],
@@ -426,29 +436,32 @@ describe("evaluateRun pinned eligibility", () => {
 	it.each([
 		["ineligible only", 0],
 		["mixed with ten eligible", 10],
-	])("still fails a structural row on ineligible data (%s)", (_name, eligible) => {
-		const records = [
-			...Array.from({ length: eligible }, (_, index) =>
-				record(repId(index + 1)),
-			),
-			...Array.from({ length: 3 }, (_, index) =>
-				record(repId(eligible + index + 1), { lost: 1 }),
-			),
-		];
-		const run = evaluateRun({
-			records,
-			environment: environment({
-				...reps(1, eligible, gate()),
-				...reps(eligible + 1, 3, IGNORED),
-			}),
-			rows,
-		});
-		const safety = result(run, SAFETY).evaluation;
-		expect(safety.status).toBe("fail");
-		expect(safety.measured).toBe(1);
-		expect(safety.reason).toMatch(/load gate ignored/);
-		expect(safety.reason).toMatch(/never hidden/);
-	});
+	])(
+		"still fails a structural row on ineligible data (%s)",
+		(_name, eligible) => {
+			const records = [
+				...Array.from({ length: eligible }, (_, index) =>
+					record(repId(index + 1)),
+				),
+				...Array.from({ length: 3 }, (_, index) =>
+					record(repId(eligible + index + 1), { lost: 1 }),
+				),
+			];
+			const run = evaluateRun({
+				records,
+				environment: environment({
+					...reps(1, eligible, gate()),
+					...reps(eligible + 1, 3, IGNORED),
+				}),
+				rows,
+			});
+			const safety = result(run, SAFETY).evaluation;
+			expect(safety.status).toBe("fail");
+			expect(safety.measured).toBe(1);
+			expect(safety.reason).toMatch(/load gate ignored/);
+			expect(safety.reason).toMatch(/never hidden/);
+		},
+	);
 
 	it("keeps the smoke profile's structural checks and never gates timing", () => {
 		const run = evaluateRun({
@@ -545,11 +558,14 @@ describe("env.pinned-runs applicability", () => {
 			[record("01", {}, "smoke"), record("02")],
 			environment({ "01": gate(), "02": gate() }, "smoke"),
 		],
-	])("fails closed for %s: the count stays strict", (_name, records, manifest) => {
-		const run = evaluateRun({ records, environment: manifest, rows });
-		expect(run.eligibility.pinnedRunsApplicable).toBe(true);
-		expect(pinnedRuns(run).status).toBe("fail");
-	});
+	])(
+		"fails closed for %s: the count stays strict",
+		(_name, records, manifest) => {
+			const run = evaluateRun({ records, environment: manifest, rows });
+			expect(run.eligibility.pinnedRunsApplicable).toBe(true);
+			expect(pinnedRuns(run).status).toBe("fail");
+		},
+	);
 
 	it("smokeOnly needs every gating record and the manifest to be smoke", () => {
 		const smoke = { profile: "smoke" as const, project: "chromium-perf" };

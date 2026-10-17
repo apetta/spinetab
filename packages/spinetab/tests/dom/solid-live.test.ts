@@ -115,33 +115,33 @@ describe("createSubscription options (Solid)", () => {
 		root.dispose();
 	});
 
-	it.each([
-		"observer",
-		"connection",
-	] as const)("throwOnError throws a terminal error to the error handler, never a loss (%s)", (source) => {
-		const client = createFakeClient();
-		const caught: unknown[] = [];
-		const root = owned(() =>
-			catchError(
-				() =>
-					createSubscription(client, feed("a"), () => {}, {
-						throwOnError: true,
-					}),
-				(error) => caught.push(error),
-			),
-		);
-		client.setContinuity("gap", "overflow");
-		client.setConnection("retry-exhausted");
-		expect(caught).toEqual([]);
-		source === "observer"
-			? client.fail({ code: "subscribe-rejected", message: "no" })
-			: client.setConnection("failed", "permanent-error");
-		expect(caught).toHaveLength(1);
-		expect(caught[0]).toMatchObject({
-			code: source === "observer" ? "subscribe-rejected" : "upstream-error",
-		});
-		root.dispose();
-	});
+	it.each(["observer", "connection"] as const)(
+		"throwOnError throws a terminal error to the error handler, never a loss (%s)",
+		(source) => {
+			const client = createFakeClient();
+			const caught: unknown[] = [];
+			const root = owned(() =>
+				catchError(
+					() =>
+						createSubscription(client, feed("a"), () => {}, {
+							throwOnError: true,
+						}),
+					(error) => caught.push(error),
+				),
+			);
+			client.setContinuity("gap", "overflow");
+			client.setConnection("retry-exhausted");
+			expect(caught).toEqual([]);
+			source === "observer"
+				? client.fail({ code: "subscribe-rejected", message: "no" })
+				: client.setConnection("failed", "permanent-error");
+			expect(caught).toHaveLength(1);
+			expect(caught[0]).toMatchObject({
+				code: source === "observer" ? "subscribe-rejected" : "upstream-error",
+			});
+			root.dispose();
+		},
+	);
 
 	it("without an error hook a terminal error is rethrown into the client's callback guard", () => {
 		const client = createFakeClient();

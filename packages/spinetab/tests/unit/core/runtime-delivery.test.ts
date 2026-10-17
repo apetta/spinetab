@@ -379,15 +379,14 @@ describe("batched gap notices (acceptance scenario 2)", () => {
 		await settle(clock);
 		const feeds = test.all();
 		expect(feeds).toHaveLength(topics);
-		const topicOf = (index: number) =>
-			(feeds[index]?.spec as { topic: number }).topic;
 
 		// The stalled page acknowledges nothing from here on.
 		let produced = 0;
 		const round = async () => {
 			produced += 1;
-			for (const [index, upstream] of feeds.entries()) {
-				upstream.emit({ topic: topicOf(index), round: produced });
+			for (const upstream of feeds) {
+				const { topic } = upstream.spec as { topic: number };
+				upstream.emit({ topic, round: produced });
 			}
 			for (let topic = 0; topic < topics; topic += 1) {
 				healthy.ackAll(`h${topic}`);

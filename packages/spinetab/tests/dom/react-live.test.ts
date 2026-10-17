@@ -153,42 +153,42 @@ describe("useSubscription options", () => {
 		expect(second).toHaveBeenCalledTimes(1);
 	});
 
-	it.each([
-		"observer",
-		"connection",
-	] as const)("throwOnError sends a terminal error to the error boundary, never a loss or a resumable state (%s)", (source) => {
-		const client = createFakeClient();
-		const errorHook = vi.fn();
-		const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
-		function View() {
-			useSubscription(
-				client,
-				feed("a"),
-				{ next() {}, error: errorHook },
-				{ throwOnError: true },
+	it.each(["observer", "connection"] as const)(
+		"throwOnError sends a terminal error to the error boundary, never a loss or a resumable state (%s)",
+		(source) => {
+			const client = createFakeClient();
+			const errorHook = vi.fn();
+			const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+			function View() {
+				useSubscription(
+					client,
+					feed("a"),
+					{ next() {}, error: errorHook },
+					{ throwOnError: true },
+				);
+				return createElement("p", null, "ok");
+			}
+			render(createElement(Boundary, null, createElement(View)));
+			act(() => {
+				client.setContinuity("gap", "overflow");
+				client.setConnection("retry-exhausted");
+				client.setConnection("auth-blocked");
+			});
+			expect(container.textContent).toBe("ok");
+			act(() =>
+				source === "observer"
+					? client.fail({ code: "subscribe-rejected", message: "no" })
+					: client.setConnection("failed", "permanent-error"),
 			);
-			return createElement("p", null, "ok");
-		}
-		render(createElement(Boundary, null, createElement(View)));
-		act(() => {
-			client.setContinuity("gap", "overflow");
-			client.setConnection("retry-exhausted");
-			client.setConnection("auth-blocked");
-		});
-		expect(container.textContent).toBe("ok");
-		act(() =>
-			source === "observer"
-				? client.fail({ code: "subscribe-rejected", message: "no" })
-				: client.setConnection("failed", "permanent-error"),
-		);
-		expect(container.textContent).toBe(
-			source === "observer"
-				? "caught:subscribe-rejected"
-				: "caught:upstream-error",
-		);
-		expect(errorHook).toHaveBeenCalledTimes(source === "observer" ? 1 : 0);
-		quiet.mockRestore();
-	});
+			expect(container.textContent).toBe(
+				source === "observer"
+					? "caught:subscribe-rejected"
+					: "caught:upstream-error",
+			);
+			expect(errorHook).toHaveBeenCalledTimes(source === "observer" ? 1 : 0);
+			quiet.mockRestore();
+		},
+	);
 
 	it("without an error hook a terminal error is rethrown into the client's callback guard; a hook takes it", () => {
 		const client = createFakeClient();
@@ -356,39 +356,39 @@ describe("useLive", () => {
 		expect(shown()).toEqual({ data: { n: 3 }, error: null, needs: false });
 	});
 
-	it.each([
-		"observer",
-		"connection",
-	] as const)("a terminal error is returned as a value; throwOnError sends it to the boundary (%s)", (source) => {
-		const client = createFakeClient();
-		render(createElement(LiveView<Tick>, { client, source: feed("a") }));
-		act(() =>
-			source === "observer"
-				? client.fail({ code: "upstream-error", message: "boom" })
-				: client.setConnection("failed", "permanent-error"),
-		);
-		expect(shown().error).toBe("upstream-error");
-		act(() => root?.unmount());
-		const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
-		render(
-			createElement(
-				Boundary,
-				null,
-				createElement(LiveView<Tick>, {
-					client,
-					source: feed("a"),
-					options: { throwOnError: true },
-				}),
-			),
-		);
-		act(() =>
-			source === "observer"
-				? client.fail({ code: "upstream-error", message: "boom" })
-				: client.setConnection("failed", "permanent-error"),
-		);
-		expect(container.textContent).toBe("caught:upstream-error");
-		quiet.mockRestore();
-	});
+	it.each(["observer", "connection"] as const)(
+		"a terminal error is returned as a value; throwOnError sends it to the boundary (%s)",
+		(source) => {
+			const client = createFakeClient();
+			render(createElement(LiveView<Tick>, { client, source: feed("a") }));
+			act(() =>
+				source === "observer"
+					? client.fail({ code: "upstream-error", message: "boom" })
+					: client.setConnection("failed", "permanent-error"),
+			);
+			expect(shown().error).toBe("upstream-error");
+			act(() => root?.unmount());
+			const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+			render(
+				createElement(
+					Boundary,
+					null,
+					createElement(LiveView<Tick>, {
+						client,
+						source: feed("a"),
+						options: { throwOnError: true },
+					}),
+				),
+			);
+			act(() =>
+				source === "observer"
+					? client.fail({ code: "upstream-error", message: "boom" })
+					: client.setConnection("failed", "permanent-error"),
+			);
+			expect(container.textContent).toBe("caught:upstream-error");
+			quiet.mockRestore();
+		},
+	);
 
 	it("disabled holds nothing; unmount releases once", async () => {
 		const client = createFakeClient();

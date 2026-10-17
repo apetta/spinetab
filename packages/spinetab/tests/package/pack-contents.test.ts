@@ -38,59 +38,64 @@ const listing = (
 )[0] as Listing;
 
 describe("packed contents", () => {
-	it.each([
-		"0.1.1",
-		"0.2.0",
-	])("consumer archive installs version %s without unrelated lockfile changes", (version) => {
-		const root = mkdtempSync(join(tmpdir(), "spinetab-pack-version-"));
-		try {
-			const source = join(root, "source");
-			const target = join(root, "consumer");
-			const output = join(root, "pack");
-			for (const dir of [source, target, output]) mkdirSync(dir);
-			const pack = (candidate: string) => {
+	it.each(["0.1.1", "0.2.0"])(
+		"consumer archive installs version %s without unrelated lockfile changes",
+		(version) => {
+			const root = mkdtempSync(join(tmpdir(), "spinetab-pack-version-"));
+			try {
+				const source = join(root, "source");
+				const target = join(root, "consumer");
+				const output = join(root, "pack");
+				for (const dir of [source, target, output]) mkdirSync(dir);
+				const pack = (candidate: string) => {
+					writeFileSync(
+						join(source, "package.json"),
+						JSON.stringify({ name: "spinetab", version: candidate }),
+					);
+					execFileSync("pnpm", ["pack", "--out", join(output, TARBALL)], {
+						cwd: source,
+						stdio: "pipe",
+					});
+				};
+				const install = () =>
+					execFileSync(
+						"pnpm",
+						[
+							"install",
+							"--no-frozen-lockfile",
+							"--offline",
+							"--ignore-scripts",
+						],
+						{ cwd: target, stdio: "pipe" },
+					);
 				writeFileSync(
-					join(source, "package.json"),
-					JSON.stringify({ name: "spinetab", version: candidate }),
+					join(target, "package.json"),
+					JSON.stringify({
+						name: "version-fixture",
+						private: true,
+						dependencies: { spinetab: `file:../pack/${TARBALL}` },
+					}),
 				);
-				execFileSync("pnpm", ["pack", "--out", join(output, TARBALL)], {
-					cwd: source,
-					stdio: "pipe",
-				});
-			};
-			const install = () =>
-				execFileSync(
-					"pnpm",
-					["install", "--no-frozen-lockfile", "--offline", "--ignore-scripts"],
-					{ cwd: target, stdio: "pipe" },
+				pack("0.1.0");
+				install();
+				const before = readFileSync(join(target, "pnpm-lock.yaml"), "utf8");
+				pack(version);
+				install();
+				const after = readFileSync(join(target, "pnpm-lock.yaml"), "utf8");
+				const installed = JSON.parse(
+					readFileSync(
+						join(target, "node_modules/spinetab/package.json"),
+						"utf8",
+					),
 				);
-			writeFileSync(
-				join(target, "package.json"),
-				JSON.stringify({
-					name: "version-fixture",
-					private: true,
-					dependencies: { spinetab: `file:../pack/${TARBALL}` },
-				}),
-			);
-			pack("0.1.0");
-			install();
-			const before = readFileSync(join(target, "pnpm-lock.yaml"), "utf8");
-			pack(version);
-			install();
-			const after = readFileSync(join(target, "pnpm-lock.yaml"), "utf8");
-			const installed = JSON.parse(
-				readFileSync(
-					join(target, "node_modules/spinetab/package.json"),
-					"utf8",
-				),
-			);
-			expect(installed).toMatchObject({ name: "spinetab", version });
-			expect(lockfileDiff(before, after)).toEqual([]);
-			expect(readdirSync(output)).toEqual([TARBALL]);
-		} finally {
-			rmSync(root, { recursive: true, force: true });
-		}
-	});
+				expect(installed).toMatchObject({ name: "spinetab", version });
+				expect(lockfileDiff(before, after)).toEqual([]);
+				expect(readdirSync(output)).toEqual([TARBALL]);
+			} finally {
+				rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
 
 	it("contains only package.json, README.md, CHANGELOG.md, LICENSE and dist/**", () => {
 		const unexpected = listing.files

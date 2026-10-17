@@ -26,7 +26,11 @@ onUnmounted(() => {
 <template>
 	<section aria-label="Chat">
 		<p v-for="message in messages" :key="message.id">
-			{{ message.parts.map((part) => part.type === "text" ? part.text : "").join("") }}
+			{{
+				message.parts
+					.map((part) => (part.type === "text" ? part.text : ""))
+					.join("")
+			}}
 		</p>
 		<p v-if="error" role="alert">{{ error.message }}</p>
 		<p role="status">{{ status }}</p>

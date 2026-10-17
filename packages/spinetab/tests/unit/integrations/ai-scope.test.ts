@@ -175,28 +175,31 @@ describe("completed but unread follower queues (UNIT-AI-09)", () => {
 		["the core's scope-changed error", "error"],
 		["the core's unknown/scope-changed status", "status"],
 		["no signal at all (scope read lazily)", "none"],
-	] as const)("is discarded on a principal change signalled by %s", async (_label, signal) => {
-		const { client, spinetab, find } = controlledClient();
-		const transport = new SpinetabChatTransport({
-			client: spinetab,
-			api: API,
-			resume: false,
-		});
-		const dispose = transport.observe("chat-1");
-		const observe = find("observe");
-		observeCompleteGeneration(observe.observer);
-		expect(transport.role("chat-1")).toBe("follower");
-		client.scope = "bob";
-		if (signal === "error") observe.observer.error?.(scopeChangedError);
-		if (signal === "status") observe.observer.status?.(scopeChangedStatus);
-		const stream = await transport.reconnectToStream({ chatId: "chat-1" });
-		expect(stream).toBeNull();
-		expect(await drain(stream)).toEqual([]);
-		expect(transport.role("chat-1")).toBeUndefined();
-		// The previous principal's observe registration and callbacks are ended.
-		expect(observe.closed).toBe(true);
-		dispose();
-	});
+	] as const)(
+		"is discarded on a principal change signalled by %s",
+		async (_label, signal) => {
+			const { client, spinetab, find } = controlledClient();
+			const transport = new SpinetabChatTransport({
+				client: spinetab,
+				api: API,
+				resume: false,
+			});
+			const dispose = transport.observe("chat-1");
+			const observe = find("observe");
+			observeCompleteGeneration(observe.observer);
+			expect(transport.role("chat-1")).toBe("follower");
+			client.scope = "bob";
+			if (signal === "error") observe.observer.error?.(scopeChangedError);
+			if (signal === "status") observe.observer.status?.(scopeChangedStatus);
+			const stream = await transport.reconnectToStream({ chatId: "chat-1" });
+			expect(stream).toBeNull();
+			expect(await drain(stream)).toEqual([]);
+			expect(transport.role("chat-1")).toBeUndefined();
+			// The previous principal's observe registration and callbacks are ended.
+			expect(observe.closed).toBe(true);
+			dispose();
+		},
+	);
 
 	it("is discarded when the scope changes and returns to the same string", async () => {
 		const { client, spinetab, find } = controlledClient();
@@ -245,35 +248,35 @@ describe("completed but unread follower queues (UNIT-AI-09)", () => {
 });
 
 describe("reads waiting across a principal change (UNIT-AI-09)", () => {
-	it.each([
-		"status",
-		"lookup",
-	] as const)("a waiting read errors scope-changed (%s) and never sees later chunks", async (signal) => {
-		const { client, spinetab, find } = controlledClient();
-		const interrupted: string[] = [];
-		const transport = new SpinetabChatTransport({
-			client: spinetab,
-			api: API,
-			onInterrupted: (chatId) => interrupted.push(chatId),
-		});
-		const stream = await transport.sendMessages(sendOptions());
-		const live = find("generation");
-		live.observer.next(generation.slice(0, 2), { seq: 1 });
-		const reader = stream.getReader();
-		expect((await reader.read()).value).toEqual(generation[0]);
-		expect((await reader.read()).value).toEqual(generation[1]);
-		const waiting = reader.read().catch((error: unknown) => error);
-		await flush();
-		client.scope = "bob";
-		if (signal === "status") live.observer.status?.(scopeChangedStatus);
-		// Any transport call under the new scope retires the old state.
-		else transport.role("chat-1");
-		live.observer.next(generation.slice(2), { seq: 2 });
-		const failure = await waiting;
-		expect(isSpinetabError(failure, "scope-changed")).toBe(true);
-		expect(live.closed).toBe(true);
-		expect(interrupted).toEqual([]);
-	});
+	it.each(["status", "lookup"] as const)(
+		"a waiting read errors scope-changed (%s) and never sees later chunks",
+		async (signal) => {
+			const { client, spinetab, find } = controlledClient();
+			const interrupted: string[] = [];
+			const transport = new SpinetabChatTransport({
+				client: spinetab,
+				api: API,
+				onInterrupted: (chatId) => interrupted.push(chatId),
+			});
+			const stream = await transport.sendMessages(sendOptions());
+			const live = find("generation");
+			live.observer.next(generation.slice(0, 2), { seq: 1 });
+			const reader = stream.getReader();
+			expect((await reader.read()).value).toEqual(generation[0]);
+			expect((await reader.read()).value).toEqual(generation[1]);
+			const waiting = reader.read().catch((error: unknown) => error);
+			await flush();
+			client.scope = "bob";
+			if (signal === "status") live.observer.status?.(scopeChangedStatus);
+			// Any transport call under the new scope retires the old state.
+			else transport.role("chat-1");
+			live.observer.next(generation.slice(2), { seq: 2 });
+			const failure = await waiting;
+			expect(isSpinetabError(failure, "scope-changed")).toBe(true);
+			expect(live.closed).toBe(true);
+			expect(interrupted).toEqual([]);
+		},
+	);
 
 	it("a claimed follower stream waiting for chunks errors on the scope-changed status", async () => {
 		const { client, spinetab, find } = controlledClient();

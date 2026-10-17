@@ -166,72 +166,72 @@ async function serve(out: string) {
 	};
 }
 
-describe.each([
-	"turbopack",
-	"webpack",
-])("Next %s production tree shaking", (bundler) => {
-	for (const [name, probe] of Object.entries(cases)) {
-		it(`${name}: prunes unused code and keeps the selected export usable`, async () => {
-			const out = await buildApp(bundler, name, probe.source);
+describe.each(["turbopack", "webpack"])(
+	"Next %s production tree shaking",
+	(bundler) => {
+		for (const [name, probe] of Object.entries(cases)) {
+			it(`${name}: prunes unused code and keeps the selected export usable`, async () => {
+				const out = await buildApp(bundler, name, probe.source);
+				const text = browserPackageText(
+					join(out, "_next/static"),
+					join(root, "node_modules/spinetab/dist"),
+				);
+				if (name === "unused") expect(text.trim()).toBe("");
+				else {
+					expect(text.length).toBeGreaterThan(0);
+					for (const marker of probe.forbidden)
+						expect(text).not.toContain(marker);
+					if (name === "status") expect(text).toContain("Object.freeze");
+				}
+				const app = await serve(out);
+				const context = await browser.newContext();
+				try {
+					const page = await context.newPage();
+					await page.goto(app.url);
+					await page.waitForFunction("globalThis.keep !== undefined");
+					expect(await page.evaluate(probe.check)).toEqual(probe.result);
+				} finally {
+					await context.close();
+					await app.close();
+				}
+			});
+		}
+		it("keeps the generated worker functional across two tabs", async () => {
+			const out = await buildApp(
+				bundler,
+				"worker",
+				'"use client";\nimport { useEffect } from "react"; import { createSpinetab } from "spinetab"; import { polling, pollEvery } from "spinetab/polling"; export default function Page() { useEffect(() => { const client = createSpinetab({ anonymous: true }); const sub = client.subscribe(polling("/feed.json"), (value) => { globalThis.keep = { open: value.open, mode: client.status.get().mode, generation: client.status.get().generation }; }, pollEvery(1000, { whileHidden: true })); return () => { sub.unsubscribe(); client.dispose(); }; }, []); return <p>Worker probe</p>; }',
+				true,
+			);
 			const text = browserPackageText(
 				join(out, "_next/static"),
 				join(root, "node_modules/spinetab/dist"),
 			);
-			if (name === "unused") expect(text.trim()).toBe("");
-			else {
-				expect(text.length).toBeGreaterThan(0);
-				for (const marker of probe.forbidden)
-					expect(text).not.toContain(marker);
-				if (name === "status") expect(text).toContain("Object.freeze");
-			}
+			expect(text).toContain("polling");
+			expect(text).not.toContain("graphql-ws");
 			const app = await serve(out);
 			const context = await browser.newContext();
 			try {
-				const page = await context.newPage();
-				await page.goto(app.url);
-				await page.waitForFunction("globalThis.keep !== undefined");
-				expect(await page.evaluate(probe.check)).toEqual(probe.result);
+				const pages = await Promise.all([context.newPage(), context.newPage()]);
+				await Promise.all(pages.map((page) => page.goto(app.url)));
+				await Promise.all(
+					pages.map((page) =>
+						page.waitForFunction(
+							'globalThis.keep?.open === 12 && keep.mode === "shared"',
+						),
+					),
+				);
+				const generations = await Promise.all(
+					pages.map((page) => page.evaluate("keep.generation")),
+				);
+				expect(generations[0]).toBe(generations[1]);
+				await pages[0]?.close();
+				app.update();
+				await pages[1]?.waitForFunction("keep.open === 13");
 			} finally {
 				await context.close();
 				await app.close();
 			}
 		});
-	}
-	it("keeps the generated worker functional across two tabs", async () => {
-		const out = await buildApp(
-			bundler,
-			"worker",
-			'"use client";\nimport { useEffect } from "react"; import { createSpinetab } from "spinetab"; import { polling, pollEvery } from "spinetab/polling"; export default function Page() { useEffect(() => { const client = createSpinetab({ anonymous: true }); const sub = client.subscribe(polling("/feed.json"), (value) => { globalThis.keep = { open: value.open, mode: client.status.get().mode, generation: client.status.get().generation }; }, pollEvery(1000, { whileHidden: true })); return () => { sub.unsubscribe(); client.dispose(); }; }, []); return <p>Worker probe</p>; }',
-			true,
-		);
-		const text = browserPackageText(
-			join(out, "_next/static"),
-			join(root, "node_modules/spinetab/dist"),
-		);
-		expect(text).toContain("polling");
-		expect(text).not.toContain("graphql-ws");
-		const app = await serve(out);
-		const context = await browser.newContext();
-		try {
-			const pages = await Promise.all([context.newPage(), context.newPage()]);
-			await Promise.all(pages.map((page) => page.goto(app.url)));
-			await Promise.all(
-				pages.map((page) =>
-					page.waitForFunction(
-						'globalThis.keep?.open === 12 && keep.mode === "shared"',
-					),
-				),
-			);
-			const generations = await Promise.all(
-				pages.map((page) => page.evaluate("keep.generation")),
-			);
-			expect(generations[0]).toBe(generations[1]);
-			await pages[0]?.close();
-			app.update();
-			await pages[1]?.waitForFunction("keep.open === 13");
-		} finally {
-			await context.close();
-			await app.close();
-		}
-	});
-});
+	},
+);
