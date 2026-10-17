@@ -53,7 +53,8 @@ jobs:
           PY
 
   check:
-    name: Lint, Typecheck, Test, E2E
+    name: ${{ github.ref == 'refs/heads/main' && 'Lint, Typecheck, Test, E2E' || 'Verify main workspace' }}
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -64,9 +65,11 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --user 1001
+    # Main restores only GitHub's protected branch cache. Vercel is write-only
+    # here so agent-uploaded entries cannot skip checks or supply deployed files.
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-      TURBO_CACHE: "local:rw,remote:rw"
+      TURBO_CACHE: "local:rw,remote:w"
     steps:
       - name: Validate automated deployment target
         if: github.event_name == 'workflow_dispatch' && inputs.deploy
@@ -95,6 +98,33 @@ jobs:
         with:
           deploy: ${{ inputs.deploy || false }}
           team: ${{ vars.TURBO_TEAM }}
+
+  check-pr:
+    name: ${{ github.ref != 'refs/heads/main' && 'Lint, Typecheck, Test, E2E' || 'Verify pull request workspace' }}
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      TURBO_CACHE: "local:rw,remote:"
+    steps:
+      - name: Require PR verification without OIDC access
+        run: test -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" && test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+      - name: Reject deployment from another branch
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy
+        run: exit 1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.expected_sha || github.ref }}
+          persist-credentials: false
+      - name: Verify workspace
+        uses: ./.github/actions/verify-workspace
 
   deploy:
     name: Deploy website to Cloudflare Pages
