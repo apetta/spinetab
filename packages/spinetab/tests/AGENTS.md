@@ -17,6 +17,8 @@ multiplying every network fault by every framework.
 - Turbo builds the browser harness; direct package `e2e` expects it already built.
   Fixture counters are global, so suites use one worker and serial files. Avoid
   concurrent suites sharing servers/ports.
+- Routine E2E can restore cached reports. Use Turbo's `--force` when a bug
+  investigation needs fresh browser execution.
 - SharedWorker evidence needs server-counted work and runtime identity, not just
   matching UI. Recovery must deliver newer events, not merely become `connected`.
   Report which browsers actually ran.

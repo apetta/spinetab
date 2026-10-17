@@ -198,11 +198,14 @@ class GuardTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertTrue(review.consumer_checks_required([path]))
                 self.assertTrue(review.consumer_checks_required(["packages/spinetab/README.md", path]))
+                self.assertTrue(review.consumer_checks_required(["packages/spinetab/src/core/AGENTS.md", path]))
 
     def test_documentation_changes_do_not_require_packed_consumers(self):
         files = [{"filename": path, "status": "modified"} for path in (
             "README.md", "packages/spinetab/README.md", "packages/spinetab/CHANGELOG.md",
-            "packages/spinetab/src/core/README.md", "apps/website/src/content/docs/overview.mdx")]
+            "packages/spinetab/src/core/README.md", "apps/website/src/content/docs/overview.mdx",
+            "packages/spinetab/AGENTS.md", "packages/spinetab/src/core/AGENTS.md",
+            "packages/spinetab/tests/package/AGENTS.md", "packages/spinetab/CLAUDE.md")]
         self.assertFalse(review.consumer_checks_required(item["filename"] for item in files))
         with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
                          {"jobs": [{"name": review.CHECK, "conclusion": "success"},
