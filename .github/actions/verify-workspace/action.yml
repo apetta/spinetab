@@ -8,7 +8,7 @@ inputs:
     description: Preserve the tested main website for deployment
     default: "false"
   team:
-    description: Vercel team used by main-branch CI only
+    description: Vercel team used by trusted CI
     default: ""
 runs:
   using: composite
@@ -27,14 +27,14 @@ runs:
       shell: bash
       run: pnpm install --frozen-lockfile
     - name: Restore and save task cache within GitHub's branch boundaries
-      if: inputs.release != 'true'
+      if: inputs.release != 'true' && inputs.team == ''
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: .turbo/cache
         key: turbo-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ github.sha }}
         restore-keys: turbo-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
-    - name: Authenticate the main branch to the remote build cache
-      if: github.ref == 'refs/heads/main' && inputs.team != '' && inputs.release != 'true'
+    - name: Authenticate to the shared remote build cache
+      if: inputs.team != '' && inputs.release != 'true'
       uses: vercel/setup-turborepo-remote-cache-action@49d7b1b46ba4c9251e1977986bfe18336feabc8f # v1.1.0
       with:
         team: ${{ inputs.team }}

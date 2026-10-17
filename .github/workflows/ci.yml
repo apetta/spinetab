@@ -52,9 +52,14 @@ jobs:
               stream.write(f'package={str(package).lower()}\n')
           PY
 
+  # Match the cache policy's immutable actor IDs: apetta, Dependabot and Actions.
   check:
-    name: ${{ github.ref == 'refs/heads/main' && 'Lint, Typecheck, Test, E2E' || 'Verify main workspace' }}
-    if: github.ref == 'refs/heads/main'
+    name: Verify workspace
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(fromJSON('["33671231", "49699333", "41898282"]'), github.actor_id))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -65,11 +70,11 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --user 1001
-    # Main restores only GitHub's protected branch cache. Vercel is write-only
-    # here so agent-uploaded entries cannot skip checks or supply deployed files.
+    # Share task results with local and hosted agents. Publication verification
+    # bypasses both cache sources in release-verification.yml.
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-      TURBO_CACHE: "local:rw,remote:w"
+      TURBO_CACHE: "local:rw,remote:rw"
     steps:
       - name: Validate automated deployment target
         if: github.event_name == 'workflow_dispatch' && inputs.deploy
@@ -100,8 +105,12 @@ jobs:
           team: ${{ vars.TURBO_TEAM }}
 
   check-pr:
-    name: ${{ github.ref != 'refs/heads/main' && 'Lint, Typecheck, Test, E2E' || 'Verify pull request workspace' }}
-    if: github.ref != 'refs/heads/main'
+    name: Verify without remote cache
+    if: >-
+      github.ref != 'refs/heads/main' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name != github.repository ||
+      !contains(fromJSON('["33671231", "49699333", "41898282"]'), github.actor_id))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -113,7 +122,7 @@ jobs:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       TURBO_CACHE: "local:rw,remote:"
     steps:
-      - name: Require PR verification without OIDC access
+      - name: Require verification without OIDC access
         run: test -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" && test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
       - name: Reject deployment from another branch
         if: github.event_name == 'workflow_dispatch' && inputs.deploy
@@ -126,9 +135,21 @@ jobs:
       - name: Verify workspace
         uses: ./.github/actions/verify-workspace
 
+  verified:
+    name: Lint, Typecheck, Test, E2E
+    needs: [check, check-pr]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require exactly one successful workspace verification
+        env:
+          RESULTS: ${{ needs.check.result }}:${{ needs.check-pr.result }}
+        run: test "$RESULTS" = success:skipped || test "$RESULTS" = skipped:success
+
   deploy:
     name: Deploy website to Cloudflare Pages
-    needs: [check, scope]
+    needs: [verified, scope]
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
@@ -199,7 +220,7 @@ jobs:
 
   release:
     name: Prepare release PR
-    needs: [check, scope, verify-deployment]
+    needs: [verified, scope, verify-deployment]
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.RELEASE_PLEASE_ENABLED == 'true' &&
