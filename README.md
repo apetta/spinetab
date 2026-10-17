@@ -160,5 +160,21 @@ automation policy changes** when those changes are intended. The manual lane pos
 a review without merging; required CI and branch protection still apply. A changed
 commit needs a fresh review. Ordinary agent PRs use the `agent:ready` label instead.
 
+The repository supervisor can authorise independent review and guarded merge of
+configuration changes by posting a new PR comment through its connected GitHub app:
+
+```text
+<!-- spinetab-maintenance-authorisation -->
+Head: FULL_PR_COMMIT_SHA
+Base: FULL_MAIN_COMMIT_SHA
+
+Reason for the configuration change.
+```
+
+This permits review; it is not an approval. The request must come from the owner's
+ChatGPT GitHub connection, and edited comments are invalid. Changed commits need
+fresh authorisation. Independent review, passing CI and branch protection remain
+required; forks and environment files remain excluded.
+
 Application state, caches, backend replay and server helpers are outside the
 library's scope.

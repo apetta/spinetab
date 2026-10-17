@@ -14,7 +14,7 @@ spec.loader.exec_module(review)
 
 class GuardTests(unittest.TestCase):
     def setUp(self):
-        environment = patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run"})
+        environment = patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "SUPERVISOR_COMMENT_ID": ""})
         environment.start()
         self.addCleanup(environment.stop)
         self.pr = {"number": 12, "state": "open", "draft": False, "changed_files": 1,
@@ -460,6 +460,238 @@ class ManualReviewTests(unittest.TestCase):
              patch.object(review, "api") as request, self.assertRaisesRegex(ValueError, "head changed"):
             review.review()
         request.assert_not_called()
+
+
+class SupervisorReviewTests(unittest.TestCase):
+    def setUp(self):
+        GuardTests.setUp(self)
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name) / "event.json"
+        self.event = {"action": "created", "issue": {"number": 12, "pull_request": {}}, "comment": {"id": 100}}
+        self.event["issue"]["pull_request"] = {"url": f"https://api.github.com/repos/{review.REPO}/pulls/12"}
+        self.path.write_text(json.dumps(self.event))
+        self.pr.update(title="test: migrate the test runner", body="")
+        self.files = [{"filename": "packages/spinetab/vitest.config.ts", "status": "modified"}]
+        self.comment = {"id": 100, "user": {"login": "apetta", "type": "User"},
+                        "performed_via_github_app": dict(review.SUPERVISOR_APP),
+                        "issue_url": f"https://api.github.com/repos/{review.REPO}/issues/12",
+                        "created_at": "2026-10-17T12:00:00Z", "updated_at": "2026-10-17T12:00:00Z",
+                        "body": review.AUTHORISATION + "\nHead: " + "a" * 40 + "\nBase: " + "b" * 40
+                        + "\n\nKeep the existing assertions while migrating the test runner."}
+        self.reviews = []
+        self.writes = []
+        self.merged = False
+        environment = patch.dict(os.environ, {
+            "GITHUB_REPOSITORY": review.REPO, "GITHUB_REF": "refs/heads/main", "GITHUB_SHA": "b" * 40,
+            "GITHUB_ACTOR": "apetta", "GITHUB_TRIGGERING_ACTOR": "apetta", "GITHUB_RUN_ID": "99",
+            "GITHUB_EVENT_PATH": str(self.path), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0",
+            "PR_NUMBER": "12", "EXPECTED_HEAD": "a" * 40, "EXPECTED_BASE": "b" * 40,
+            "CI_RUN": "42", "CI_ATTEMPT": "1", "REVIEW_ID": "9", "DECISION": "approve",
+            "REASON": '"No concrete defect found"', "SUPERVISOR_COMMENT_ID": "100",
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+
+    def api(self, path, method="GET", data=None):
+        if method != "GET":
+            self.writes.append((path, method, data))
+            if path == "/pulls/12/reviews":
+                approval = dict(self.approval, body=data["body"], commit_id=data["commit_id"])
+                self.reviews.append(approval)
+                return approval
+            if path == "/pulls/12/merge":
+                self.merged = True
+                return {"merged": True, "sha": "c" * 40}
+            if path == "/actions/workflows/ci.yml/dispatches":
+                return None
+        if path == "/pulls/12":
+            return dict(self.pr, merged=True, merge_commit_sha="c" * 40) if self.merged else self.pr
+        if path == "/git/ref/heads/main":
+            return {"object": {"sha": "b" * 40}}
+        if path == "/issues/comments/100":
+            return self.comment
+        if path == "/compare/" + "b" * 40 + "..." + "a" * 40:
+            return {"merge_base_commit": {"sha": "b" * 40}, "status": "ahead"}
+        self.fail("Unexpected API operation: " + path)
+
+    def pages(self, path):
+        if path == "/pulls/12/files":
+            return self.files
+        if path == "/pulls/12/reviews":
+            return self.reviews
+        if path == "/issues/12/comments":
+            return [self.comment]
+        if path.startswith("/pulls?state=open"):
+            return [self.pr]
+        self.fail("Unexpected paginated API operation: " + path)
+
+    def current(self):
+        with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages):
+            return review.current(12, "a" * 40, "b" * 40)
+
+    def test_supervisor_can_authorise_protected_configuration(self):
+        self.current()
+        self.assertFalse(self.writes)
+
+    def test_owner_name_alone_is_not_supervisor_authorisation(self):
+        for user, app in [({"login": "someone", "type": "User"}, review.SUPERVISOR_APP),
+                          ({"login": "apetta", "type": "Bot"}, review.SUPERVISOR_APP),
+                          (self.comment["user"], None),
+                          (self.comment["user"], {"id": 123, "slug": "claude"}),
+                          (self.comment["user"], {"id": 123, "slug": "chatgpt-codex-connector"}),
+                          (self.comment["user"], {"id": 1144995, "slug": "another-app"})]:
+            original = copy.deepcopy(self.comment)
+            with self.subTest(user=user, app=app):
+                self.comment.update(user=user, performed_via_github_app=app)
+                with self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
+                    self.current()
+                self.assertFalse(self.writes)
+            self.comment = original
+
+    def test_copied_untrusted_comment_does_not_authorise_a_sweep(self):
+        self.comment["performed_via_github_app"] = {"id": 123, "slug": "claude"}
+        with patch.object(review, "pages", side_effect=self.pages):
+            self.assertIsNone(review.supervisor_request(self.pr))
+
+    def test_authorisation_is_bound_to_both_commits_and_pr(self):
+        for key, value, error in [
+            ("issue_url", f"https://api.github.com/repos/{review.REPO}/issues/13", "another PR"),
+            ("body", self.comment["body"].replace("Head: " + "a" * 40, "Head: " + "d" * 40), "head changed"),
+            ("body", self.comment["body"].replace("Base: " + "b" * 40, "Base: " + "d" * 40), "base changed"),
+            ("updated_at", "2026-10-17T12:01:00Z", "Edited authorisation"),
+        ]:
+            original = self.comment[key]
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, error):
+                self.comment[key] = value
+                self.current()
+            self.comment[key] = original
+        self.assertFalse(self.writes)
+
+    def test_malformed_authorisation_is_rejected(self):
+        original = self.comment["body"]
+        for body in [original.replace("a" * 40, "aaaaaaa"), original.replace("b" * 40, "main"),
+                     original.split("\n\n")[0] + "\n\n", "Quoted: " + original]:
+            with self.subTest(body=body), self.assertRaisesRegex(ValueError, "full head and base"):
+                self.comment["body"] = body
+                self.current()
+        self.assertFalse(self.writes)
+
+    def test_supervisor_still_needs_ready_label_and_trusted_main(self):
+        self.pr["labels"] = []
+        with self.assertRaisesRegex(ValueError, "agent:ready"):
+            self.current()
+        self.pr["labels"] = [{"name": "agent:ready"}]
+        with patch.dict(os.environ, {"GITHUB_SHA": "d" * 40}), self.assertRaisesRegex(ValueError, "Reviewer main changed"):
+            self.current()
+
+    def test_supervisor_cannot_authorise_forks_or_environment_files(self):
+        self.files[0]["filename"] = ".env.production"
+        with self.assertRaisesRegex(ValueError, "Environment files"):
+            self.current()
+        self.files[0]["filename"] = "packages/spinetab/vitest.config.ts"
+        self.pr["head"]["repo"]["full_name"] = "someone/spinetab"
+        with self.assertRaisesRegex(ValueError, "Forks"):
+            self.current()
+
+    def prepare(self, event_name):
+        original = Path.cwd()
+        os.chdir(self.directory.name)
+        try:
+            with patch.dict(os.environ, {"GITHUB_EVENT_NAME": event_name, "SUPERVISOR_COMMENT_ID": ""}), \
+                 patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
+                 patch.object(review, "ci", return_value=dict(self.run, html_url="https://github.com/apetta/spinetab/actions/runs/42")), \
+                 patch.object(review, "content", return_value="existing assertions retained\n"), \
+                 patch.object(review, "output") as output:
+                review.prepare()
+                return json.loads(Path("review-input.json").read_text()), output.call_args_list
+        finally:
+            os.chdir(original)
+
+    def test_comment_prepares_exact_candidate_and_records_permission_not_approval(self):
+        evidence, outputs = self.prepare("issue_comment")
+        self.assertEqual(evidence["supervisor_request"]["id"], 100)
+        self.assertEqual(evidence["supervisor_request"]["head"], "a" * 40)
+        self.assertNotIn("owner_request", evidence)
+        self.assertTrue(any(call.kwargs.get("supervisor_comment_id") == "100" for call in outputs))
+        self.assertFalse(self.writes)
+
+    def test_daily_sweep_recovers_existing_authorisation(self):
+        self.path.write_text("{}")
+        evidence, _ = self.prepare("schedule")
+        self.assertEqual(evidence["supervisor_request"]["id"], 100)
+
+    def test_stale_authorisation_is_not_reused_on_new_head(self):
+        self.pr["head"]["sha"] = "d" * 40
+        with patch.object(review, "pages", side_effect=self.pages):
+            self.assertIsNone(review.supervisor_request(self.pr))
+
+    def test_comment_event_requires_owner_new_pr_comment_and_main(self):
+        for key, value in [("GITHUB_ACTOR", "someone"), ("GITHUB_TRIGGERING_ACTOR", "someone"),
+                           ("GITHUB_REF", "refs/heads/claude/candidate")]:
+            with self.subTest(key=key), patch.dict(os.environ, {key: value}), self.assertRaises(ValueError):
+                self.prepare("issue_comment")
+        for change in [{"action": "edited"}, {"issue": {"number": 12}}, {"comment": {"id": None}}]:
+            self.path.write_text(json.dumps(dict(self.event, **change)))
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                self.prepare("issue_comment")
+
+    def test_verified_review_then_guarded_merge_dispatches_downstream_ci(self):
+        with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
+             patch.object(review, "ci", return_value=self.run), patch.object(review, "output"):
+            review.review()
+            self.assertIn("Supervisor authorisation:", self.reviews[0]["body"])
+            self.assertEqual(self.reviews[0]["user"]["login"], review.REVIEWER)
+            review.merge()
+        self.assertEqual([item[:2] for item in self.writes], [
+            ("/pulls/12/reviews", "POST"), ("/pulls/12/merge", "PUT"),
+            ("/actions/workflows/ci.yml/dispatches", "POST")])
+        self.assertEqual(self.writes[1][2]["sha"], "a" * 40)
+        self.assertEqual(self.writes[2][2], {"ref": "main", "inputs": {"deploy": True, "expected_sha": "c" * 40}})
+
+    def test_changed_head_after_review_blocks_merge(self):
+        with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
+             patch.object(review, "ci", return_value=self.run), patch.object(review, "output"):
+            review.review()
+            self.pr["head"]["sha"] = "d" * 40
+            with self.assertRaisesRegex(ValueError, "head changed"):
+                review.merge()
+        self.assertEqual(len(self.writes), 1)
+
+    def test_failed_ci_cannot_post_supervisor_approval(self):
+        with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
+             patch.object(review, "ci", side_effect=ValueError("Latest CI is not successful")), \
+             self.assertRaisesRegex(ValueError, "CI is not successful"):
+            review.review()
+        self.assertFalse(self.writes)
+
+    def test_supervisor_permission_alone_cannot_merge(self):
+        with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
+             patch.object(review, "ci", return_value=self.run), self.assertRaisesRegex(ValueError, "superseded"):
+            review.merge()
+        self.assertFalse(self.writes)
+
+    def test_new_permission_does_not_reuse_an_old_manual_review(self):
+        self.reviews = [self.approval]
+        evidence, _ = self.prepare("issue_comment")
+        self.assertEqual(evidence["supervisor_request"]["id"], 100)
+
+    def test_same_permission_and_evidence_are_not_reviewed_twice(self):
+        self.reviews = [dict(self.approval, body=self.approval["body"] +
+                             f"\nSupervisor authorisation: https://github.com/{review.REPO}/pull/12#issuecomment-100")]
+        self.path.write_text("{}")
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "schedule", "SUPERVISOR_COMMENT_ID": ""}), \
+             patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
+             patch.object(review, "ci", return_value=self.run), patch.object(review, "output") as output:
+            review.prepare()
+        self.assertFalse(any(call.kwargs.get("ready") == "true" for call in output.call_args_list))
+
+    def test_authorisation_is_rechecked_before_writing(self):
+        self.comment["performed_via_github_app"] = None
+        with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
+             self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
+            review.review()
+        self.assertFalse(self.writes)
 
 
 class PrepareTriggerTests(unittest.TestCase):
