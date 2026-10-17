@@ -42,6 +42,11 @@ export default defineConfig({
 					...common,
 					name: "integration",
 					environment: "node",
+					// The fixture servers build their schema in `globalSetup`, where
+					// Vitest resolves `graphql` to its CommonJS build. Inlining the
+					// GraphQL servers makes them share that instance; natively they
+					// load the ESM build and reject the schema.
+					server: { deps: { inline: ["graphql-ws", "graphql-sse"] } },
 					include: ["tests/integration/**/*.test.ts"],
 					globalSetup: ["tests/fixtures/servers/global-setup.ts"],
 					testTimeout: 20_000,
