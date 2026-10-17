@@ -13,16 +13,6 @@ on:
       expected_sha:
         description: Exact main commit for an automated deployment
         type: string
-  workflow_call:
-    inputs:
-      release:
-        description: Verify and upload the publication candidate
-        type: boolean
-        default: false
-      expected_sha:
-        description: Exact source commit for publication verification
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -76,7 +66,7 @@ jobs:
       options: --user 1001
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-      TURBO_CACHE: ${{ inputs.release && 'local:,remote:' || 'local:rw,remote:rw' }}
+      TURBO_CACHE: "local:rw,remote:rw"
     steps:
       - name: Validate automated deployment target
         if: github.event_name == 'workflow_dispatch' && inputs.deploy
@@ -100,71 +90,10 @@ jobs:
         with:
           ref: ${{ inputs.expected_sha || github.ref }}
           persist-credentials: false
-      - name: Install pnpm
-        uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1
+      - name: Verify workspace
+        uses: ./.github/actions/verify-workspace
         with:
-          install: false
-      - name: Setup Node
-        id: node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Restore and save task cache within GitHub's branch boundaries
-        if: ${{ !inputs.release }}
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
-      - name: Authenticate the main branch to the remote build cache
-        if: github.ref == 'refs/heads/main' && vars.TURBO_TEAM != '' && !inputs.release
-        uses: vercel/setup-turborepo-remote-cache-action@49d7b1b46ba4c9251e1977986bfe18336feabc8f # v1.1.0
-        with:
-          team: ${{ vars.TURBO_TEAM }}
-          audience: https://github.com/apetta
-      - name: Biome
-        run: pnpm exec biome ci .
-      - name: Markdown, MDX and YAML formatting
-        run: pnpm exec prettier --check .
-      - name: Typecheck, unit tests, E2E
-        run: pnpm exec turbo run typecheck test e2e
-      - name: Preserve tested website build
-        if: >-
-          github.ref == 'refs/heads/main' &&
-          (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: website-build
-          path: apps/website/dist/
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 1
-      # The library suite runs Chromium, Firefox and WebKit against the fixture
-      # server; the website suite covers navigation, themes and recipes. Reports
-      # are kept for a week. Library changes also verify packed consumers below.
-      - name: Upload Playwright reports
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-reports
-          path: |
-            packages/spinetab/playwright-report/
-            apps/website/playwright-report/
-          retention-days: 7
-          if-no-files-found: ignore
-      - name: Upload Playwright failure output
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        if: ${{ failure() }}
-        with:
-          name: playwright-test-results
-          path: |
-            packages/spinetab/test-results/playwright/
-            apps/website/test-results/
-          retention-days: 7
-          if-no-files-found: ignore
+          deploy: ${{ inputs.deploy || false }}
 
   deploy:
     name: Deploy website to Cloudflare Pages
@@ -242,7 +171,7 @@ jobs:
     needs: [check, scope, verify-deployment]
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
-      vars.RELEASE_PLEASE_ENABLED == 'true' && !inputs.release &&
+      vars.RELEASE_PLEASE_ENABLED == 'true' &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
     uses: ./.github/workflows/release-please.yml
     secrets:
@@ -252,7 +181,7 @@ jobs:
     name: Packed consumer release verification
     if: >-
       (github.event_name == 'pull_request' && needs.scope.outputs.package == 'true') ||
-      (github.event_name == 'workflow_dispatch' && !inputs.deploy) || inputs.release
+      (github.event_name == 'workflow_dispatch' && !inputs.deploy)
     needs: scope
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -267,62 +196,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.expected_sha || github.ref }}
-      - name: Install pnpm
-        uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1
-        with:
-          install: false
-      - name: Setup Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build publication candidate
-        run: pnpm --filter spinetab build
-      - name: Verify production tree shaking and worker retention
-        run: pnpm --filter spinetab test:tree-shaking
-      - name: Pack and install isolated consumers
-        run: pnpm --filter spinetab consumers:prepare
+          persist-credentials: false
       - name: Verify consumer builds, declarations and peer isolation
-        run: pnpm --filter spinetab test:consumers
+        uses: ./.github/actions/verify-consumers
       - name: Verify packed development and production apps
-        if: inputs.release || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: pnpm --filter spinetab e2e:consumers
-      - name: Preserve verified release tarball
-        if: inputs.release
-        run: |
-          node --input-type=module -e '
-            import { createHash } from "node:crypto";
-            import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-            import { join } from "node:path";
-            import { execFileSync } from "node:child_process";
-            import { assertFreshPack } from "./packages/spinetab/tests/package/consumers/prepare.ts";
-            import { packDir } from "./packages/spinetab/tests/package/consumers/paths.ts";
-            const record = assertFreshPack("release upload");
-            const tarball = join(packDir(), record.file);
-            const sha256 = createHash("sha256").update(readFileSync(tarball)).digest("hex");
-            if (sha256 !== record.sha256) throw new Error("Verified tarball integrity changed");
-            mkdirSync("release", { recursive: true });
-            const pkg = JSON.parse(readFileSync("packages/spinetab/package.json"));
-            copyFileSync(tarball, join("release", `spinetab-${pkg.version}.tgz`));
-            const receipt = {
-              repository: process.env.GITHUB_REPOSITORY,
-              sha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
-              version: pkg.version,
-              sha256,
-              run_id: process.env.GITHUB_RUN_ID,
-              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
-            };
-            writeFileSync("release/verification.json", JSON.stringify(receipt) + "\n");
-          '
-      - name: Upload verified release
-        if: inputs.release
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: npm-release
-          path: release/
-          if-no-files-found: error
       - name: Upload consumer reports and failure traces
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: ${{ !cancelled() }}

@@ -1,0 +1,29 @@
+name: Packed consumer builds
+description: Build the publication candidate and verify isolated consumer builds and declarations.
+runs:
+  using: composite
+  steps:
+    - name: Install pnpm
+      uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1
+      with:
+        install: false
+    - name: Setup Node
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version: 24
+        cache: pnpm
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+    - name: Build publication candidate
+      shell: bash
+      run: pnpm --filter spinetab build
+    - name: Verify production tree shaking and worker retention
+      shell: bash
+      run: pnpm --filter spinetab test:tree-shaking
+    - name: Pack and install isolated consumers
+      shell: bash
+      run: pnpm --filter spinetab consumers:prepare
+    - name: Verify consumer builds, declarations and peer isolation
+      shell: bash
+      run: pnpm --filter spinetab test:consumers
