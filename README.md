@@ -153,5 +153,12 @@ reports as artefacts, and the raw test output when a run fails.
 - Pre-commit formats and lints staged files. Pre-push checks formatting and lint,
   then builds, type-checks and tests the workspace. Browser E2E runs in CI.
 
+For an independent review of tooling or automation changes, the owner can run
+**Actions → Maintenance review → Run workflow** on `main`, supplying the PR number
+and full current commit SHA. Select **Authorise review of tooling, workflow and
+automation policy changes** when those changes are intended. The manual lane posts
+a review without merging; required CI and branch protection still apply. A changed
+commit needs a fresh review. Ordinary agent PRs use the `agent:ready` label instead.
+
 Application state, caches, backend replay and server helpers are outside the
 library's scope.

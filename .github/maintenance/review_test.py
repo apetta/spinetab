@@ -335,6 +335,130 @@ class GuardTests(unittest.TestCase):
             self.assertEqual(request.call_count, 4)
 
 
+class ManualReviewTests(unittest.TestCase):
+    def setUp(self):
+        GuardTests.setUp(self)
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name) / "event.json"
+        self.inputs = {"pr_number": "12", "expected_head": "a" * 40, "authorise_policy": "true"}
+        self.event()
+        environment = patch.dict(os.environ, {
+            "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_EVENT_PATH": str(self.path),
+            "GITHUB_REPOSITORY": review.REPO, "GITHUB_REF": "refs/heads/main",
+            "GITHUB_ACTOR": "apetta", "GITHUB_TRIGGERING_ACTOR": "apetta", "GITHUB_SHA": "b" * 40,
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+        self.pr["labels"] = []
+        self.files = [{"filename": ".github/workflows/ci.yml", "status": "modified"}]
+
+    def event(self):
+        self.path.write_text(json.dumps({"inputs": self.inputs}))
+
+    def test_owner_can_request_protected_review_for_exact_head(self):
+        review.eligible(self.pr, self.files)
+
+    def test_manual_review_still_needs_explicit_policy_authorisation(self):
+        self.inputs["authorise_policy"] = "false"
+        self.event()
+        with self.assertRaisesRegex(ValueError, "policy"):
+            review.eligible(self.pr, self.files)
+        self.files[0] = {"filename": "README.md", "status": "modified"}
+        review.eligible(self.pr, self.files)
+
+    def test_only_owner_can_dispatch_and_rerun(self):
+        for key in ("GITHUB_ACTOR", "GITHUB_TRIGGERING_ACTOR"):
+            with self.subTest(key=key), patch.dict(os.environ, {key: "someone"}), \
+                 self.assertRaisesRegex(ValueError, "Only the owner"):
+                review.manual_request()
+
+    def test_candidate_branch_cannot_supply_the_reviewer(self):
+        with patch.dict(os.environ, {"GITHUB_REF": "refs/heads/codex/candidate"}), \
+             self.assertRaisesRegex(ValueError, "trusted main"):
+            review.manual_request()
+
+    def test_manual_review_requires_both_pr_and_full_sha(self):
+        for key, value in (("expected_head", "abc123"), ("expected_head", ""), ("pr_number", "")):
+            with self.subTest(key=key, value=value):
+                original = self.inputs[key]
+                self.inputs[key] = value
+                self.event()
+                with self.assertRaises(ValueError):
+                    review.manual_request()
+                self.inputs[key] = original
+
+    def test_policy_checkbox_alone_cannot_start_a_sweep(self):
+        self.inputs = {"authorise_policy": "true"}
+        self.event()
+        with self.assertRaisesRegex(ValueError, "needs a PR and commit"):
+            review.manual_request()
+
+    def test_automatic_event_cannot_inherit_policy_permission(self):
+        self.pr["labels"] = [{"name": "agent:ready"}]
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run"}), \
+             self.assertRaisesRegex(ValueError, "policy"):
+            review.eligible(self.pr, self.files)
+
+    def test_authorisation_covers_only_one_pr_and_head(self):
+        for change in ({"number": 13}, {"head": dict(self.pr["head"], sha="c" * 40)}):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                review.eligible(dict(self.pr, **change), self.files)
+
+    def test_manual_review_cannot_read_environment_files_or_forks(self):
+        self.files[0] = {"filename": ".env.production", "status": "modified"}
+        with self.assertRaisesRegex(ValueError, "Environment files"):
+            review.eligible(self.pr, self.files)
+        self.pr["head"]["repo"] = {"full_name": "someone/spinetab"}
+        with self.assertRaisesRegex(ValueError, "Forks"):
+            review.eligible(self.pr, self.files)
+
+    def test_authorised_toolchain_change_preserves_release_version_checks(self):
+        files = [{"filename": "package.json", "status": "modified"}]
+        with patch.object(review, "content", side_effect=['{"packageManager":"pnpm@10"}', '{"packageManager":"pnpm@12"}']):
+            review.manifest_policy(files, "base", "head", authorise_policy=True)
+        files[0]["filename"] = "packages/spinetab/package.json"
+        with patch.object(review, "content", side_effect=['{"version":"0.1.0"}', '{"version":"0.0.9"}']), \
+             self.assertRaisesRegex(ValueError, "advance only"):
+            review.manifest_policy(files, "base", "head", release=True, authorise_policy=True)
+
+    def test_reviewer_must_still_be_current_main(self):
+        values = [self.pr, self.files, {"object": {"sha": "c" * 40}}]
+        with patch.object(review, "api", side_effect=values), \
+             self.assertRaisesRegex(ValueError, "Reviewer main changed"):
+            review.current(12, "a" * 40)
+
+    def test_manual_failure_is_visible_instead_of_successful_empty_sweep(self):
+        with patch.object(review, "output"), patch.object(review, "api", return_value=self.pr), \
+             patch.object(review, "current", side_effect=ValueError("PR head changed")), \
+             self.assertRaisesRegex(ValueError, "head changed"):
+            review.prepare()
+
+    def test_manual_lane_cannot_auto_merge_or_dispatch_ci(self):
+        with patch.object(review, "api") as request, self.assertRaisesRegex(ValueError, "do not auto-merge"):
+            review.merge()
+        request.assert_not_called()
+
+    def test_manual_approval_is_a_formal_review_on_the_requested_commit(self):
+        def submit(path, method="GET", data=None):
+            self.assertEqual((path, method), ("/pulls/12/reviews", "POST"))
+            self.assertEqual(data["event"], "APPROVE")
+            self.assertEqual(data["commit_id"], self.inputs["expected_head"])
+            self.assertIn("Owner-requested review", data["body"])
+            return {"id": 9, "user": {"login": review.REVIEWER}, "commit_id": data["commit_id"]}
+        with patch.dict(os.environ, {"DECISION": "approve", "REASON": '"No concrete defects found"', "GITHUB_RUN_ID": "99"}), \
+             patch.object(review, "evidence", return_value=(self.pr, "b" * 40, self.run)), \
+             patch.object(review, "api", side_effect=submit), patch.object(review, "output") as output:
+            review.review()
+            output.assert_called_once_with(review_id=9)
+
+    def test_changed_head_prevents_manual_approval_write(self):
+        with patch.object(review, "evidence", side_effect=ValueError("PR head changed")), \
+             patch.object(review, "api") as request, self.assertRaisesRegex(ValueError, "head changed"):
+            review.review()
+        request.assert_not_called()
+
+
 class PrepareTriggerTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
