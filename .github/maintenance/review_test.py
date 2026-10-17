@@ -353,7 +353,7 @@ class PrepareTriggerTests(unittest.TestCase):
             self.prepare()
 
 
-class PrepareLockfileTests(unittest.TestCase):
+class PrepareEvidenceTests(unittest.TestCase):
     def prepare(self, paths, before, after):
         pr = {"number": 11, "head": {"sha": "a" * 40}, "title": "fix(deps): patch Solid", "body": ""}
         files = [path if isinstance(path, dict) else {"filename": path, "status": "modified"} for path in paths]
@@ -425,6 +425,47 @@ class PrepareLockfileTests(unittest.TestCase):
     def test_large_fixture_lock_diff_still_fails_closed(self):
         evidence, outputs = self.prepare(["packages/spinetab/tests/fixtures/consumers/alpha/pnpm-lock.yaml"],
                                          "old-line\n" * 12000, "new-line\n" * 12000)
+        self.assertIsNone(evidence)
+        self.assertFalse(any(call.kwargs.get("ready") == "true" for call in outputs))
+
+    def test_small_source_keeps_full_before_and_after(self):
+        evidence, _ = self.prepare(["packages/spinetab/src/example.ts"], "old();\n", "new();\n")
+        self.assertEqual(evidence["files"][0], {
+            "path": "packages/spinetab/src/example.ts", "status": "modified",
+            "before": ["old();\n"], "after": ["new();\n"],
+        })
+
+    def test_large_source_keeps_complete_base_and_every_change_within_packet_cap(self):
+        before = "".join(f"\t\t\t\t\t\tunchanged_line_{i:04d}(value);\n" for i in range(6200)) + "old_tail()"
+        after = before.replace("unchanged_line_2000(value);", "changed_line_2000(value);")
+        after = after.replace("unchanged_line_6000(value);", "changed_line_6000(value);")
+        after = after.replace("old_tail()", "new_tail()")
+        full_pair = {"before": before.splitlines(True), "after": after.splitlines(True)}
+        self.assertGreater(len(json.dumps(full_pair, indent=2)), 600000)
+        evidence, outputs = self.prepare(["packages/spinetab/src/example.ts"], before, after)
+        self.assertIsNotNone(evidence)
+        self.assertTrue(any(call.kwargs.get("ready") == "true" for call in outputs))
+        record = evidence["files"][0]
+        self.assertEqual(set(record), {"path", "status", "before", "patch"})
+        self.assertEqual("".join(record["before"]), before)
+        patch_text = "".join(record["patch"])
+        for line in ("2000", "6000"):
+            self.assertIn(f"-\t\t\t\t\t\tunchanged_line_{line}(value);\n", patch_text)
+            self.assertIn(f"+\t\t\t\t\t\tchanged_line_{line}(value);\n", patch_text)
+        self.assertEqual(record["patch"][-2:], ["-old_tail()", "+new_tail()"])
+        self.assertLessEqual(len(json.dumps(evidence, indent=2)), 600000)
+
+    def test_large_source_diff_still_fails_closed(self):
+        before = "".join(f"\t\t\t\t\t\told_line_{i:04d}(value);\n" for i in range(7000))
+        after = before.replace("old_line_", "new_line_")
+        evidence, outputs = self.prepare(["packages/spinetab/src/example.ts"], before, after)
+        self.assertIsNone(evidence)
+        self.assertFalse(any(call.kwargs.get("ready") == "true" for call in outputs))
+
+    def test_large_complete_bases_still_exceed_packet_cap(self):
+        before = "".join(f"\t\t\t\t\t\tunchanged_line_{i:04d}(value);\n" for i in range(6200))
+        after = before.replace("unchanged_line_2000(value);", "changed_line_2000(value);")
+        evidence, outputs = self.prepare(["packages/spinetab/src/one.ts", "packages/spinetab/src/two.ts"], before, after)
         self.assertIsNone(evidence)
         self.assertFalse(any(call.kwargs.get("ready") == "true" for call in outputs))
 

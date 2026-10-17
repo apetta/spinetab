@@ -233,6 +233,16 @@ def prepare():
                     record["after"] = content(path, pr["head"]["sha"]).splitlines(keepends=True) if item["status"] != "removed" else None
                 evidence["files"].append(record)
             encoded = json.dumps(evidence, indent=2)
+            if len(encoded) > 600000:
+                for record in evidence["files"]:
+                    if record["status"] != "modified" or "before" not in record or "after" not in record:
+                        continue
+                    patch = list(difflib.unified_diff(record["before"], record["after"],
+                                 fromfile=f"before/{record['path']}", tofile=f"after/{record['path']}"))
+                    require(len("".join(patch)) < 100000, "Source diff needs a smaller review")
+                    record["patch"] = patch
+                    del record["after"]
+                encoded = json.dumps(evidence, indent=2)
             require(len(encoded) <= 600000, "Review is too large; split the change")
             require(all(len(line) <= 8000 for line in encoded.splitlines()), "Long evidence lines need human review")
             current(pr["number"], pr["head"]["sha"], main)
