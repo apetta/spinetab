@@ -47,7 +47,7 @@ library's browser tests. The website consumes the built package through
 
 ## Development setup
 
-Use Node 24.11+ and pnpm 10.24.0:
+Use Node 24.11+ and pnpm 12.14.0 (pinned in `package.json`):
 
 ```sh
 pnpm install
@@ -100,6 +100,10 @@ also verifies tree shaking and packed consumer applications. Run the library
 build before `test:tree-shaking`; it packs that build and checks Vite, webpack,
 Rspack and Next.js (Turbopack and webpack).
 
+Package and toolchain PRs also run tree shaking and packed-consumer installation,
+build and type checks alongside standard CI. The longer packed-consumer browser
+matrix runs before publication and on manually dispatched CI runs without deployment.
+
 Before the first browser test run:
 
 ```sh
@@ -148,6 +152,13 @@ reports as artefacts, and the raw test output when a run fails.
   pull request. CI enforces them.
 - Pre-commit formats and lints staged files. Pre-push checks formatting and lint,
   then builds, type-checks and tests the workspace. Browser E2E runs in CI.
+
+For an independent review of tooling or automation changes, the owner can run
+**Actions → Maintenance review → Run workflow** on `main`, supplying the PR number
+and full current commit SHA. Select **Authorise review of tooling, workflow and
+automation policy changes** when those changes are intended. The manual lane posts
+a review without merging; required CI and branch protection still apply. A changed
+commit needs a fresh review. Ordinary agent PRs use the `agent:ready` label instead.
 
 Application state, caches, backend replay and server helpers are outside the
 library's scope.

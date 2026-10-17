@@ -177,6 +177,9 @@ def verify():
     require(jobs["total_count"] == len(jobs["jobs"]), "Incomplete verification evidence")
     for name in ("verify / Lint, Typecheck, Test, E2E", "verify / Maintenance guards", "verify / Packed consumer release verification"):
         require(any(job["name"] == name and job["conclusion"] == "success" for job in jobs["jobs"]), f"Missing successful {name}")
+    packed = next(job for job in jobs["jobs"] if job["name"] == "verify / Packed consumer release verification")
+    require(any(step["name"] == "Verify packed development and production apps" and step["conclusion"] == "success"
+                for step in packed.get("steps", [])), "Packed browser verification did not pass")
     paths = list(Path("release").glob("*.tgz"))
     require(len(paths) == 1, "Expected one verified archive")
     archive(paths[0], receipt, version)

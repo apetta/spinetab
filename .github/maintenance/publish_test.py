@@ -222,12 +222,13 @@ class PublicationTests(unittest.TestCase):
         names = ["verify / Lint, Typecheck, Test, E2E", "verify / Maintenance guards",
                  "verify / Packed consumer release verification"]
         jobs = {"total_count": 3, "jobs": [{"name": name, "conclusion": "success"} for name in names]}
+        jobs["jobs"][-1]["steps"] = [{"name": "Verify packed development and production apps", "conclusion": "success"}]
         with patch.dict(os.environ, {"RELEASE_SHA": self.sha, "RELEASE_VERSION": "0.1.1"}), \
              patch.object(publish, "current"), patch.object(publish, "release_decision"), \
              patch.object(publish, "unpublished", return_value=True), \
              patch.object(publish, "archive") as archive, \
              patch.object(publish.Path, "glob", return_value=[Path("release/spinetab-0.1.1.tgz")]):
-            for failure in (None, "other-run", "wrong-source", "wrong-workflow", "wrong-run-commit", "failed-job", "missing-job"):
+            for failure in (None, "other-run", "wrong-source", "wrong-workflow", "wrong-run-commit", "failed-job", "missing-job", "skipped-browser", "failed-browser", "missing-browser"):
                 candidate, candidate_run, candidate_jobs = copy.deepcopy((receipt, run, jobs))
                 if failure == "other-run":
                     candidate["run_id"] = "43"
@@ -241,6 +242,12 @@ class PublicationTests(unittest.TestCase):
                     candidate_jobs["jobs"][-1]["conclusion"] = "failure"
                 elif failure == "missing-job":
                     candidate_jobs["jobs"].pop()
+                elif failure == "skipped-browser":
+                    candidate_jobs["jobs"][-1]["steps"][0]["conclusion"] = "skipped"
+                elif failure == "failed-browser":
+                    candidate_jobs["jobs"][-1]["steps"][0]["conclusion"] = "failure"
+                elif failure == "missing-browser":
+                    candidate_jobs["jobs"][-1].pop("steps")
                 with self.subTest(failure=failure), \
                      patch.object(publish.Path, "read_text", side_effect=[json.dumps({"version": "0.1.1"}), json.dumps(candidate)]), \
                      patch.object(publish, "api", side_effect=[candidate_run, candidate_jobs]):

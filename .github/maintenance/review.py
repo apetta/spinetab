@@ -82,7 +82,29 @@ def release_approval(pr, version=None):
         require(f"Version: {version}" in supervisor[-1]["body"].splitlines(), "Supervisor approved another version")
 
 
+def manual_request():
+    if os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch":
+        return None
+    event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+    inputs = event.get("inputs", {})
+    if not any(inputs.get(key) for key in ("pr_number", "expected_head")):
+        require(inputs.get("authorise_policy") not in (True, "true"), "Policy authorisation needs a PR and commit")
+        return None
+    require(os.environ.get("GITHUB_REPOSITORY") == REPO and
+            os.environ.get("GITHUB_REF") == "refs/heads/main", "Manual review must run from trusted main")
+    require(os.environ.get("GITHUB_ACTOR") == "apetta" and
+            os.environ.get("GITHUB_TRIGGERING_ACTOR") == "apetta", "Only the owner can request or rerun a manual review")
+    require(re.fullmatch(r"[1-9][0-9]*", str(inputs.get("pr_number", ""))), "Manual review needs a PR number")
+    require(re.fullmatch(r"[0-9a-f]{40}", inputs.get("expected_head", "")), "Manual review needs the full commit SHA")
+    return inputs
+
+
 def eligible(pr, files):
+    manual = manual_request()
+    policy = manual is not None and manual.get("authorise_policy") in (True, "true")
+    if manual:
+        require(str(pr["number"]) == str(manual["pr_number"]), "Manual review covers another PR")
+        require(pr["head"]["sha"] == manual["expected_head"], "PR head changed")
     require(pr["state"] == "open" and not pr["draft"], "PR is not ready")
     require(pr["base"]["ref"] == "main", "Unexpected base branch")
     for side in ("base", "head"):
@@ -98,14 +120,14 @@ def eligible(pr, files):
                 "Release PR must contain only version metadata and changelog")
     if author == "apetta":
         require(pr["head"]["ref"].startswith(("claude/", "codex/")), "Unexpected agent branch")
-        require("agent:ready" in {label["name"] for label in pr["labels"]}, "Missing agent:ready label")
+        require(manual or "agent:ready" in {label["name"] for label in pr["labels"]}, "Missing agent:ready label")
     require(0 < len(files) == pr["changed_files"] <= 40, "Incomplete or oversized change")
     for item in files:
         for path in (item["filename"], item.get("previous_filename", item["filename"])):
             parts = path.split("/")
-            require((release and path == ".release-please-manifest.json") or
+            require(policy or (release and path == ".release-please-manifest.json") or
                     (not any(part + "/" in PROTECTED for part in parts[:-1]) and parts[-1] not in PROTECTED_FILES), "Automation policy or credentials configuration needs human review")
-            require(not HARNESS_CONFIG.fullmatch(parts[-1]), "Test or lint configuration needs human review")
+            require(policy or not HARNESS_CONFIG.fullmatch(parts[-1]), "Test or lint configuration needs human review")
             require(not any(part.startswith(".env") for part in path.split("/")), "Environment files need human review")
         require(item["status"] in {"added", "modified", "removed", "renamed"}, "Unsupported file change")
 
@@ -116,6 +138,9 @@ def current(number, expected_head=None, expected_base=None):
     files = pages(f"/pulls/{number}/files")
     eligible(pr, files)
     main = api("/git/ref/heads/main")["object"]["sha"]
+    manual = manual_request()
+    if manual:
+        require(os.environ.get("GITHUB_SHA") == main, "Reviewer main changed; start a fresh manual review")
     head = pr["head"]["sha"]
     require(expected_head is None or head == expected_head, "PR head changed")
     require(expected_base is None or main == expected_base, "Base changed; fresh CI and review required")
@@ -124,18 +149,19 @@ def current(number, expected_head=None, expected_base=None):
     require(comparison["status"] == "ahead", "No current change to merge")
     if release_pr(pr):
         release_approval(pr, json.loads(content("packages/spinetab/package.json", head))["version"])
-    manifest_policy(files, main, head, release_pr(pr))
+    manifest_policy(files, main, head, release_pr(pr),
+                    authorise_policy=manual is not None and manual.get("authorise_policy") in (True, "true"))
     return pr, files, main
 
 
-def manifest_policy(files, base, head, release=False):
+def manifest_policy(files, base, head, release=False, authorise_policy=False):
     for item in files:
         if Path(item["filename"]).name != "package.json":
             continue
         before = json.loads(content(item.get("previous_filename", item["filename"]), base)) if item["status"] != "added" else {}
         after = json.loads(content(item["filename"], head)) if item["status"] != "removed" else {}
         for key in ("scripts", "packageManager", "pnpm", "workspaces"):
-            require(before.get(key) == after.get(key), "Package scripts or toolchain policy needs human review")
+            require(authorise_policy or before.get(key) == after.get(key), "Package scripts or toolchain policy needs human review")
         if release:
             before_version, after_version = before.pop("version"), after.pop("version")
             def stable(value):
@@ -145,6 +171,14 @@ def manifest_policy(files, base, head, release=False):
             old_manifest = json.loads(content(".release-please-manifest.json", base))
             manifest = json.loads(content(".release-please-manifest.json", head))
             require(old_manifest == {"packages/spinetab": before_version} and manifest == {"packages/spinetab": after_version}, "Release versions disagree")
+
+
+def consumer_checks_required(paths):
+    return any(
+        (path.startswith("packages/") and Path(path).name not in {"README.md", "CHANGELOG.md"})
+        or path in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"}
+        for path in paths
+    )
 
 
 def ci(pr, run_id=None, files=()):
@@ -159,7 +193,7 @@ def ci(pr, run_id=None, files=()):
     jobs = api(f"/actions/runs/{run['id']}/jobs?per_page=100")["jobs"]
     require(any(job["name"] == CHECK and job["conclusion"] == "success" for job in jobs), "Required test job did not pass")
     require(any(job["name"] == "Maintenance guards" and job["conclusion"] == "success" for job in jobs), "Maintenance guard tests did not pass")
-    if any(item["filename"].startswith("packages/") or item["filename"] in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"} for item in files):
+    if consumer_checks_required(path for item in files for path in {item["filename"], item.get("previous_filename", item["filename"])}):
         require(any(job["name"] == "Packed consumer release verification" and job["conclusion"] == "success" for job in jobs), "Packed consumer verification did not pass")
     checks = api(f"/commits/{pr['head']['sha']}/check-runs?per_page=100")
     require(checks["total_count"] == len(checks["check_runs"]), "Incomplete check evidence")
@@ -185,6 +219,7 @@ def prepare():
     require(not os.environ.get("ANTHROPIC_API_KEY"), "API billing is disabled")
     require(os.environ.get("RUNNER_DEBUG") != "1", "Disable debug logging before subscription review")
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+    manual = manual_request()
     run_event = event.get("workflow_run")
     if run_event:
         require(run_event["name"] in {"CI", "Maintenance readiness"} and run_event["conclusion"] == "success", "Not successful candidate CI")
@@ -216,6 +251,9 @@ def prepare():
             evidence = {"repository": REPO, "pr": pr["number"], "head": pr["head"]["sha"], "base": main,
                         "title": pr["title"], "description": (pr["body"] or "")[:12000].splitlines(keepends=True),
                         "ci": {"id": run["id"], "attempt": run["run_attempt"], "url": run["html_url"], "conclusion": "success"}, "files": []}
+            if manual:
+                evidence["owner_request"] = {"actor": "apetta", "head": manual["expected_head"],
+                                             "authorise_policy": manual.get("authorise_policy") in (True, "true")}
             for item in files:
                 path = item["filename"]
                 record = {"path": path, "status": item["status"]}
@@ -252,6 +290,8 @@ def prepare():
             print(f"Prepared public, inert evidence for PR #{pr['number']} at {pr['head']['sha']}")
             return
         except (ValueError, UnicodeDecodeError) as error:
+            if manual:
+                raise
             print(f"PR #{candidate['number']}: {error}")
     print("No eligible unreviewed candidate; nothing to change")
 
@@ -326,6 +366,8 @@ def review():
     require(pr["user"]["login"] != REVIEWER, "Reviewer cannot approve its own PR")
     title = {"approve": "Approved", "request_changes": "Changes requested", "escalate": "Needs attention"}[decision]
     body = f"{MARKER}\n### {title}\n\n{reason}\n\nHead: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}\nReview run: {os.environ['GITHUB_RUN_ID']}"
+    if manual_request():
+        body += "\nOwner-requested review; merge remains subject to branch protection."
     result = api(f"/pulls/{pr['number']}/reviews", "POST", {"commit_id": pr["head"]["sha"], "body": body,
                  "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES", "escalate": "COMMENT"}[decision]})
     require(result["user"]["login"] == REVIEWER and result["commit_id"] == pr["head"]["sha"], "Unexpected review identity or head")
@@ -345,6 +387,7 @@ def approved(pr, reviews, review_id, base, run):
 
 
 def merge():
+    require(manual_request() is None, "Owner-requested reviews do not auto-merge")
     require(os.environ["DECISION"] == "approve", "Not approved")
     for _ in range(2):
         pr, main, run = evidence()
