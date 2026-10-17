@@ -213,6 +213,17 @@ jobs:
           test -n "$WEBSITE_TEST_URL"
           pnpm --filter website e2e --project content
 
+  release:
+    name: Prepare release PR
+    needs: [check, scope, verify-deployment]
+    if: >-
+      github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
+      vars.RELEASE_PLEASE_ENABLED == 'true' && !inputs.release &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
+    uses: ./.github/workflows/release-please.yml
+    secrets:
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
   packed-consumers:
     name: Packed consumer release verification
     if: >-
