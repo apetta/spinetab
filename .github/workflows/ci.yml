@@ -94,6 +94,7 @@ jobs:
         uses: ./.github/actions/verify-workspace
         with:
           deploy: ${{ inputs.deploy || false }}
+          team: ${{ vars.TURBO_TEAM }}
 
   deploy:
     name: Deploy website to Cloudflare Pages
