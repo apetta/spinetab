@@ -56,8 +56,9 @@ jobs:
   check:
     name: Verify workspace
     if: >-
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       contains(fromJSON('["33671231", "49699333", "41898282"]'), github.actor_id))
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -104,10 +105,11 @@ jobs:
           team: ${{ vars.TURBO_TEAM }}
 
   check-pr:
-    name: Verify external pull request
+    name: Verify without remote cache
     if: >-
-      github.event_name == 'pull_request' &&
-      (github.event.pull_request.head.repo.full_name != github.repository ||
+      github.ref != 'refs/heads/main' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name != github.repository ||
       !contains(fromJSON('["33671231", "49699333", "41898282"]'), github.actor_id))
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -120,7 +122,7 @@ jobs:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       TURBO_CACHE: "local:rw,remote:"
     steps:
-      - name: Require PR verification without OIDC access
+      - name: Require verification without OIDC access
         run: test -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" && test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
       - name: Reject deployment from another branch
         if: github.event_name == 'workflow_dispatch' && inputs.deploy
@@ -147,7 +149,7 @@ jobs:
 
   deploy:
     name: Deploy website to Cloudflare Pages
-    needs: [check, scope]
+    needs: [verified, scope]
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy))
@@ -218,7 +220,7 @@ jobs:
 
   release:
     name: Prepare release PR
-    needs: [check, scope, verify-deployment]
+    needs: [verified, scope, verify-deployment]
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.RELEASE_PLEASE_ENABLED == 'true' &&
