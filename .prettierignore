@@ -19,3 +19,4 @@ playwright-report/
 test-results/
 blob-report/
 pnpm-lock.yaml
+packages/spinetab/CHANGELOG.md
