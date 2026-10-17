@@ -14,6 +14,9 @@ spec.loader.exec_module(review)
 
 class GuardTests(unittest.TestCase):
     def setUp(self):
+        environment = patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run"})
+        environment.start()
+        self.addCleanup(environment.stop)
         self.pr = {"number": 12, "state": "open", "draft": False, "changed_files": 1,
                    "user": {"login": "apetta"}, "labels": [{"name": "agent:ready"}],
                    "base": {"ref": "main", "repo": {"full_name": review.REPO}},
@@ -470,7 +473,7 @@ class PrepareTriggerTests(unittest.TestCase):
 
     def prepare(self):
         self.path.write_text(json.dumps(self.event))
-        with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(self.path), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "GITHUB_EVENT_PATH": str(self.path), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
              patch.object(review, "output"), patch.object(review, "api", return_value=[]) as request:
             review.prepare()
             return request
@@ -524,7 +527,7 @@ class PrepareEvidenceTests(unittest.TestCase):
                     value = before if ref == "b" * 40 else after
                     self.assertLessEqual(len(value), limit)
                     return value
-                with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(event), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
+                with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "GITHUB_EVENT_PATH": str(event), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
                      patch.object(review, "api", return_value=pr), patch.object(review, "pages", return_value=[]), \
                      patch.object(review, "current", return_value=(pr, files, "b" * 40)), \
                      patch.object(review, "ci", return_value=run), patch.object(review, "content", side_effect=contents), \
