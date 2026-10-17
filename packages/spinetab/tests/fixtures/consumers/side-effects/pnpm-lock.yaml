@@ -42,11 +42,11 @@ importers:
         specifier: 4.8.4
         version: 4.8.4
       solid-js:
-        specifier: 1.9.15
-        version: 1.9.15
+        specifier: 1.9.17
+        version: 1.9.17
       spinetab:
         specifier: file:../pack/spinetab.tgz
-        version: file:../pack/spinetab.tgz(@apollo/client@4.3.1(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2))(@tanstack/query-core@5.104.0)(@trpc/client@11.19.0(@trpc/server@11.19.0(typescript@6.0.3))(typescript@6.0.3))(@trpc/server@11.19.0(typescript@6.0.3))(ai@7.0.116(zod@4.6.5))(graphql-sse@2.6.1(graphql@17.0.2))(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2)(socket.io-client@4.8.4)(solid-js@1.9.15)(svelte@5.57.1)(swr@2.5.1(react@19.3.0))(vue@3.5.43(typescript@6.0.3))
+        version: file:../pack/spinetab.tgz(@apollo/client@4.3.1(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2))(@tanstack/query-core@5.104.0)(@trpc/client@11.19.0(@trpc/server@11.19.0(typescript@6.0.3))(typescript@6.0.3))(@trpc/server@11.19.0(typescript@6.0.3))(ai@7.0.116(zod@4.6.5))(graphql-sse@2.6.1(graphql@17.0.2))(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2)(socket.io-client@4.8.4)(solid-js@1.9.17)(svelte@5.57.1)(swr@2.5.1(react@19.3.0))(vue@3.5.43(typescript@6.0.3))
       svelte:
         specifier: 5.57.1
         version: 5.57.1
@@ -555,14 +555,14 @@ packages:
   rxjs@7.8.2:
     resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
 
-  seroval-plugins@1.5.6:
-    resolution: {integrity: sha512-HXuLAX2pu/UByPpaeo/TaMfvMIi+1QqIoPJYCcAtU8QkVNwgR6MPlGuCQTErV1JwraaMbYaWVIBX7mppzGLATQ==}
+  seroval-plugins@1.6.9:
+    resolution: {integrity: sha512-kiDK/Tb8IWZ61WEU8pA2PDmAuw37gKph9Y77OZlD56mg0Y2g0Bg7gZ1HeHhs5d40w+nRoUq/wj08V26ilbez9g==}
     engines: {node: '>=10'}
     peerDependencies:
       seroval: ^1.0
 
-  seroval@1.5.6:
-    resolution: {integrity: sha512-rVQVWjjSvlINzaQPZH5JFqsqEsIWdTxY3iJZCnTL/5gQbXIRooVZKI60tVCkOVfzcRPejboxO2t0P89dg5mQaA==}
+  seroval@1.6.9:
+    resolution: {integrity: sha512-UeEzHwAK+yl0YLbsvROV1t5yMYEwZZ0CfKYxDvUgS2fO9Vxdf8djqVIB+OuVpuawRNPqw68LE1Du/GMsW2ZPqA==}
     engines: {node: '>=10'}
 
   socket.io-client@4.8.4:
@@ -573,15 +573,15 @@ packages:
     resolution: {integrity: sha512-IH/iSeO9T6gz1KkFleGDWkG9N3dl4jXVYUtMhIqH10Md0ttMer8nUNWiP1DKuNrybD2xBrixLJdCC9J6ECoYkg==}
     engines: {node: '>=10.0.0'}
 
-  solid-js@1.9.15:
-    resolution: {integrity: sha512-EeiY2xfpZJqPLjXspVEKjAII4yv8NyG//NxZ3IpOFHdUNnnTyL0uJOeS9LWGvA7cFCz5y94cjFwYlmw5Luncsg==}
+  solid-js@1.9.17:
+    resolution: {integrity: sha512-4GAmLOWPfNV8H9Jfn2LSFTpNEG6jiOKPiwd5lnLGQtehHaX6l3TOLzJqQ7mqwB/3k1Yy3zyumFVopmc/tm34ow==}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
   spinetab@file:../pack/spinetab.tgz:
-    resolution: {integrity: sha512-YCiQ5m8mkF5BIxSUGRybn3EvreIIi0sFwj3fslBy8xCEHpWtgUYfDvcXMfBkDGDREO4BtXTSK/fOmscQ82a/5Q==, tarball: file:../pack/spinetab.tgz}
+    resolution: {integrity: sha512-lB5S3l1DEdW9ymnvRKLBoztQFgyWiBhIJeh8/W4iA4z6WMGAOI/qJS8aOLCxLqdkJb6JfcoUb5NxGkokNjyenQ==, tarball: file:../pack/spinetab.tgz}
     version: 0.1.0
     peerDependencies:
       '@apollo/client': ^4.3.1
@@ -595,7 +595,7 @@ packages:
       react: ^19.3.0
       rxjs: ^7.8.2
       socket.io-client: ^4.8.4
-      solid-js: ^1.9.15
+      solid-js: ^1.9.17
       svelte: ^5.57.1
       swr: ^2.5.1
       vue: ^3.5.43
@@ -1137,11 +1137,11 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  seroval-plugins@1.5.6(seroval@1.5.6):
+  seroval-plugins@1.6.9(seroval@1.6.9):
     dependencies:
-      seroval: 1.5.6
+      seroval: 1.6.9
 
-  seroval@1.5.6: {}
+  seroval@1.6.9: {}
 
   socket.io-client@4.8.4:
     dependencies:
@@ -1161,15 +1161,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  solid-js@1.9.15:
+  solid-js@1.9.17:
     dependencies:
       csstype: 3.2.3
-      seroval: 1.5.6
-      seroval-plugins: 1.5.6(seroval@1.5.6)
+      seroval: 1.6.9
+      seroval-plugins: 1.6.9(seroval@1.6.9)
 
   source-map-js@1.2.1: {}
 
-  spinetab@file:../pack/spinetab.tgz(@apollo/client@4.3.1(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2))(@tanstack/query-core@5.104.0)(@trpc/client@11.19.0(@trpc/server@11.19.0(typescript@6.0.3))(typescript@6.0.3))(@trpc/server@11.19.0(typescript@6.0.3))(ai@7.0.116(zod@4.6.5))(graphql-sse@2.6.1(graphql@17.0.2))(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2)(socket.io-client@4.8.4)(solid-js@1.9.15)(svelte@5.57.1)(swr@2.5.1(react@19.3.0))(vue@3.5.43(typescript@6.0.3)):
+  spinetab@file:../pack/spinetab.tgz(@apollo/client@4.3.1(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2))(@tanstack/query-core@5.104.0)(@trpc/client@11.19.0(@trpc/server@11.19.0(typescript@6.0.3))(typescript@6.0.3))(@trpc/server@11.19.0(typescript@6.0.3))(ai@7.0.116(zod@4.6.5))(graphql-sse@2.6.1(graphql@17.0.2))(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2)(socket.io-client@4.8.4)(solid-js@1.9.17)(svelte@5.57.1)(swr@2.5.1(react@19.3.0))(vue@3.5.43(typescript@6.0.3)):
     optionalDependencies:
       '@apollo/client': 4.3.1(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react@19.3.0)(rxjs@7.8.2)
       '@tanstack/query-core': 5.104.0
@@ -1182,7 +1182,7 @@ snapshots:
       react: 19.3.0
       rxjs: 7.8.2
       socket.io-client: 4.8.4
-      solid-js: 1.9.15
+      solid-js: 1.9.17
       svelte: 5.57.1
       swr: 2.5.1(react@19.3.0)
       vue: 3.5.43(typescript@6.0.3)
