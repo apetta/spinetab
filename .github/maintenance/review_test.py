@@ -353,6 +353,82 @@ class PrepareTriggerTests(unittest.TestCase):
             self.prepare()
 
 
+class PrepareLockfileTests(unittest.TestCase):
+    def prepare(self, paths, before, after):
+        pr = {"number": 11, "head": {"sha": "a" * 40}, "title": "fix(deps): patch Solid", "body": ""}
+        files = [path if isinstance(path, dict) else {"filename": path, "status": "modified"} for path in paths]
+        run = {"id": 42, "run_attempt": 1, "html_url": "https://github.com/apetta/spinetab/actions/runs/42"}
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            os.chdir(directory)
+            try:
+                event = Path("event.json").resolve()
+                event.write_text('{"inputs":{"pr_number":"11"}}')
+                def contents(path, ref, limit=250_000):
+                    expected = [item.get("previous_filename", item["filename"]) if ref == "b" * 40
+                                else item["filename"] for item in files]
+                    self.assertIn(path, expected)
+                    value = before if ref == "b" * 40 else after
+                    self.assertLessEqual(len(value), limit)
+                    return value
+                with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(event), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
+                     patch.object(review, "api", return_value=pr), patch.object(review, "pages", return_value=[]), \
+                     patch.object(review, "current", return_value=(pr, files, "b" * 40)), \
+                     patch.object(review, "ci", return_value=run), patch.object(review, "content", side_effect=contents), \
+                     patch.object(review, "output") as output:
+                    review.prepare()
+                    evidence = Path("review-input.json")
+                    return json.loads(evidence.read_text()) if evidence.exists() else None, output.call_args_list
+            finally:
+                os.chdir(original)
+
+    def test_root_and_fixture_locks_include_every_change_without_unchanged_bodies(self):
+        paths = ["pnpm-lock.yaml", "packages/spinetab/tests/fixtures/consumers/alpha/pnpm-lock.yaml",
+                 "packages/spinetab/tests/fixtures/consumers/beta/pnpm-lock.yaml"]
+        unchanged = "packages:\n" + "".join(f"  unchanged-package-{i}: {{}}\n" for i in range(7000))
+        before = unchanged + "  solid-js:\n    version: 1.9.15\n"
+        after = unchanged + "  solid-js:\n    version: 1.9.17\n    peerDependencies:\n      seroval: ^1.6.8\n"
+        evidence, outputs = self.prepare(paths, before, after)
+        self.assertIsNotNone(evidence)
+        self.assertTrue(any(call.kwargs.get("ready") == "true" for call in outputs))
+        for record in evidence["files"]:
+            with self.subTest(path=record["path"]):
+                self.assertEqual(set(record), {"path", "status", "patch"})
+                patch_text = "".join(record["patch"])
+                self.assertIn(f"--- before/{record['path']}\n", patch_text)
+                self.assertIn(f"+++ after/{record['path']}\n", patch_text)
+                self.assertIn("-    version: 1.9.15\n", patch_text)
+                self.assertIn("+    version: 1.9.17\n", patch_text)
+                self.assertIn("+    peerDependencies:\n+      seroval: ^1.6.8\n", patch_text)
+                self.assertNotIn("unchanged-package-0:", patch_text)
+
+    def test_renamed_fixture_lock_reads_and_identifies_its_original_path(self):
+        previous = "packages/spinetab/tests/fixtures/consumers/old/pnpm-lock.yaml"
+        path = "packages/spinetab/tests/fixtures/consumers/new/pnpm-lock.yaml"
+        evidence, outputs = self.prepare([{"filename": path, "previous_filename": previous, "status": "renamed"}],
+                                         "version: 1.9.15\n", "version: 1.9.17\n")
+        self.assertTrue(any(call.kwargs.get("ready") == "true" for call in outputs))
+        self.assertEqual(evidence["files"][0]["previous_path"], previous)
+        patch_text = "".join(evidence["files"][0]["patch"])
+        self.assertIn(f"--- before/{previous}\n", patch_text)
+        self.assertIn(f"+++ after/{path}\n", patch_text)
+        self.assertIn("-version: 1.9.15\n+version: 1.9.17\n", patch_text)
+
+    def test_rename_only_keeps_original_lockfile_identity(self):
+        previous = "packages/spinetab/tests/fixtures/consumers/old/pnpm-lock.yaml"
+        path = "packages/spinetab/tests/fixtures/consumers/new/pnpm-lock.yaml"
+        evidence, outputs = self.prepare([{"filename": path, "previous_filename": previous, "status": "renamed"}],
+                                         "version: 1.9.17\n", "version: 1.9.17\n")
+        self.assertTrue(any(call.kwargs.get("ready") == "true" for call in outputs))
+        self.assertEqual(evidence["files"][0], {"path": path, "status": "renamed", "previous_path": previous, "patch": []})
+
+    def test_large_fixture_lock_diff_still_fails_closed(self):
+        evidence, outputs = self.prepare(["packages/spinetab/tests/fixtures/consumers/alpha/pnpm-lock.yaml"],
+                                         "old-line\n" * 12000, "new-line\n" * 12000)
+        self.assertIsNone(evidence)
+        self.assertFalse(any(call.kwargs.get("ready") == "true" for call in outputs))
+
+
 class ReadCoverageTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
