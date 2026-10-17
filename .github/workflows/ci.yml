@@ -67,7 +67,7 @@ jobs:
     # Match @playwright/test in apps/website/package.json. The image includes
     # the matching browser binaries and their system dependencies.
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
       options: --user 1001
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
@@ -233,7 +233,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
       options: --user 1001
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright

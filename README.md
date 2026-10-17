@@ -120,7 +120,7 @@ for tested versions and known restrictions. Test fixtures live under
 ## Continuous integration
 
 CI runs in Microsoft's Playwright container, whose image tag matches
-`@playwright/test` (1.63.0), as a non-root user with
+`@playwright/test` (1.64.0), as a non-root user with
 `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`:
 
 ```sh
