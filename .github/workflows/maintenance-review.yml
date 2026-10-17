@@ -128,10 +128,11 @@ jobs:
     needs: analyse
     if: needs.analyse.outputs.ready == 'true'
     runs-on: ubuntu-latest
+    environment: maintenance
     timeout-minutes: 5
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: read
       actions: read
       checks: read
       statuses: read
@@ -153,8 +154,19 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Create the independent review identity
+        id: identity
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: apetta
+          repositories: spinetab
+          permission-pull-requests: write
       - name: Submit independent current-head review
         id: review
+        env:
+          REVIEW_TOKEN: ${{ steps.identity.outputs.token }}
         run: python3 .github/maintenance/review.py review
 
   merge:

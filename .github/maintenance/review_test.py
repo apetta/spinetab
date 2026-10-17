@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -12,9 +13,21 @@ review = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(review)
 
 
+class AuthenticationTests(unittest.TestCase):
+    def test_only_the_explicit_review_write_uses_the_app_token(self):
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": review.REPO, "GH_TOKEN": "synthetic-read-token"}):
+            for method, token, expected in [("GET", None, "synthetic-read-token"),
+                                             ("POST", "synthetic-review-token", "synthetic-review-token")]:
+                with self.subTest(method=method), patch.object(review.urllib.request, "urlopen",
+                        return_value=io.BytesIO(b"{}")) as request:
+                    review.api("/pulls/12/reviews", method, token=token)
+                    self.assertEqual(request.call_args.args[0].get_header("Authorization"), "Bearer " + expected)
+
+
 class GuardTests(unittest.TestCase):
     def setUp(self):
-        environment = patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "SUPERVISOR_COMMENT_ID": ""})
+        environment = patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "SUPERVISOR_COMMENT_ID": "",
+                                             "REVIEW_TOKEN": "synthetic-review-token"})
         environment.start()
         self.addCleanup(environment.stop)
         self.pr = {"number": 12, "state": "open", "draft": False, "changed_files": 1,
@@ -443,11 +456,12 @@ class ManualReviewTests(unittest.TestCase):
         request.assert_not_called()
 
     def test_manual_approval_is_a_formal_review_on_the_requested_commit(self):
-        def submit(path, method="GET", data=None):
+        def submit(path, method="GET", data=None, *, token=None):
             self.assertEqual((path, method), ("/pulls/12/reviews", "POST"))
             self.assertEqual(data["event"], "APPROVE")
             self.assertEqual(data["commit_id"], self.inputs["expected_head"])
             self.assertIn("Owner-requested review", data["body"])
+            self.assertEqual(token, "synthetic-review-token")
             return {"id": 9, "user": {"login": review.REVIEWER}, "commit_id": data["commit_id"]}
         with patch.dict(os.environ, {"DECISION": "approve", "REASON": '"No concrete defects found"', "GITHUB_RUN_ID": "99"}), \
              patch.object(review, "evidence", return_value=(self.pr, "b" * 40, self.run)), \
@@ -493,17 +507,20 @@ class SupervisorReviewTests(unittest.TestCase):
         environment.start()
         self.addCleanup(environment.stop)
 
-    def api(self, path, method="GET", data=None):
+    def api(self, path, method="GET", data=None, *, token=None):
         if method != "GET":
             self.writes.append((path, method, data))
             if path == "/pulls/12/reviews":
+                self.assertEqual(token, "synthetic-review-token")
                 approval = dict(self.approval, body=data["body"], commit_id=data["commit_id"])
                 self.reviews.append(approval)
                 return approval
             if path == "/pulls/12/merge":
+                self.assertIsNone(token)
                 self.merged = True
                 return {"merged": True, "sha": "c" * 40}
             if path == "/actions/workflows/ci.yml/dispatches":
+                self.assertIsNone(token)
                 return None
         if path == "/pulls/12":
             return dict(self.pr, merged=True, merge_commit_sha="c" * 40) if self.merged else self.pr

@@ -31,7 +31,7 @@ class PublicationTests(unittest.TestCase):
                 "repo": {"full_name": publish.REPO}}}
         self.review = {"user": {"login": "apetta"}, "state": "APPROVED",
             "commit_id": "b" * 40, "body": "<!-- spinetab-release-supervisor -->\nVersion: 0.1.1"}
-        self.independent = {"user": {"login": "github-actions[bot]"}, "state": "APPROVED",
+        self.independent = {"user": {"login": "spinetab-agent[bot]"}, "state": "APPROVED",
             "commit_id": "b" * 40, "body": "<!-- spinetab-maintenance-review -->\nHead: " + "b" * 40}
         self.files = [{"filename": name, "status": "modified"} for name in (
             publish.MANIFEST, "packages/spinetab/CHANGELOG.md", ".release-please-manifest.json")]
@@ -79,6 +79,17 @@ class PublicationTests(unittest.TestCase):
                 self.decision([self.review, dict(self.independent, **change)])
         with self.assertRaisesRegex(ValueError, "independent"):
             self.decision([self.review])
+
+    def test_other_bot_identities_cannot_supply_the_independent_review(self):
+        for login in ["github-actions[bot]", self.bot, "someone[bot]"]:
+            with self.subTest(login=login), self.assertRaisesRegex(ValueError, "independent"):
+                self.decision([self.review, dict(self.independent, user={"login": login})])
+
+    def test_release_author_cannot_be_the_independent_reviewer(self):
+        self.pr["user"]["login"] = "spinetab-agent[bot]"
+        with patch.dict(os.environ, {"RELEASE_BOT_LOGIN": "spinetab-agent[bot]"}), \
+             self.assertRaisesRegex(ValueError, "independent"):
+            self.decision()
 
     def test_later_change_request_blocks_publication(self):
         with self.assertRaisesRegex(ValueError, "change request"):

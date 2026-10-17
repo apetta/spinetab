@@ -14,7 +14,7 @@ import urllib.request
 REPO = "apetta/spinetab"
 CI_PATH = ".github/workflows/ci.yml"
 CHECK = "Lint, Typecheck, Test, E2E"
-REVIEWER = "github-actions[bot]"
+REVIEWER = "spinetab-agent[bot]"
 MARKER = "<!-- spinetab-maintenance-review -->"
 AUTHORISATION = "<!-- spinetab-maintenance-authorisation -->"
 SUPERVISOR_APP = {"id": 1144995, "slug": "chatgpt-codex-connector"}
@@ -29,7 +29,7 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def api(path, method="GET", data=None):
+def api(path, method="GET", data=None, *, token=None):
     require(os.environ["GITHUB_REPOSITORY"] == REPO, "Unexpected repository")
     require(path.startswith("/") and not path.startswith("//"), "Invalid API path")
     request = urllib.request.Request(
@@ -37,7 +37,7 @@ def api(path, method="GET", data=None):
         method=method,
         data=json.dumps(data).encode() if data is not None else None,
         headers={
-            "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+            "Authorization": "Bearer " + (token if token is not None else os.environ["GH_TOKEN"]),
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         },
@@ -427,7 +427,8 @@ def review():
     if os.environ.get("SUPERVISOR_COMMENT_ID"):
         body += f"\nSupervisor authorisation: https://github.com/{REPO}/pull/{pr['number']}#issuecomment-{os.environ['SUPERVISOR_COMMENT_ID']}"
     result = api(f"/pulls/{pr['number']}/reviews", "POST", {"commit_id": pr["head"]["sha"], "body": body,
-                 "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES", "escalate": "COMMENT"}[decision]})
+                 "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES", "escalate": "COMMENT"}[decision]},
+                 token=os.environ["REVIEW_TOKEN"])
     require(result["user"]["login"] == REVIEWER and result["commit_id"] == pr["head"]["sha"], "Unexpected review identity or head")
     output(review_id=result["id"])
 
