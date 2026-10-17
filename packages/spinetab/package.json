@@ -27,7 +27,7 @@
 		"@types/ws": "8.18.1",
 		"ai": "7.0.116",
 		"astro": "7.3.5",
-		"es-module-lexer": "2.3.2",
+		"es-module-lexer": "3.0.3",
 		"expect-type": "1.4.0",
 		"graphql": "17.0.2",
 		"graphql-sse": "2.6.1",

@@ -24,23 +24,25 @@ const HOSTILE = [
 ];
 
 interface Lexer {
-	init: Promise<void>;
-	parse(code: string): [{ n: string | undefined }[], unknown];
+	init(): Promise<void>;
+	parse(code: string): [{ specifier: string | null | undefined }[], unknown];
 }
 
 /** Import specifiers by es-module-lexer when installed, else a strict regex. */
 async function specifiersOf(code: string): Promise<string[]> {
 	const name = "es-module-lexer";
+	let lexer: Lexer;
 	try {
-		const lexer = (await import(/* @vite-ignore */ name)) as Lexer;
-		await lexer.init;
-		const [imports] = lexer.parse(code);
-		return imports.map((entry) => entry.n ?? "");
+		lexer = (await import(/* @vite-ignore */ name)) as Lexer;
 	} catch {
 		return [...code.matchAll(/^import [^\n]* from ("[^"]+");$/gm)].map(
 			(match) => JSON.parse(match[1] ?? '""') as string,
 		);
 	}
+	// Outside the catch: a lexer API change fails here instead of using the regex.
+	await lexer.init();
+	const [imports] = lexer.parse(code);
+	return imports.map((entry) => entry.specifier ?? "");
 }
 
 describe("generateWorker", () => {
