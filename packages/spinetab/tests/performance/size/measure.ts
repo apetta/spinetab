@@ -188,7 +188,7 @@ function tarballPath(): string {
 	const path = resolve(
 		args.tarball ??
 			process.env.SPINETAB_PERF_TARBALL ??
-			join(consumers, "pack", "spinetab-0.1.0.tgz"),
+			join(consumers, "pack", "spinetab.tgz"),
 	);
 	if (!existsSync(path)) {
 		throw new Error(

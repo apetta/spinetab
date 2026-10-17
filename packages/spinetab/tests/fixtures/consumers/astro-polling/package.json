@@ -6,7 +6,7 @@
 	"type": "module",
 	"sideEffects": false,
 	"dependencies": {
-		"spinetab": "file:../pack/spinetab-0.1.0.tgz"
+		"spinetab": "file:../pack/spinetab.tgz"
 	},
 	"devDependencies": {
 		"astro": "7.3.5"

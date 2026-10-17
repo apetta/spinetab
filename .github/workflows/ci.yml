@@ -172,7 +172,7 @@ jobs:
       - name: Install trusted deployment tooling before credentials are available
         working-directory: deployment
         run: |
-          npm install --ignore-scripts --save-exact wrangler@4.147.0
+          npm install --ignore-scripts --save-exact wrangler@4.150.0
           npx --no-install wrangler --version
       - name: Download tested website build
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -187,7 +187,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: deployment
           packageManager: npm
-          wranglerVersion: "4.147.0"
+          wranglerVersion: "4.150.0"
           command: pages deploy dist --project-name=spinetab --branch=main --commit-hash=${{ inputs.expected_sha || github.sha }}
 
   verify-deployment:
@@ -266,8 +266,8 @@ jobs:
             const sha256 = createHash("sha256").update(readFileSync(tarball)).digest("hex");
             if (sha256 !== record.sha256) throw new Error("Verified tarball integrity changed");
             mkdirSync("release", { recursive: true });
-            copyFileSync(tarball, join("release", record.file));
             const pkg = JSON.parse(readFileSync("packages/spinetab/package.json"));
+            copyFileSync(tarball, join("release", `spinetab-${pkg.version}.tgz`));
             const receipt = {
               repository: process.env.GITHUB_REPOSITORY,
               sha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),

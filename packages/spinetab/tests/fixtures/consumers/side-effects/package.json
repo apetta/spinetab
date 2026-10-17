@@ -17,7 +17,7 @@
 		"rxjs": "7.8.2",
 		"socket.io-client": "4.8.4",
 		"solid-js": "1.9.15",
-		"spinetab": "file:../pack/spinetab-0.1.0.tgz",
+		"spinetab": "file:../pack/spinetab.tgz",
 		"svelte": "5.57.1",
 		"swr": "2.5.1",
 		"vue": "3.5.43",

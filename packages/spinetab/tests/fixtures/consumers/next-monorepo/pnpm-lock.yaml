@@ -23,8 +23,8 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
       spinetab:
-        specifier: file:../../../pack/spinetab-0.1.0.tgz
-        version: file:../pack/spinetab-0.1.0.tgz(react@19.3.0)
+        specifier: file:../../../pack/spinetab.tgz
+        version: file:../pack/spinetab.tgz(react@19.3.0)
     devDependencies:
       '@types/node':
         specifier: 24.13.2
@@ -42,8 +42,8 @@ importers:
   packages/feeds:
     dependencies:
       spinetab:
-        specifier: file:../../../pack/spinetab-0.1.0.tgz
-        version: file:../pack/spinetab-0.1.0.tgz(react@19.3.0)
+        specifier: file:../../../pack/spinetab.tgz
+        version: file:../pack/spinetab.tgz(react@19.3.0)
 
 packages:
 
@@ -342,8 +342,8 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz:
-    resolution: {integrity: sha512-q3uQkGRszqi+YBCD94IZCThW4C03vXrm9lw3ammFb3EemFhnJKZCugqpJSlab+/EIufz+fuvoqXBdMXpLjBxpw==, tarball: file:../pack/spinetab-0.1.0.tgz}
+  spinetab@file:../pack/spinetab.tgz:
+    resolution: {integrity: sha512-q3uQkGRszqi+YBCD94IZCThW4C03vXrm9lw3ammFb3EemFhnJKZCugqpJSlab+/EIufz+fuvoqXBdMXpLjBxpw==, tarball: file:../pack/spinetab.tgz}
     version: 0.1.0
     peerDependencies:
       '@apollo/client': ^4.3.1
@@ -667,7 +667,7 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz(react@19.3.0):
+  spinetab@file:../pack/spinetab.tgz(react@19.3.0):
     optionalDependencies:
       react: 19.3.0
 

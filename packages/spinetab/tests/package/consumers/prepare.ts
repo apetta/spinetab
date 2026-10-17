@@ -495,7 +495,7 @@ async function pack(): Promise<PackRecord> {
 	mkdirSync(destination, { recursive: true });
 	const packed = await run(
 		"pnpm",
-		["pack", "--pack-destination", destination],
+		["pack", "--out", join(destination, TARBALL)],
 		{
 			cwd: packageRoot,
 			env: isolatedEnv(),
@@ -566,7 +566,7 @@ export async function prepare(options: {
 					: "ancestors: clean",
 				`lock: ${join(root, ".lock")}`,
 				"hash: dist/** (sorted paths and contents)",
-				`pack: pnpm pack --pack-destination ${packDir()} (cwd ${packageRoot})`,
+				`pack: pnpm pack --out ${join(packDir(), TARBALL)} (cwd ${packageRoot})`,
 				"list: the tarball's own entries (paths and sizes)",
 				...consumers.map(
 					(spec) =>

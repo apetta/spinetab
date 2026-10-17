@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       spinetab:
-        specifier: file:../pack/spinetab-0.1.0.tgz
-        version: file:../pack/spinetab-0.1.0.tgz
+        specifier: file:../pack/spinetab.tgz
+        version: file:../pack/spinetab.tgz
     devDependencies:
       astro:
         specifier: 7.3.5
@@ -1153,8 +1153,8 @@ packages:
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz:
-    resolution: {integrity: sha512-q3uQkGRszqi+YBCD94IZCThW4C03vXrm9lw3ammFb3EemFhnJKZCugqpJSlab+/EIufz+fuvoqXBdMXpLjBxpw==, tarball: file:../pack/spinetab-0.1.0.tgz}
+  spinetab@file:../pack/spinetab.tgz:
+    resolution: {integrity: sha512-q3uQkGRszqi+YBCD94IZCThW4C03vXrm9lw3ammFb3EemFhnJKZCugqpJSlab+/EIufz+fuvoqXBdMXpLjBxpw==, tarball: file:../pack/spinetab.tgz}
     version: 0.1.0
     peerDependencies:
       '@apollo/client': ^4.3.1
@@ -2501,7 +2501,7 @@ snapshots:
 
   space-separated-tokens@2.0.2: {}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz: {}
+  spinetab@file:../pack/spinetab.tgz: {}
 
   stringify-entities@4.0.4:
     dependencies:

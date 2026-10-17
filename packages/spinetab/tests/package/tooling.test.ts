@@ -177,9 +177,7 @@ describe("consumer templates", () => {
 			};
 			expect(manifest.private).toBe(true);
 			const pack = posix.relative(posix.join(spec.name, appDir), "pack");
-			expect(manifest.dependencies?.spinetab).toBe(
-				`file:${pack}/spinetab-0.1.0.tgz`,
-			);
+			expect(manifest.dependencies?.spinetab).toBe(`file:${pack}/spinetab.tgz`);
 			const all = { ...manifest.dependencies, ...manifest.devDependencies };
 			const ranges = Object.entries(all).filter(
 				([name, version]) =>
@@ -1089,16 +1087,16 @@ describe("pack pipeline helpers", () => {
 		"  .:",
 		"    dependencies:",
 		"      spinetab:",
-		"        specifier: file:../pack/spinetab-0.1.0.tgz",
-		"        version: file:../pack/spinetab-0.1.0.tgz(vue@3.5.43)",
+		"        specifier: file:../pack/spinetab.tgz",
+		"        version: file:../pack/spinetab.tgz(vue@3.5.43)",
 		"      vue:",
 		"        specifier: 3.5.43",
 		"        version: 3.5.43",
 		"packages:",
 		"  '@vue/shared@3.5.43':",
 		"    resolution: {integrity: sha512-shared}",
-		"  spinetab@file:../pack/spinetab-0.1.0.tgz:",
-		"    resolution: {integrity: sha512-AbC+/=, tarball: file:../pack/spinetab-0.1.0.tgz}",
+		"  spinetab@file:../pack/spinetab.tgz:",
+		"    resolution: {integrity: sha512-AbC+/=, tarball: file:../pack/spinetab.tgz}",
 		"  vue@3.5.43:",
 		"    resolution: {integrity: sha512-vue}",
 		"snapshots:",

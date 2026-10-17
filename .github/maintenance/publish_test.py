@@ -31,12 +31,17 @@ class PublicationTests(unittest.TestCase):
                 "repo": {"full_name": publish.REPO}}}
         self.review = {"user": {"login": "apetta"}, "state": "APPROVED",
             "commit_id": "b" * 40, "body": "<!-- spinetab-release-supervisor -->\nVersion: 0.1.1"}
+        self.independent = {"user": {"login": "github-actions[bot]"}, "state": "APPROVED",
+            "commit_id": "b" * 40, "body": "<!-- spinetab-maintenance-review -->\nHead: " + "b" * 40}
+        self.files = [{"filename": name, "status": "modified"} for name in (
+            publish.MANIFEST, "packages/spinetab/CHANGELOG.md", ".release-please-manifest.json")]
         self.event = {"workflow_run": {"name": "CI", "path": ".github/workflows/ci.yml",
             "head_repository": {"full_name": publish.REPO}, "head_branch": "main",
             "event": "push", "status": "completed", "conclusion": "success", "head_sha": self.sha}}
 
     def decision(self, reviews=None):
-        with patch.object(publish, "api", side_effect=[[self.pr], [self.review] if reviews is None else reviews]):
+        with patch.object(publish, "api", side_effect=[[self.pr],
+                [self.review, self.independent] if reviews is None else reviews, self.files]):
             return publish.release_decision(self.sha, "0.1.1")
 
     def test_current_supervisor_approval(self):
@@ -67,6 +72,23 @@ class PublicationTests(unittest.TestCase):
             self.pr = dict(original, **{field: value})
             with self.subTest(field=field), self.assertRaisesRegex(ValueError, "merged Release Please"):
                 self.decision()
+
+    def test_independent_review_must_approve_current_head(self):
+        for change in [{"commit_id": "c" * 40}, {"state": "DISMISSED"},
+                       {"state": "COMMENTED"}, {"body": "Approved"}]:
+            with self.subTest(change=change), self.assertRaisesRegex(ValueError, "independent"):
+                self.decision([self.review, dict(self.independent, **change)])
+        with self.assertRaisesRegex(ValueError, "independent"):
+            self.decision([self.review])
+
+    def test_later_change_request_blocks_publication(self):
+        with self.assertRaisesRegex(ValueError, "change request"):
+            self.decision([self.review, self.independent, dict(self.independent, state="CHANGES_REQUESTED")])
+
+    def test_release_file_scope_is_rechecked_at_publication(self):
+        self.files.append({"filename": "packages/spinetab/src/index.ts", "status": "modified"})
+        with self.assertRaisesRegex(ValueError, "file scope"):
+            self.decision()
 
     def test_unready_release_is_rejected(self):
         self.pr["labels"] = []

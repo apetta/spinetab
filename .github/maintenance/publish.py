@@ -104,6 +104,20 @@ def release_decision(sha, version):
             and supervisor[-1]["commit_id"] == pr["head"]["sha"]
             and "<!-- spinetab-release-supervisor -->" in (supervisor[-1]["body"] or "")
             and f"Version: {version}" in supervisor[-1]["body"].splitlines(), "Missing current-head supervisor release approval")
+    latest = {}
+    for review in reviews:
+        if review["state"] in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
+            latest[review["user"]["login"]] = review
+    require(not any(review["state"] == "CHANGES_REQUESTED" for review in latest.values()), "Outstanding release change request")
+    independent = latest.get("github-actions[bot]")
+    require(independent and independent["state"] == "APPROVED"
+            and independent["commit_id"] == pr["head"]["sha"]
+            and "<!-- spinetab-maintenance-review -->" in (independent["body"] or "")
+            and f"Head: {pr['head']['sha']}" in independent["body"].splitlines(), "Missing current-head independent release approval")
+    files = api(f"pulls/{pr['number']}/files?per_page=100")
+    require(len(files) == 3 and {item["filename"] for item in files}
+            == {MANIFEST, "packages/spinetab/CHANGELOG.md", ".release-please-manifest.json"}
+            and all(item["status"] == "modified" for item in files), "Release file scope changed")
     return pr["number"]
 
 

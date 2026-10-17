@@ -10,7 +10,7 @@
 		"graphql-ws": "6.3.0",
 		"react": "19.3.0",
 		"react-dom": "19.3.0",
-		"spinetab": "file:../pack/spinetab-0.1.0.tgz"
+		"spinetab": "file:../pack/spinetab.tgz"
 	},
 	"devDependencies": {
 		"vite": "8.3.1"

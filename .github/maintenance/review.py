@@ -285,7 +285,7 @@ def verify():
     auth = json.loads(subprocess.check_output(["claude", "auth", "status"], text=True))
     require(auth["authMethod"] == "oauth_token", "Subscription authentication required")
     output(decision=decision["decision"], reason=json.dumps(decision["reason"]))
-    print("Verified Opus 5.5, subscription authentication and an evidence-only tool trace")
+    print("Verified subscription authentication and an evidence-only tool trace")
 
 
 def latest_reviews(reviews):
@@ -311,7 +311,8 @@ def review():
     reason = json.loads(os.environ["REASON"])
     require(isinstance(reason, str) and 0 < len(reason) <= 3000, "Invalid reason")
     require(pr["user"]["login"] != REVIEWER, "Reviewer cannot approve its own PR")
-    body = f"{MARKER}\nClaude Opus 5.5 High: {decision}\n\n{reason}\n\nHead: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}\nReview run: {os.environ['GITHUB_RUN_ID']}"
+    title = {"approve": "Approved", "request_changes": "Changes requested", "escalate": "Needs attention"}[decision]
+    body = f"{MARKER}\n### {title}\n\n{reason}\n\nHead: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}\nReview run: {os.environ['GITHUB_RUN_ID']}"
     result = api(f"/pulls/{pr['number']}/reviews", "POST", {"commit_id": pr["head"]["sha"], "body": body,
                  "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES", "escalate": "COMMENT"}[decision]})
     require(result["user"]["login"] == REVIEWER and result["commit_id"] == pr["head"]["sha"], "Unexpected review identity or head")

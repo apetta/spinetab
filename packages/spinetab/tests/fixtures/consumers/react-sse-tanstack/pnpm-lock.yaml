@@ -21,8 +21,8 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
       spinetab:
-        specifier: file:../pack/spinetab-0.1.0.tgz
-        version: file:../pack/spinetab-0.1.0.tgz(@tanstack/query-core@5.104.0)(react@19.3.0)
+        specifier: file:../pack/spinetab.tgz
+        version: file:../pack/spinetab.tgz(@tanstack/query-core@5.104.0)(react@19.3.0)
     devDependencies:
       '@rspack/cli':
         specifier: 2.2.7
@@ -1571,8 +1571,8 @@ packages:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz:
-    resolution: {integrity: sha512-YCiQ5m8mkF5BIxSUGRybn3EvreIIi0sFwj3fslBy8xCEHpWtgUYfDvcXMfBkDGDREO4BtXTSK/fOmscQ82a/5Q==, tarball: file:../pack/spinetab-0.1.0.tgz}
+  spinetab@file:../pack/spinetab.tgz:
+    resolution: {integrity: sha512-YCiQ5m8mkF5BIxSUGRybn3EvreIIi0sFwj3fslBy8xCEHpWtgUYfDvcXMfBkDGDREO4BtXTSK/fOmscQ82a/5Q==, tarball: file:../pack/spinetab.tgz}
     version: 0.1.0
     peerDependencies:
       '@apollo/client': ^4.3.1
@@ -3352,7 +3352,7 @@ snapshots:
 
   source-map@0.6.1: {}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz(@tanstack/query-core@5.104.0)(react@19.3.0):
+  spinetab@file:../pack/spinetab.tgz(@tanstack/query-core@5.104.0)(react@19.3.0):
     optionalDependencies:
       '@tanstack/query-core': 5.104.0
       react: 19.3.0

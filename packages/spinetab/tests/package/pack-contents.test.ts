@@ -1,14 +1,17 @@
 import { execFileSync } from "node:child_process";
 import {
 	mkdirSync,
+	mkdtempSync,
 	readdirSync,
 	readFileSync,
 	rmSync,
 	writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
+import { TARBALL } from "./consumers/paths.ts";
 import { tarballListing } from "./consumers/prepare.ts";
 import { packageRoot, readManifest } from "./dist.ts";
 
@@ -35,6 +38,35 @@ const listing = (
 )[0] as Listing;
 
 describe("packed contents", () => {
+	it.each([
+		"0.1.1",
+		"0.2.0",
+	])("consumer archive keeps its name and packs the actual %s manifest", (version) => {
+		const root = mkdtempSync(join(tmpdir(), "spinetab-pack-version-"));
+		try {
+			writeFileSync(
+				join(root, "package.json"),
+				JSON.stringify({ name: "spinetab", version }),
+			);
+			const archive = join(root, TARBALL);
+			execFileSync("pnpm", ["pack", "--out", archive], {
+				cwd: root,
+				stdio: "pipe",
+			});
+			const packed = JSON.parse(
+				execFileSync("tar", ["-xOf", archive, "package/package.json"], {
+					encoding: "utf8",
+				}),
+			);
+			expect(packed).toMatchObject({ name: "spinetab", version });
+			expect(readdirSync(root).filter((file) => file.endsWith(".tgz"))).toEqual(
+				[TARBALL],
+			);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it("contains only package.json, README.md, CHANGELOG.md, LICENSE and dist/**", () => {
 		const unexpected = listing.files
 			.map((file) => file.path)
