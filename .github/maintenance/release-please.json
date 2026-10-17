@@ -1,0 +1,13 @@
+{
+	"$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+	"bootstrap-sha": "926247896bbb276643f66c692a8e7d7f05327b62",
+	"packages": {
+		"packages/spinetab": {
+			"release-type": "node",
+			"package-name": "spinetab",
+			"include-component-in-tag": false,
+			"bump-minor-pre-major": true,
+			"bump-patch-for-minor-pre-major": true
+		}
+	}
+}

@@ -1,93 +1,99 @@
 name: Publish
 
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
   workflow_dispatch:
     inputs:
       version:
-        description: Package version to release
-        required: true
-        default: "0.1.0"
-      verified_run_id:
-        description: Retry publication using a previously verified release archive
+        description: Optional expected version from the reviewed release PR
         required: false
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: npm-publish
   cancel-in-progress: false
+  queue: max
 
 jobs:
+  plan:
+    if: >-
+      github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
+      vars.NPM_PUBLISH_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","workflow_dispatch"]'), github.event.workflow_run.event)))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+      version: ${{ steps.plan.outputs.version }}
+      sha: ${{ steps.plan.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Identify an approved unpublished release
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
+        run: python3 .github/maintenance/publish.py plan
+
   verify:
-    if: github.ref == 'refs/heads/main' && inputs.verified_run_id == ''
+    needs: plan
+    if: needs.plan.outputs.publish == 'true'
     uses: ./.github/workflows/ci.yml
     with:
       release: true
+      expected_sha: ${{ needs.plan.outputs.sha }}
 
   publish:
-    needs: verify
+    needs: [plan, verify]
     if: >-
-      always() && github.ref == 'refs/heads/main' &&
-      (needs.verify.result == 'success' ||
-      (needs.verify.result == 'skipped' && inputs.verified_run_id != ''))
+      always() && needs.plan.result == 'success' && needs.plan.outputs.publish == 'true' &&
+      needs.verify.result == 'success'
     runs-on: ubuntu-latest
+    environment: npm
     timeout-minutes: 10
     permissions:
       contents: read
       actions: read
       id-token: write
+    env:
+      RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+      RELEASE_SHA: ${{ needs.plan.outputs.sha }}
+      RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ needs.plan.outputs.sha }}
           fetch-depth: 0
-      - uses: actions/setup-node@v6
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: npm install --global npm@11.21.0
-      - name: Check previously verified release
-        if: inputs.verified_run_id != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERIFIED_RUN_ID: ${{ inputs.verified_run_id }}
-        run: |
-          node --input-type=module -e '
-            import assert from "node:assert/strict";
-            import { execFileSync } from "node:child_process";
-            const id = process.env.VERIFIED_RUN_ID;
-            assert(/^\d+$/.test(id), "Run ID must be numeric");
-            const repo = process.env.GITHUB_REPOSITORY;
-            const api = path => JSON.parse(execFileSync("gh", ["api", path], { encoding: "utf8" }));
-            const run = api(`repos/${repo}/actions/runs/${id}`);
-            assert.equal(run.path, ".github/workflows/publish.yml");
-            assert.equal(run.head_branch, "main");
-            assert.equal(run.event, "workflow_dispatch");
-            assert.equal(run.status, "completed");
-            const jobs = api(`repos/${repo}/actions/runs/${id}/jobs?per_page=100`).jobs;
-            for (const name of ["verify / Lint, Typecheck, Test, E2E", "verify / Packed consumer release verification"]) {
-              assert(jobs.some(job => job.name === name && job.conclusion === "success"), `Missing successful ${name}`);
-            }
-            execFileSync("git", ["diff", "--exit-code", run.head_sha, "HEAD", "--", "packages/spinetab", "README.md", "LICENSE"], { stdio: "inherit" });
-            console.log(`Reusing verified archive from ${run.head_sha} (run ${id})`);
-          '
-      - name: Check release version
-        env:
-          RELEASE_VERSION: ${{ inputs.version }}
-        run: |
-          node --input-type=module -e '
-            import { readFileSync } from "node:fs";
-            const pkg = JSON.parse(readFileSync("packages/spinetab/package.json"));
-            if (pkg.version !== process.env.RELEASE_VERSION) throw new Error("Release version must match package.json");
-          '
-      - uses: actions/download-artifact@v8
+      - run: npm install --global --ignore-scripts npm@11.21.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: npm-release
           path: release
           github-token: ${{ github.token }}
-          run-id: ${{ inputs.verified_run_id || github.run_id }}
-      - name: Stage verified package
+      - name: Verify source, supervisor decision and tested archive
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
-        run: npm stage publish "./release/spinetab-$RELEASE_VERSION.tgz" --access public --provenance
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/maintenance/publish.py verify
+      - name: Publish the verified archive with short-lived OIDC credentials
+        env:
+          NODE_AUTH_TOKEN: ""
+        run: npm publish "./release/spinetab-$RELEASE_VERSION.tgz" --access public --provenance --ignore-scripts

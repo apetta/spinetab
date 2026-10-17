@@ -51,6 +51,7 @@ jobs:
       reason: ${{ steps.verify.outputs.reason }}
     env:
       ANTHROPIC_API_KEY: ""
+      RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
       CLAUDE_CODE_EFFORT_LEVEL: high
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
     steps:
@@ -72,7 +73,7 @@ jobs:
         uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc
         with:
           github_token: ${{ github.token }}
-          allowed_bots: "dependabot[bot],github-actions[bot]"
+          allowed_bots: "dependabot[bot],github-actions[bot],${{ vars.RELEASE_BOT_LOGIN }}"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: "false"
           display_report: "false"
@@ -125,6 +126,7 @@ jobs:
       review_id: ${{ steps.review.outputs.review_id }}
     env:
       GH_TOKEN: ${{ github.token }}
+      RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
       PR_NUMBER: ${{ needs.analyse.outputs.pr }}
       EXPECTED_HEAD: ${{ needs.analyse.outputs.head }}
       EXPECTED_BASE: ${{ needs.analyse.outputs.base }}
@@ -154,6 +156,7 @@ jobs:
       statuses: read
     env:
       GH_TOKEN: ${{ github.token }}
+      RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
       PR_NUMBER: ${{ needs.analyse.outputs.pr }}
       EXPECTED_HEAD: ${{ needs.analyse.outputs.head }}
       EXPECTED_BASE: ${{ needs.analyse.outputs.base }}

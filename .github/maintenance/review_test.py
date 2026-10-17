@@ -39,6 +39,63 @@ class GuardTests(unittest.TestCase):
         self.pr["head"]["ref"] = "dependabot/npm_and_yarn/next-17"
         self.check()
 
+    def release_candidate(self):
+        self.pr["user"]["login"] = "spinetab-release[bot]"
+        self.pr["head"]["ref"] = "release-please--branches--main--components--spinetab"
+        self.pr["labels"] = [{"name": "release:ready"}]
+        self.files = [{"filename": path, "status": "modified"} for path in sorted(review.RELEASE_FILES)]
+        self.pr["changed_files"] = len(self.files)
+
+    def test_release_bot_needs_explicit_configuration_and_readiness(self):
+        self.release_candidate()
+        with patch.dict(os.environ, {"RELEASE_BOT_LOGIN": "spinetab-release[bot]"}):
+            self.check()
+            self.pr["labels"] = []
+            with self.assertRaisesRegex(ValueError, "supervisor"):
+                self.check()
+        with patch.dict(os.environ, {"RELEASE_BOT_LOGIN": ""}), self.assertRaisesRegex(ValueError, "Author"):
+            self.check()
+
+    def test_release_cannot_smuggle_source_or_policy_changes(self):
+        self.release_candidate()
+        with patch.dict(os.environ, {"RELEASE_BOT_LOGIN": "spinetab-release[bot]"}):
+            for path in ("packages/spinetab/src/index.ts", ".github/workflows/ci.yml", "README.md"):
+                self.files.append({"filename": path, "status": "modified"})
+                self.pr["changed_files"] = len(self.files)
+                with self.subTest(path=path), self.assertRaisesRegex(ValueError, "only version"):
+                    self.check()
+                self.files.pop()
+
+    def test_release_manifest_must_be_version_only_and_consistent(self):
+        files = [{"filename": "packages/spinetab/package.json", "status": "modified"}]
+        before = {"name": "spinetab", "version": "0.1.0", "scripts": {"test": "vitest"}}
+        after = dict(before, version="0.1.1")
+        def contents(candidate):
+            return [json.dumps(before), json.dumps(candidate), '{"packages/spinetab":"0.1.0"}',
+                    '{"packages/spinetab":"0.1.1"}']
+        with patch.object(review, "content", side_effect=contents(after)):
+            review.manifest_policy(files, "base", "head", release=True)
+        for change in [{"version": "0.0.9"}, {"version": "0.1.1-rc.1"}, {"dependencies": {"x": "1"}}]:
+            with self.subTest(change=change), patch.object(review, "content", side_effect=contents(dict(after, **change))), \
+                 self.assertRaises(ValueError):
+                review.manifest_policy(files, "base", "head", release=True)
+        values = contents(after)
+        values[-1] = '{"packages/spinetab":"0.2.0"}'
+        with patch.object(review, "content", side_effect=values), self.assertRaisesRegex(ValueError, "disagree"):
+            review.manifest_policy(files, "base", "head", release=True)
+
+    def test_release_approval_is_for_current_head_and_exact_version(self):
+        approval = {"user": {"login": "apetta"}, "state": "APPROVED", "commit_id": self.pr["head"]["sha"],
+                    "body": "<!-- spinetab-release-supervisor -->\nVersion: 0.1.1"}
+        with patch.object(review, "pages", return_value=[approval]):
+            review.release_approval(self.pr, "0.1.1")
+            with self.assertRaisesRegex(ValueError, "another version"):
+                review.release_approval(self.pr, "0.1.10")
+        for change in [{"commit_id": "c" * 40}, {"state": "DISMISSED"}, {"state": "CHANGES_REQUESTED"}]:
+            with self.subTest(change=change), patch.object(review, "pages", return_value=[dict(approval, **change)]), \
+                 self.assertRaisesRegex(ValueError, "current-head"):
+                review.release_approval(self.pr, "0.1.1")
+
     def test_fork_cannot_reach_subscription_review(self):
         self.pr["head"]["repo"]["full_name"] = "someone/spinetab"
         with self.assertRaisesRegex(ValueError, "Forks"):

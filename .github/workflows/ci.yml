@@ -19,6 +19,10 @@ on:
         description: Verify and upload the publication candidate
         type: boolean
         default: false
+      expected_sha:
+        description: Exact source commit for publication verification
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -37,6 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ inputs.expected_sha || github.ref }}
           fetch-depth: 0
           persist-credentials: false
       - name: Test maintenance safeguards
@@ -225,6 +230,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.expected_sha || github.ref }}
       - name: Install pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - name: Setup Node
@@ -249,8 +256,9 @@ jobs:
         run: |
           node --input-type=module -e '
             import { createHash } from "node:crypto";
-            import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+            import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
             import { join } from "node:path";
+            import { execFileSync } from "node:child_process";
             import { assertFreshPack } from "./packages/spinetab/tests/package/consumers/prepare.ts";
             import { packDir } from "./packages/spinetab/tests/package/consumers/paths.ts";
             const record = assertFreshPack("release upload");
@@ -259,13 +267,23 @@ jobs:
             if (sha256 !== record.sha256) throw new Error("Verified tarball integrity changed");
             mkdirSync("release", { recursive: true });
             copyFileSync(tarball, join("release", record.file));
+            const pkg = JSON.parse(readFileSync("packages/spinetab/package.json"));
+            const receipt = {
+              repository: process.env.GITHUB_REPOSITORY,
+              sha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+              version: pkg.version,
+              sha256,
+              run_id: process.env.GITHUB_RUN_ID,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+            };
+            writeFileSync("release/verification.json", JSON.stringify(receipt) + "\n");
           '
       - name: Upload verified release
         if: inputs.release
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: npm-release
-          path: release/*.tgz
+          path: release/
           if-no-files-found: error
       - name: Upload consumer reports and failure traces
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

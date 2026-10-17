@@ -7,9 +7,8 @@ policy or a status other than active means stop. Pause the native routine to sto
 new implementation runs; `MAINTENANCE_ENABLED` separately controls Actions review,
 merge and security handoff. Cloud sessions cannot read that Actions variable.
 
-Work only on `apetta/spinetab`. Follow `AGENTS.md` from main. Use Opus 5.5 High;
-verify the runtime configuration before changing code. Use subscription access
-only. Do not inspect credentials, personal context, unrelated repositories or
+Work only on `apetta/spinetab`. Follow `AGENTS.md` from main. Use subscription
+access only. Do not inspect credentials, personal context, unrelated repositories or
 personal connectors. Context7 and grep may be used for public documentation and
 public code examples. Send only generic public queries, never private source,
 security findings, credentials or personal data. Prefer official version-matched
@@ -61,13 +60,15 @@ the PR. Avoid retrying unchanged failures indefinitely: after two unsuccessful
 repair attempts, record the blocker and stop that item.
 
 For work safe to disclose publicly, open a focused PR against current main.
+Read back its public body after creation. Remove any generated private cloud
+session link while preserving technical content and agent attribution.
 Once complete and locally verified,
 apply `agent:ready`; independent Actions review and current-commit CI decide
 whether it can merge. Do not approve or merge your own work. For a ready
 Dependabot PR needing no migration, leave it to the same independent reviewer.
 
 Keep version references and generated agent documentation consistent with
-published behaviour. Propose copy gaps for the on-demand Sol editor rather than
+published behaviour. Propose copy gaps for the daily Sol supervisor rather than
 rewriting public messaging incidentally. Do not publish, create release tags,
 invent a version bump, or disclose an unpatched private vulnerability publicly.
 
