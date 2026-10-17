@@ -54,7 +54,7 @@ jobs:
 
   # Match the cache policy's immutable actor IDs: apetta, Dependabot and Actions.
   check:
-    name: ${{ (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && contains(fromJSON('["33671231", "49699333", "41898282"]'), github.actor_id))) && 'Lint, Typecheck, Test, E2E' || 'Verify trusted workspace' }}
+    name: Verify workspace
     if: >-
       github.event_name != 'pull_request' ||
       (github.event.pull_request.head.repo.full_name == github.repository &&
@@ -104,7 +104,7 @@ jobs:
           team: ${{ vars.TURBO_TEAM }}
 
   check-pr:
-    name: ${{ (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || !contains(fromJSON('["33671231", "49699333", "41898282"]'), github.actor_id))) && 'Lint, Typecheck, Test, E2E' || 'Verify untrusted workspace' }}
+    name: Verify external pull request
     if: >-
       github.event_name == 'pull_request' &&
       (github.event.pull_request.head.repo.full_name != github.repository ||
@@ -132,6 +132,18 @@ jobs:
           persist-credentials: false
       - name: Verify workspace
         uses: ./.github/actions/verify-workspace
+
+  verified:
+    name: Lint, Typecheck, Test, E2E
+    needs: [check, check-pr]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require exactly one successful workspace verification
+        env:
+          RESULTS: ${{ needs.check.result }}:${{ needs.check-pr.result }}
+        run: test "$RESULTS" = success:skipped || test "$RESULTS" = skipped:success
 
   deploy:
     name: Deploy website to Cloudflare Pages
