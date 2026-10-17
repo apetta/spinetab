@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { TARBALL } from "./consumers/paths.ts";
-import { tarballListing } from "./consumers/prepare.ts";
+import { lockfileDiff, tarballListing } from "./consumers/prepare.ts";
 import { packageRoot, readManifest } from "./dist.ts";
 
 /**
@@ -41,27 +41,52 @@ describe("packed contents", () => {
 	it.each([
 		"0.1.1",
 		"0.2.0",
-	])("consumer archive keeps its name and packs the actual %s manifest", (version) => {
+	])("consumer archive installs version %s without unrelated lockfile changes", (version) => {
 		const root = mkdtempSync(join(tmpdir(), "spinetab-pack-version-"));
 		try {
+			const source = join(root, "source");
+			const target = join(root, "consumer");
+			const output = join(root, "pack");
+			for (const dir of [source, target, output]) mkdirSync(dir);
+			const pack = (candidate: string) => {
+				writeFileSync(
+					join(source, "package.json"),
+					JSON.stringify({ name: "spinetab", version: candidate }),
+				);
+				execFileSync("pnpm", ["pack", "--out", join(output, TARBALL)], {
+					cwd: source,
+					stdio: "pipe",
+				});
+			};
+			const install = () =>
+				execFileSync(
+					"pnpm",
+					["install", "--no-frozen-lockfile", "--offline", "--ignore-scripts"],
+					{ cwd: target, stdio: "pipe" },
+				);
 			writeFileSync(
-				join(root, "package.json"),
-				JSON.stringify({ name: "spinetab", version }),
-			);
-			const archive = join(root, TARBALL);
-			execFileSync("pnpm", ["pack", "--out", archive], {
-				cwd: root,
-				stdio: "pipe",
-			});
-			const packed = JSON.parse(
-				execFileSync("tar", ["-xOf", archive, "package/package.json"], {
-					encoding: "utf8",
+				join(target, "package.json"),
+				JSON.stringify({
+					name: "version-fixture",
+					private: true,
+					dependencies: { spinetab: `file:../pack/${TARBALL}` },
 				}),
 			);
-			expect(packed).toMatchObject({ name: "spinetab", version });
-			expect(readdirSync(root).filter((file) => file.endsWith(".tgz"))).toEqual(
-				[TARBALL],
+			pack("0.1.0");
+			install();
+			const before = readFileSync(join(target, "pnpm-lock.yaml"), "utf8");
+			pack(version);
+			install();
+			const after = readFileSync(join(target, "pnpm-lock.yaml"), "utf8");
+			const installed = JSON.parse(
+				readFileSync(
+					join(target, "node_modules/spinetab/package.json"),
+					"utf8",
+				),
 			);
+			expect(installed).toMatchObject({ name: "spinetab", version });
+			expect(lockfileDiff(before, after)).toEqual([]);
+			expect(readdirSync(output)).toEqual([TARBALL]);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}

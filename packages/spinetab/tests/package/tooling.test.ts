@@ -1097,8 +1097,12 @@ describe("pack pipeline helpers", () => {
 		"    resolution: {integrity: sha512-shared}",
 		"  spinetab@file:../pack/spinetab.tgz:",
 		"    resolution: {integrity: sha512-AbC+/=, tarball: file:../pack/spinetab.tgz}",
+		"    version: 0.1.0",
+		"    peerDependencies:",
+		"      vue: ^3.5.43",
 		"  vue@3.5.43:",
 		"    resolution: {integrity: sha512-vue}",
+		"    version: 3.5.43",
 		"snapshots:",
 		"  vue@3.5.43: {}",
 	].join("\n");
@@ -1113,7 +1117,9 @@ describe("pack pipeline helpers", () => {
 	});
 
 	it("ignores Spinetab's own lines when diffing lockfiles", () => {
-		const repacked = lock.replace("sha512-AbC+/=", "sha512-XyZ");
+		const repacked = lock
+			.replace("sha512-AbC+/=", "sha512-XyZ")
+			.replace("version: 0.1.0", "version: 0.1.1");
 		expect(lockfileDiff(lock, repacked)).toEqual([]);
 		const drifted = lock.replace(
 			"vue@3.5.43:\n    resolution",
@@ -1123,6 +1129,18 @@ describe("pack pipeline helpers", () => {
 			"+   vue@3.5.44:",
 			"-   vue@3.5.43:",
 		]);
+	});
+
+	it("retains peer changes and other packages' version lines", () => {
+		expect(
+			lockfileDiff(
+				lock,
+				lock.replace("\n    version: 3.5.43\n", "\n    version: 3.5.44\n"),
+			),
+		).toEqual(["+     version: 3.5.44", "-     version: 3.5.43"]);
+		expect(
+			lockfileDiff(lock, lock.replace("vue: ^3.5.43", "vue: ^4.0.0")),
+		).toEqual(["+       vue: ^4.0.0", "-       vue: ^3.5.43"]);
 	});
 
 	it("hashes a directory deterministically by path and content", () => {

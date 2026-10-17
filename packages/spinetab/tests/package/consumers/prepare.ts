@@ -204,15 +204,26 @@ export function lockfileSpinetabIntegrity(lockText: string): string | null {
 
 /**
  * Lines that differ between the template lockfile and the installed one,
- * ignoring every line that mentions Spinetab (its resolution and integrity
- * change with each pack). Anything left is an unexpected dependency change.
+ * ignoring Spinetab's archive reference, integrity and its own version.
+ * Peer metadata and unrelated dependency changes must still match.
  */
 export function lockfileDiff(template: string, actual: string): string[] {
-	const relevant = (text: string) =>
-		text
+	const relevant = (text: string) => {
+		let spinetabEntry = false;
+		return text
 			.split("\n")
 			.map((line) => line.trimEnd())
-			.filter((line) => line.length > 0 && !line.includes("spinetab"));
+			.filter((line) => {
+				if (/^\S|^ {2}\S/.test(line)) {
+					spinetabEntry = /^ {2}spinetab@file:/.test(line);
+				}
+				return (
+					line.length > 0 &&
+					!line.includes("spinetab") &&
+					!(spinetabEntry && /^ {4}version: /.test(line))
+				);
+			});
+	};
 	const before = relevant(template);
 	const after = relevant(actual);
 	const counts = new Map<string, number>();
