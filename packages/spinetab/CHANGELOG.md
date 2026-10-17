@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/apetta/spinetab/compare/v0.1.0...v0.2.0) (2026-10-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **solid:** The optional solid-js peer range changes from ^1.9.15 to ^1.9.17. Solid 1.9.15 and 1.9.16 are no longer supported; applications using spinetab/solid must upgrade solid-js to a version satisfying ^1.9.17.
+
+### Bug Fixes
+
+* **solid:** raise the supported solid-js minimum to 1.9.17 ([85d99b4](https://github.com/apetta/spinetab/commit/85d99b4c6956722edbe3a6d65992c0a3d7d77a35))
+
 ## 0.1.0 — 2026-10-04
 
 During 0.x, breaking API changes use a minor version; patch releases remain

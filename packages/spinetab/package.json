@@ -1,7 +1,7 @@
 {
 	"name": "spinetab",
 	"description": "Share live subscriptions across browser tabs and recover after interruptions.",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/apetta/spinetab.git",
