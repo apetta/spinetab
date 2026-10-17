@@ -219,10 +219,10 @@ def prepare():
             for item in files:
                 path = item["filename"]
                 record = {"path": path, "status": item["status"]}
-                if path == "pnpm-lock.yaml":
+                if Path(path).name == "pnpm-lock.yaml":
                     before = content(path, main, 1_000_000) if item["status"] != "added" else ""
                     after = content(path, pr["head"]["sha"], 1_000_000) if item["status"] != "removed" else ""
-                    patch = "".join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile="before/pnpm-lock.yaml", tofile="after/pnpm-lock.yaml"))
+                    patch = "".join(difflib.unified_diff(before.splitlines(True), after.splitlines(True), fromfile=f"before/{path}", tofile=f"after/{path}"))
                     require(len(patch) < 100000, "Lockfile diff needs a smaller review")
                     record["patch"] = patch.splitlines(keepends=True)
                 else:
