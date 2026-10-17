@@ -1,9 +1,14 @@
 {
-	"$schema": "https://turbo.build/schema.json",
+	"$schema": "https://turborepo.dev/schema.json",
+	"globalEnv": ["CI", "NODE_ENV"],
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
 			"outputs": ["dist/**"]
+		},
+		"website#build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**", ".astro/**"]
 		},
 		"dev": {
 			"dependsOn": ["^build"],
@@ -18,6 +23,9 @@
 		"typecheck": {
 			"dependsOn": ["^build"]
 		},
+		"website#typecheck": {
+			"dependsOn": ["build", "^build"]
+		},
 		"test": {
 			"dependsOn": ["build"]
 		},
@@ -25,6 +33,11 @@
 			"dependsOn": ["build"],
 			"cache": false,
 			"passThroughEnv": ["CI", "PLAYWRIGHT_*"]
+		},
+		"website#e2e": {
+			"dependsOn": ["build"],
+			"cache": false,
+			"passThroughEnv": ["CI", "PLAYWRIGHT_*", "WEBSITE_TEST_*"]
 		},
 		"spinetab#e2e": {
 			"dependsOn": ["build", "@spinetab/harness#build"],
