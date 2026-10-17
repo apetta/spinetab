@@ -111,6 +111,10 @@ def plan():
     output(publish="false")
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     sha = trigger(event)
+    checkout = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    if checkout != sha:
+        print("Main advanced; wait for CI on its current commit")
+        return
     current(sha)
     package = json.loads(Path(MANIFEST).read_text())
     require(package["name"] == PACKAGE and not package.get("private"), "Unexpected package")

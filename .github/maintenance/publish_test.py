@@ -95,10 +95,23 @@ class PublicationTests(unittest.TestCase):
                 "repository": {"url": "git+https://github.com/apetta/spinetab.git"}}))
             with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(event), "GITHUB_OUTPUT": str(output)}), \
                  patch.object(publish, "MANIFEST", str(manifest)), patch.object(publish, "current"), \
+                 patch.object(publish.subprocess, "check_output", return_value=self.sha + "\n"), \
                  patch.object(publish, "registry", return_value={"name": "spinetab", "version": "0.1.0"}), \
                  patch.object(publish, "release_decision") as decision:
                 publish.plan()
                 decision.assert_not_called()
+                self.assertEqual(output.read_text(), "publish=false\n")
+
+    def test_stale_main_ci_exits_before_release_planning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            event, output = [Path(directory) / name for name in ("event.json", "out")]
+            event.write_text(json.dumps(self.event))
+            with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(event), "GITHUB_OUTPUT": str(output)}), \
+                 patch.object(publish.subprocess, "check_output", return_value="c" * 40), \
+                 patch.object(publish, "registry") as registry, patch.object(publish, "current") as current:
+                publish.plan()
+                registry.assert_not_called()
+                current.assert_not_called()
                 self.assertEqual(output.read_text(), "publish=false\n")
 
     def test_registry_failure_is_not_treated_as_missing_version(self):
