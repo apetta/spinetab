@@ -88,93 +88,93 @@ async function bundle(
 	return readFileSync(join(out, "bundle.js"), "utf8");
 }
 
-describe.each<Bundler>([
-	"vite",
-	"webpack",
-	"rspack",
-])("%s production tree shaking", (bundler) => {
-	it("removes unused named and bare imports of every page entry", async () => {
-		const control = await bundle(bundler, "baseline", baseline);
-		const code = await bundle(bundler, "unused", unused);
-		expect(code).toBe(control);
-		const context = createContext({ URL });
-		runInContext(code, context);
-		expect(context.keep).toBe("tree-shaking-witness");
-	});
-	for (const [name, probe] of Object.entries(probes)) {
-		it(`${name}: retains working exports and removes unrelated implementations`, async () => {
-			const code = await bundle(bundler, name, probe.source);
-			for (const marker of probe.forbidden) expect(code).not.toContain(marker);
+describe.each<Bundler>(["vite", "webpack", "rspack"])(
+	"%s production tree shaking",
+	(bundler) => {
+		it("removes unused named and bare imports of every page entry", async () => {
+			const control = await bundle(bundler, "baseline", baseline);
+			const code = await bundle(bundler, "unused", unused);
+			expect(code).toBe(control);
 			const context = createContext({ URL });
 			runInContext(code, context);
-			expect(runInContext(probe.check, context)).toEqual(probe.result);
+			expect(context.keep).toBe("tree-shaking-witness");
 		});
-	}
-	for (const kind of ["websocket", "sse", "stream", "polling"]) {
-		it(`${kind}: importing its constant prunes the adapter builder`, async () => {
-			const source = `import { ${kind.toUpperCase()}_ADAPTER } from "spinetab/${kind}"; globalThis.keep = ${kind.toUpperCase()}_ADAPTER;`;
-			const code = await bundle(bundler, `${kind}-constant`, source);
-			const control = await bundle(
-				bundler,
-				`${kind}-literal`,
-				`globalThis.keep = ${JSON.stringify(kind)};`,
+		for (const [name, probe] of Object.entries(probes)) {
+			it(`${name}: retains working exports and removes unrelated implementations`, async () => {
+				const code = await bundle(bundler, name, probe.source);
+				for (const marker of probe.forbidden)
+					expect(code).not.toContain(marker);
+				const context = createContext({ URL });
+				runInContext(code, context);
+				expect(runInContext(probe.check, context)).toEqual(probe.result);
+			});
+		}
+		for (const kind of ["websocket", "sse", "stream", "polling"]) {
+			it(`${kind}: importing its constant prunes the adapter builder`, async () => {
+				const source = `import { ${kind.toUpperCase()}_ADAPTER } from "spinetab/${kind}"; globalThis.keep = ${kind.toUpperCase()}_ADAPTER;`;
+				const code = await bundle(bundler, `${kind}-constant`, source);
+				const control = await bundle(
+					bundler,
+					`${kind}-literal`,
+					`globalThis.keep = ${JSON.stringify(kind)};`,
+				);
+				expect(code).toBe(control);
+			});
+		}
+		for (const entry of [
+			"spinetab",
+			"spinetab/react",
+			"spinetab/vue",
+			"spinetab/svelte",
+			"spinetab/solid",
+		]) {
+			it(`${entry}: a single snapshot excludes bindings, peers and other snapshots`, async () => {
+				const code = await bundle(
+					bundler,
+					`${entry.replace("/", "-")}-status`,
+					`import { SERVER_STATUS } from ${JSON.stringify(entry)}; globalThis.keep = SERVER_STATUS;`,
+				);
+				expect(code.match(/Object\.freeze\(/g)).toHaveLength(1);
+				const context = createContext({ URL });
+				runInContext(code, context);
+				expect(
+					runInContext(
+						"[Object.isFrozen(keep), keep.mode, keep.reason]",
+						context,
+					),
+				).toEqual([true, "inactive", "server"]);
+			});
+		}
+		it("retains the worker entry's registration when its exports are unused", async () => {
+			writeFileSync(
+				join(root, "live.worker.js"),
+				'import { defineWorker } from "spinetab/worker"; import { pollingAdapter } from "spinetab/polling/runtime"; export default defineWorker(() => [pollingAdapter()]);',
 			);
-			expect(code).toBe(control);
-		});
-	}
-	for (const entry of [
-		"spinetab",
-		"spinetab/react",
-		"spinetab/vue",
-		"spinetab/svelte",
-		"spinetab/solid",
-	]) {
-		it(`${entry}: a single snapshot excludes bindings, peers and other snapshots`, async () => {
 			const code = await bundle(
 				bundler,
-				`${entry.replace("/", "-")}-status`,
-				`import { SERVER_STATUS } from ${JSON.stringify(entry)}; globalThis.keep = SERVER_STATUS;`,
+				"worker",
+				'import "spinetab/auto/worker";',
+				true,
 			);
-			expect(code.match(/Object\.freeze\(/g)).toHaveLength(1);
-			const context = createContext({ URL });
+			const context = createContext({
+				URL,
+				setTimeout: () => 1,
+				clearTimeout: () => {},
+				setInterval: () => 1,
+				clearInterval: () => {},
+				queueMicrotask,
+				performance: { now: () => 0 },
+				crypto: { randomUUID: () => "tree-shaking-worker" },
+				location: { origin: "https://example.com" },
+			});
+			runInContext(
+				'globalThis.connects = 0; globalThis.SharedWorkerGlobalScope = class { static [Symbol.hasInstance]() { return true; } }; globalThis.addEventListener = (type) => { if (type === "connect") connects++; };',
+				context,
+			);
 			runInContext(code, context);
-			expect(
-				runInContext(
-					"[Object.isFrozen(keep), keep.mode, keep.reason]",
-					context,
-				),
-			).toEqual([true, "inactive", "server"]);
+			expect(context.connects).toBe(1);
+			expect(code).toContain("polling");
+			expect(code).not.toContain("graphql-ws");
 		});
-	}
-	it("retains the worker entry's registration when its exports are unused", async () => {
-		writeFileSync(
-			join(root, "live.worker.js"),
-			'import { defineWorker } from "spinetab/worker"; import { pollingAdapter } from "spinetab/polling/runtime"; export default defineWorker(() => [pollingAdapter()]);',
-		);
-		const code = await bundle(
-			bundler,
-			"worker",
-			'import "spinetab/auto/worker";',
-			true,
-		);
-		const context = createContext({
-			URL,
-			setTimeout: () => 1,
-			clearTimeout: () => {},
-			setInterval: () => 1,
-			clearInterval: () => {},
-			queueMicrotask,
-			performance: { now: () => 0 },
-			crypto: { randomUUID: () => "tree-shaking-worker" },
-			location: { origin: "https://example.com" },
-		});
-		runInContext(
-			'globalThis.connects = 0; globalThis.SharedWorkerGlobalScope = class { static [Symbol.hasInstance]() { return true; } }; globalThis.addEventListener = (type) => { if (type === "connect") connects++; };',
-			context,
-		);
-		runInContext(code, context);
-		expect(context.connects).toBe(1);
-		expect(code).toContain("polling");
-		expect(code).not.toContain("graphql-ws");
-	});
-});
+	},
+);

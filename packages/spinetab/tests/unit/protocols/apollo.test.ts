@@ -77,7 +77,7 @@ describe("SpinetabLink mapping", () => {
 			context: { locale: "fr" },
 		});
 		expect(
-			String((request?.subscription as { query: string }).query),
+			String((request?.subscription as { query: string } | undefined)?.query),
 		).toContain("__typename");
 		// Other context (headers, client, cache) stays in the page.
 		expect(JSON.stringify(request)).not.toContain("authorization");
@@ -123,9 +123,9 @@ describe("SpinetabLink results and errors", () => {
 			data: { ticks: { __typename: "Tick", n: 1 } },
 		});
 		expect(CombinedGraphQLErrors.is(results[1]?.error)).toBe(true);
-		expect((results[1]?.error as CombinedGraphQLErrors).errors).toEqual([
-			{ message: "boom" },
-		]);
+		expect(
+			(results[1]?.error as CombinedGraphQLErrors | undefined)?.errors,
+		).toEqual([{ message: "boom" }]);
 	});
 
 	it("stays open through reconnecting, retry-exhausted and auth-blocked", () => {

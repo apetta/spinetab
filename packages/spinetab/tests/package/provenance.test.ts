@@ -444,9 +444,12 @@ describe("generated-file provenance", () => {
 					"!function(){function unexpectedAppCode(x){return x+7;}unexpectedAppCode(2);",
 				),
 		],
-	])("minified worker entry with %s keeps its empty-map problem", (_name, change) => {
-		expectEmptyMapFailure(`${CHUNKS}/turbopack-worker-min.js`, change);
-	});
+	])(
+		"minified worker entry with %s keeps its empty-map problem",
+		(_name, change) => {
+			expectEmptyMapFailure(`${CHUNKS}/turbopack-worker-min.js`, change);
+		},
+	);
 
 	/** next dev's worker entry name (Next 16.3.6); its body is the pinned unminified one. */
 	const DEV_WORKER =
@@ -507,11 +510,14 @@ describe("generated-file provenance", () => {
 			"static/chunks/turbopack-worker-[client-fs]__next_static_chunks_1_hyozq._.js",
 			(text: string) => text,
 		],
-	])("leaves a next dev worker entry with %s unclassified", (_name, file, change) => {
-		const report = withDevWorker(file, change);
-		expect(report.verdict).toBe("fail");
-		expect(report.unmapped).toEqual([file]);
-	});
+	])(
+		"leaves a next dev worker entry with %s unclassified",
+		(_name, file, change) => {
+			const report = withDevWorker(file, change);
+			expect(report.verdict).toBe("fail");
+			expect(report.unmapped).toEqual([file]);
+		},
+	);
 
 	it("does not classify a worker entry text outside turbopack-worker-*.js", () => {
 		const tree = materialise();

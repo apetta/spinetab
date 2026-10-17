@@ -50,18 +50,16 @@ describe("consumer execution acceptance", () => {
 			executionFailures(run(), [{ ...record(), candidate: { sha256: "old" } }]),
 		).toContain("chromium/vite-prod: stale run or candidate");
 	});
-	it.each([
-		"not-run",
-		"failed",
-		"timedOut",
-		"skipped",
-	])("rejects %s even beside another passed test in the same cell", (status) => {
-		const inventory = run();
-		inventory.tests.push(extraTest(status));
-		expect(executionFailures(inventory, [record()])).toContain(
-			`chromium/cleanup: ${status}`,
-		);
-	});
+	it.each(["not-run", "failed", "timedOut", "skipped"])(
+		"rejects %s even beside another passed test in the same cell",
+		(status) => {
+			const inventory = run();
+			inventory.tests.push(extraTest(status));
+			expect(executionFailures(inventory, [record()])).toContain(
+				`chromium/cleanup: ${status}`,
+			);
+		},
+	);
 	it("records an intentional engine-independent skip without treating an unrun test as that skip", () => {
 		const inventory = run();
 		const extra = { ...extraTest("skipped", true), title: "static graph" };

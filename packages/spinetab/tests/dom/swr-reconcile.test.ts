@@ -402,32 +402,31 @@ const keyOnlyOnContinuity = (
 });
 
 describe("SWR reconcile: the populate recipe (real swr 2.5.1)", () => {
-	it.each(
-		FORMS,
-	)("DOM-SWR-14 a failed fetch keeps the loss visible: gap, next(upstream-error) once with the cause, cache kept, nothing unhandled ($form)", async ({
-		options,
-	}) => {
-		const failure = new Error("backend unavailable");
-		const fetchSnapshot = failing(failure);
-		// The mounted hook shares the backend; revalidate: false keeps it idle.
-		const swr = await mountSwr({ hookFetcher: fetchSnapshot });
-		const run = drive(populate(swr.mutate, fetchSnapshot, options));
-		await lose(run);
-		expect(fetchSnapshot).toHaveBeenCalledTimes(1);
-		expect(run.continuity().state).toBe("gap");
-		expect(run.counts).toEqual({ reconciled: 0, pending: 0 });
-		const errors = run.errors();
-		expect(errors).toHaveLength(1);
-		const [error] = errors;
-		expect(isSpinetabError(error, "upstream-error")).toBe(true);
-		expect((error as Error).message).toBe(REFRESH_FAILED);
-		expect((error as Error).cause).toBe(failure);
-		expect(swr.cached()).toEqual(STALE);
-		expect(swr.view.data).toEqual(STALE);
-		expect(swr.view.error).toBeUndefined();
-		await settle();
-		expect(unhandled).toEqual([]);
-	});
+	it.each(FORMS)(
+		"DOM-SWR-14 a failed fetch keeps the loss visible: gap, next(upstream-error) once with the cause, cache kept, nothing unhandled ($form)",
+		async ({ options }) => {
+			const failure = new Error("backend unavailable");
+			const fetchSnapshot = failing(failure);
+			// The mounted hook shares the backend; revalidate: false keeps it idle.
+			const swr = await mountSwr({ hookFetcher: fetchSnapshot });
+			const run = drive(populate(swr.mutate, fetchSnapshot, options));
+			await lose(run);
+			expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+			expect(run.continuity().state).toBe("gap");
+			expect(run.counts).toEqual({ reconciled: 0, pending: 0 });
+			const errors = run.errors();
+			expect(errors).toHaveLength(1);
+			const [error] = errors;
+			expect(isSpinetabError(error, "upstream-error")).toBe(true);
+			expect((error as Error).message).toBe(REFRESH_FAILED);
+			expect((error as Error).cause).toBe(failure);
+			expect(swr.cached()).toEqual(STALE);
+			expect(swr.view.data).toEqual(STALE);
+			expect(swr.view.error).toBeUndefined();
+			await settle();
+			expect(unhandled).toEqual([]);
+		},
+	);
 
 	it("DOM-SWR-14 the failed refresh runs again at the next connected and reconciles once the fetch succeeds", async () => {
 		let down = true;
@@ -455,25 +454,24 @@ describe("SWR reconcile: the populate recipe (real swr 2.5.1)", () => {
 		expect(run.errors()).toHaveLength(1);
 	});
 
-	it.each(
-		FORMS,
-	)("DOM-SWR-15 a successful fetch reconciles and writes the cache with no mounted hook ($form)", async ({
-		options,
-	}) => {
-		const fetchSnapshot = working();
-		const swr = await mountSwr();
-		const run = drive(populate(swr.mutate, fetchSnapshot, options));
-		await lose(run);
-		expect(fetchSnapshot).toHaveBeenCalledTimes(1);
-		expect(fetchSnapshot).toHaveBeenCalledWith("1");
-		expect(run.continuity()).toMatchObject({
-			state: "continuous",
-			reason: "reconciled",
-		});
-		expect(run.counts).toEqual({ reconciled: 1, pending: 0 });
-		expect(swr.cached()).toEqual(FRESH);
-		expect(run.errors()).toEqual([]);
-	});
+	it.each(FORMS)(
+		"DOM-SWR-15 a successful fetch reconciles and writes the cache with no mounted hook ($form)",
+		async ({ options }) => {
+			const fetchSnapshot = working();
+			const swr = await mountSwr();
+			const run = drive(populate(swr.mutate, fetchSnapshot, options));
+			await lose(run);
+			expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+			expect(fetchSnapshot).toHaveBeenCalledWith("1");
+			expect(run.continuity()).toMatchObject({
+				state: "continuous",
+				reason: "reconciled",
+			});
+			expect(run.counts).toEqual({ reconciled: 1, pending: 0 });
+			expect(swr.cached()).toEqual(FRESH);
+			expect(run.errors()).toEqual([]);
+		},
+	);
 
 	it("DOM-SWR-15 the data may be an async function: reconciled with the cache written", async () => {
 		const fetchSnapshot = working();
@@ -556,71 +554,72 @@ describe("SWR reconcile: the populate recipe (real swr 2.5.1)", () => {
 		expect(unhandled).toEqual([]);
 	});
 
-	it.each(
-		FORMS,
-	)("DOM-SWR-16 onContinuity: a failed fetch inside try/catch keeps the loss visible, restarts delivery only, and leaves nothing unhandled ($form)", async ({
-		options,
-	}) => {
-		const fetchSnapshot = failing();
-		const swr = await mountSwr({ hookFetcher: fetchSnapshot });
-		const run = drive(populateOnContinuity(swr.mutate, fetchSnapshot, options));
-		await lose(run);
-		expect(fetchSnapshot).toHaveBeenCalledTimes(1);
-		expect(run.continuity().state).toBe("gap");
-		expect(run.counts).toEqual({ reconciled: 0, pending: 1 });
-		// With onContinuity set there is no continuity-lost error: the
-		// application's handler owns the outcome.
-		expect(run.errors()).toEqual([]);
-		expect(swr.cached()).toEqual(STALE);
-		await settle();
-		expect(unhandled).toEqual([]);
-	});
-
-	it.each(
-		FORMS,
-	)("DOM-SWR-16 onContinuity: a successful fetch reconciles and writes the cache ($form)", async ({
-		options,
-	}) => {
-		const fetchSnapshot = working();
-		const swr = await mountSwr();
-		const run = drive(populateOnContinuity(swr.mutate, fetchSnapshot, options));
-		await lose(run);
-		expect(run.continuity().state).toBe("continuous");
-		expect(run.counts).toEqual({ reconciled: 1, pending: 1 });
-		expect(swr.cached()).toEqual(FRESH);
-	});
-
-	it.each(
-		FORMS,
-	)("DOM-SWR-16 onContinuity, two notices for one interruption (detection, then the outcome): the first run's answer lands while the second run's fetch is in flight, which then fails; the loss stays visible ($form)", async ({
-		options,
-	}) => {
-		const api = gated();
-		const swr = await mountSwr();
-		const run = drive(
-			populateOnContinuity(swr.mutate, api.fetchSnapshot, options),
-		);
-		await twoNotices(run);
-		expect(api.fetchSnapshot).toHaveBeenCalledTimes(2);
-		await act(async () => {
-			api.gates[0]?.resolve({ n: 8 });
+	it.each(FORMS)(
+		"DOM-SWR-16 onContinuity: a failed fetch inside try/catch keeps the loss visible, restarts delivery only, and leaves nothing unhandled ($form)",
+		async ({ options }) => {
+			const fetchSnapshot = failing();
+			const swr = await mountSwr({ hookFetcher: fetchSnapshot });
+			const run = drive(
+				populateOnContinuity(swr.mutate, fetchSnapshot, options),
+			);
+			await lose(run);
+			expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+			expect(run.continuity().state).toBe("gap");
+			expect(run.counts).toEqual({ reconciled: 0, pending: 1 });
+			// With onContinuity set there is no continuity-lost error: the
+			// application's handler owns the outcome.
+			expect(run.errors()).toEqual([]);
+			expect(swr.cached()).toEqual(STALE);
 			await settle();
-		});
-		// SWR drops the overtaken mutation's write; its run must not declare.
-		expect(run.counts.reconciled).toBe(0);
-		expect(run.continuity().state).toBe("unknown");
-		expect(swr.cached()).toEqual(STALE);
-		await act(async () => {
-			api.gates[1]?.reject(new Error("backend unavailable"));
+			expect(unhandled).toEqual([]);
+		},
+	);
+
+	it.each(FORMS)(
+		"DOM-SWR-16 onContinuity: a successful fetch reconciles and writes the cache ($form)",
+		async ({ options }) => {
+			const fetchSnapshot = working();
+			const swr = await mountSwr();
+			const run = drive(
+				populateOnContinuity(swr.mutate, fetchSnapshot, options),
+			);
+			await lose(run);
+			expect(run.continuity().state).toBe("continuous");
+			expect(run.counts).toEqual({ reconciled: 1, pending: 1 });
+			expect(swr.cached()).toEqual(FRESH);
+		},
+	);
+
+	it.each(FORMS)(
+		"DOM-SWR-16 onContinuity, two notices for one interruption (detection, then the outcome): the first run's answer lands while the second run's fetch is in flight, which then fails; the loss stays visible ($form)",
+		async ({ options }) => {
+			const api = gated();
+			const swr = await mountSwr();
+			const run = drive(
+				populateOnContinuity(swr.mutate, api.fetchSnapshot, options),
+			);
+			await twoNotices(run);
+			expect(api.fetchSnapshot).toHaveBeenCalledTimes(2);
+			await act(async () => {
+				api.gates[0]?.resolve({ n: 8 });
+				await settle();
+			});
+			// SWR drops the overtaken mutation's write; its run must not declare.
+			expect(run.counts.reconciled).toBe(0);
+			expect(run.continuity().state).toBe("unknown");
+			expect(swr.cached()).toEqual(STALE);
+			await act(async () => {
+				api.gates[1]?.reject(new Error("backend unavailable"));
+				await settle();
+			});
+			expect(run.counts).toEqual({ reconciled: 0, pending: 2 });
+			expect(run.continuity().state).toBe("unknown");
+			expect(swr.cached()).toEqual(STALE);
+			expect(run.errors()).toEqual([]);
 			await settle();
-		});
-		expect(run.counts).toEqual({ reconciled: 0, pending: 2 });
-		expect(run.continuity().state).toBe("unknown");
-		expect(swr.cached()).toEqual(STALE);
-		expect(run.errors()).toEqual([]);
-		await settle();
-		expect(unhandled).toEqual([]);
-	});
+			expect(unhandled).toEqual([]);
+		},
+	);
 
 	it("DOM-SWR-16 onContinuity, two notices: the second run's answer is written and reconciles; SWR drops the first run's late write and that run does not declare", async () => {
 		const api = gated();
@@ -758,18 +757,23 @@ describe("DOM-SWR-17 anti-pattern, never a recipe: the superseded key-only mutat
 			fetches: 1,
 			hookError: "backend unavailable",
 		},
-	])("$row: declared reconciled although nothing fresh was written", async (row) => {
-		const fetchSnapshot = row.backend === "failing" ? failing() : working();
-		const swr = await mountSwr({
-			...(row.hook ? { hookFetcher: fetchSnapshot } : {}),
-			paused: row.paused,
-		});
-		const run = drive(row.recipe(swr.mutate, fetchSnapshot));
-		await lose(run);
-		expect(fetchSnapshot).toHaveBeenCalledTimes(row.fetches);
-		expect(swr.cached()).toEqual(STALE);
-		expect((swr.view.error as Error | undefined)?.message).toBe(row.hookError);
-		expect(run.continuity().state).toBe("continuous");
-		expect(run.counts.reconciled).toBe(1);
-	});
+	])(
+		"$row: declared reconciled although nothing fresh was written",
+		async (row) => {
+			const fetchSnapshot = row.backend === "failing" ? failing() : working();
+			const swr = await mountSwr({
+				...(row.hook ? { hookFetcher: fetchSnapshot } : {}),
+				paused: row.paused,
+			});
+			const run = drive(row.recipe(swr.mutate, fetchSnapshot));
+			await lose(run);
+			expect(fetchSnapshot).toHaveBeenCalledTimes(row.fetches);
+			expect(swr.cached()).toEqual(STALE);
+			expect((swr.view.error as Error | undefined)?.message).toBe(
+				row.hookError,
+			);
+			expect(run.continuity().state).toBe("continuous");
+			expect(run.counts.reconciled).toBe(1);
+		},
+	);
 });

@@ -2,7 +2,7 @@
 	"name": "spinetab-workspace",
 	"version": "0.0.0",
 	"devDependencies": {
-		"@biomejs/biome": "2.5.1",
+		"@biomejs/biome": "2.5.15",
 		"husky": "9.1.7",
 		"lint-staged": "17.0.8",
 		"prettier": "3.9.9",

@@ -282,30 +282,30 @@ describe.each(["sse", "stream"] as const)("%s opening liveness", (kind) => {
 		conn.dispose();
 	});
 
-	it.each([
-		"unsubscribe",
-		"dispose",
-	] as const)("%s aborts a pending fetch, releases timers and rejects late delivery", async (action) => {
-		const pending = deferred<Response>();
-		const body = scriptedBody();
-		const { conn, sub, requests, record } = setup([() => pending.promise], {
-			within: 2_000,
-		});
-		await flush(20);
-		if (action === "unsubscribe") sub.unsubscribe();
-		else conn.dispose();
-		expect(requests[0]?.aborted()).toBe(true);
-		expect(vi.getTimerCount()).toBe(0);
-		write(body, 99);
-		pending.resolve(response(body));
-		await flush(20);
-		expect(body.cancelled).toBe(true);
-		await vi.advanceTimersByTimeAsync(300_000);
-		expect(requests).toHaveLength(1);
-		expect(record.events).toEqual([]);
-		expect(record.errors).toEqual([]);
-		conn.dispose();
-	});
+	it.each(["unsubscribe", "dispose"] as const)(
+		"%s aborts a pending fetch, releases timers and rejects late delivery",
+		async (action) => {
+			const pending = deferred<Response>();
+			const body = scriptedBody();
+			const { conn, sub, requests, record } = setup([() => pending.promise], {
+				within: 2_000,
+			});
+			await flush(20);
+			if (action === "unsubscribe") sub.unsubscribe();
+			else conn.dispose();
+			expect(requests[0]?.aborted()).toBe(true);
+			expect(vi.getTimerCount()).toBe(0);
+			write(body, 99);
+			pending.resolve(response(body));
+			await flush(20);
+			expect(body.cancelled).toBe(true);
+			await vi.advanceTimersByTimeAsync(300_000);
+			expect(requests).toHaveLength(1);
+			expect(record.events).toEqual([]);
+			expect(record.errors).toEqual([]);
+			conn.dispose();
+		},
+	);
 
 	it("settles a non-repeatable opening timeout without sending another POST", async () => {
 		const pending = deferred<Response>();

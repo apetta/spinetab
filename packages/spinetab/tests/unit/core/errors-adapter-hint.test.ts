@@ -22,15 +22,18 @@ describe("adapter-not-registered message", () => {
 		["trpc-ws", "trpcWsAdapter", "trpc"],
 		["trpc-sse", "trpcSseAdapter", "trpc"],
 		["ai-sdk", "aiSdkAdapter", "ai-sdk"],
-	])("%s names the adapters option, %s and spinetab/%s/runtime", (kind, factory, entry) => {
-		const error = adapterNotRegistered(kind);
-		expect(error.code).toBe("adapter-not-registered");
-		expect(error.message).toBe(
-			`Adapter ${kind} is not registered. List "${kind}" in the plugin's adapters option, or add ${factory}() from spinetab/${entry}/runtime to your worker file.`,
-		);
-		expect(error.detail).toEqual({ adapter: kind });
-		expect(error.retryable).toBe(false);
-	});
+	])(
+		"%s names the adapters option, %s and spinetab/%s/runtime",
+		(kind, factory, entry) => {
+			const error = adapterNotRegistered(kind);
+			expect(error.code).toBe("adapter-not-registered");
+			expect(error.message).toBe(
+				`Adapter ${kind} is not registered. List "${kind}" in the plugin's adapters option, or add ${factory}() from spinetab/${entry}/runtime to your worker file.`,
+			);
+			expect(error.detail).toEqual({ adapter: kind });
+			expect(error.retryable).toBe(false);
+		},
+	);
 
 	it.each([
 		"test",

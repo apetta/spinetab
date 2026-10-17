@@ -711,12 +711,15 @@ describe("isolation inspection: map forms fail closed", () => {
 			"no-content",
 			"cannot read src/main.js (no sourcesContent) to find its Spinetab imports",
 		],
-	])("%s: reports the chunk instead of certifying an empty graph", (name, reason) => {
-		const chunk = negative(name);
-		expect(chunk?.unexpected.spinetab).toEqual([]);
-		expect(chunk?.problems).toHaveLength(1);
-		expect(chunk?.problems[0]).toContain(reason);
-	});
+	])(
+		"%s: reports the chunk instead of certifying an empty graph",
+		(name, reason) => {
+			const chunk = negative(name);
+			expect(chunk?.unexpected.spinetab).toEqual([]);
+			expect(chunk?.problems).toHaveLength(1);
+			expect(chunk?.problems[0]).toContain(reason);
+		},
+	);
 
 	it("passes selected code in every supported form, with each exercised import attributed", () => {
 		// No real bundler wrote this output, so its roles are given.

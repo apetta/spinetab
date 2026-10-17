@@ -88,49 +88,49 @@ describe("subscriptionStore options (Svelte)", () => {
 		off();
 	});
 
-	it.each([
-		"observer",
-		"connection",
-	] as const)("throwOnError hands a terminal error to <svelte:boundary>, never a loss (%s)", async (source) => {
-		const client = createFakeClient();
-		const Probe = await component(`<script>
+	it.each(["observer", "connection"] as const)(
+		"throwOnError hands a terminal error to <svelte:boundary>, never a loss (%s)",
+		async (source) => {
+			const client = createFakeClient();
+			const Probe = await component(`<script>
 	let { store } = $props();
 </script>
 <svelte:boundary>
 	<output>{$store.connection.state}</output>
 	{#snippet failed(error)}<output>caught:{error.code}</output>{/snippet}
 </svelte:boundary>`);
-		const store = subscriptionStore(client, feed("a"), () => {}, {
-			throwOnError: true,
-		});
-		const target = document.createElement("div");
-		const view = mount(Probe, { target, props: { store } });
-		flushSync();
-		await Promise.resolve();
-		flushSync();
-		client.setContinuity("gap", "overflow");
-		client.setConnection("retry-exhausted");
-		flushSync();
-		await Promise.resolve();
-		flushSync();
-		expect(target.textContent).toBe("retry-exhausted");
-		source === "observer"
-			? client.fail({ code: "subscribe-rejected", message: "no" })
-			: client.setConnection("failed", "permanent-error");
-		flushSync();
-		await Promise.resolve();
-		flushSync();
-		expect(target.textContent).toBe(
+			const store = subscriptionStore(client, feed("a"), () => {}, {
+				throwOnError: true,
+			});
+			const target = document.createElement("div");
+			const view = mount(Probe, { target, props: { store } });
+			flushSync();
+			await Promise.resolve();
+			flushSync();
+			client.setContinuity("gap", "overflow");
+			client.setConnection("retry-exhausted");
+			flushSync();
+			await Promise.resolve();
+			flushSync();
+			expect(target.textContent).toBe("retry-exhausted");
 			source === "observer"
-				? "caught:subscribe-rejected"
-				: "caught:upstream-error",
-		);
-		unmount(view);
-		flushSync();
-		await Promise.resolve();
-		flushSync();
-		expect(client.active()).toHaveLength(0);
-	});
+				? client.fail({ code: "subscribe-rejected", message: "no" })
+				: client.setConnection("failed", "permanent-error");
+			flushSync();
+			await Promise.resolve();
+			flushSync();
+			expect(target.textContent).toBe(
+				source === "observer"
+					? "caught:subscribe-rejected"
+					: "caught:upstream-error",
+			);
+			unmount(view);
+			flushSync();
+			await Promise.resolve();
+			flushSync();
+			expect(client.active()).toHaveLength(0);
+		},
+	);
 
 	it("without an error hook a terminal error is rethrown into the client's callback guard", async () => {
 		const client = createFakeClient();

@@ -100,44 +100,44 @@ describe("useSubscription options (Vue)", () => {
 		scope.stop();
 	});
 
-	it.each([
-		"observer",
-		"connection",
-	] as const)("throwOnError throws a terminal error to onErrorCaptured, never a loss (%s)", async (source) => {
-		const client = createFakeClient();
-		const captured: unknown[] = [];
-		const Child = defineComponent({
-			setup() {
-				// biome-ignore lint/correctness/useHookAtTopLevel: Vue composable in setup(), not a React hook.
-				useSubscription(client, feed("a"), () => {}, { throwOnError: true });
-				return () => h("p", "ok");
-			},
-		});
-		const Parent = defineComponent({
-			setup() {
-				onErrorCaptured((error) => {
-					captured.push(error);
-					return false;
-				});
-				return () => h(Child);
-			},
-		});
-		const app = createApp(Parent);
-		app.mount(document.createElement("div"));
-		client.setContinuity("gap", "overflow");
-		client.setConnection("retry-exhausted");
-		await nextTick();
-		expect(captured).toEqual([]);
-		source === "observer"
-			? client.fail({ code: "subscribe-rejected", message: "no" })
-			: client.setConnection("failed", "permanent-error");
-		await nextTick();
-		expect(captured).toHaveLength(1);
-		expect(captured[0]).toMatchObject({
-			code: source === "observer" ? "subscribe-rejected" : "upstream-error",
-		});
-		app.unmount();
-	});
+	it.each(["observer", "connection"] as const)(
+		"throwOnError throws a terminal error to onErrorCaptured, never a loss (%s)",
+		async (source) => {
+			const client = createFakeClient();
+			const captured: unknown[] = [];
+			const Child = defineComponent({
+				setup() {
+					// biome-ignore lint/correctness/useHookAtTopLevel: Vue composable in setup(), not a React hook.
+					useSubscription(client, feed("a"), () => {}, { throwOnError: true });
+					return () => h("p", "ok");
+				},
+			});
+			const Parent = defineComponent({
+				setup() {
+					onErrorCaptured((error) => {
+						captured.push(error);
+						return false;
+					});
+					return () => h(Child);
+				},
+			});
+			const app = createApp(Parent);
+			app.mount(document.createElement("div"));
+			client.setContinuity("gap", "overflow");
+			client.setConnection("retry-exhausted");
+			await nextTick();
+			expect(captured).toEqual([]);
+			source === "observer"
+				? client.fail({ code: "subscribe-rejected", message: "no" })
+				: client.setConnection("failed", "permanent-error");
+			await nextTick();
+			expect(captured).toHaveLength(1);
+			expect(captured[0]).toMatchObject({
+				code: source === "observer" ? "subscribe-rejected" : "upstream-error",
+			});
+			app.unmount();
+		},
+	);
 
 	it("without an error hook a terminal error is rethrown into the client's callback guard", () => {
 		const client = createFakeClient();
