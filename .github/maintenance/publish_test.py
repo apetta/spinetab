@@ -20,7 +20,7 @@ class PublicationTests(unittest.TestCase):
         self.sha = "a" * 40
         self.bot = "spinetab-release[bot]"
         self.env = patch.dict(os.environ, {"GITHUB_REPOSITORY": publish.REPO,
-            "GITHUB_REF": "refs/heads/main", "GITHUB_EVENT_NAME": "workflow_run",
+            "GITHUB_REF": "refs/heads/main", "GITHUB_EVENT_NAME": "push",
             "GITHUB_SHA": self.sha, "GITHUB_RUN_ID": "42", "RELEASE_BOT_LOGIN": self.bot})
         self.env.start()
         self.addCleanup(self.env.stop)
@@ -35,9 +35,8 @@ class PublicationTests(unittest.TestCase):
             "commit_id": "b" * 40, "body": "<!-- spinetab-maintenance-review -->\nHead: " + "b" * 40}
         self.files = [{"filename": name, "status": "modified"} for name in (
             publish.MANIFEST, "packages/spinetab/CHANGELOG.md", ".release-please-manifest.json")]
-        self.event = {"workflow_run": {"name": "CI", "path": ".github/workflows/ci.yml",
-            "head_repository": {"full_name": publish.REPO}, "head_branch": "main",
-            "event": "push", "status": "completed", "conclusion": "success", "head_sha": self.sha}}
+        self.event = {"ref": "refs/heads/main", "after": self.sha,
+            "repository": {"full_name": publish.REPO}}
 
     def decision(self, reviews=None):
         with patch.object(publish, "api", side_effect=[[self.pr],
@@ -99,15 +98,22 @@ class PublicationTests(unittest.TestCase):
         with patch.dict(os.environ, {"RELEASE_BOT_LOGIN": ""}), self.assertRaisesRegex(ValueError, "configured"):
             self.decision()
 
-    def test_only_successful_main_ci_can_trigger_publication(self):
+    def test_only_the_main_push_commit_can_trigger_publication(self):
         self.assertEqual(publish.trigger(self.event), self.sha)
-        for field, value in [("conclusion", "failure"), ("event", "pull_request"),
-                             ("head_branch", "codex/test"), ("path", ".github/workflows/other.yml"),
-                             ("head_repository", {"full_name": "someone/spinetab"})]:
+        for field, value in [("ref", "refs/heads/codex/test"), ("after", "c" * 40),
+                             ("repository", {"full_name": "someone/spinetab"})]:
             event = copy.deepcopy(self.event)
-            event["workflow_run"][field] = value
+            event[field] = value
             with self.subTest(field=field), self.assertRaises(ValueError):
                 publish.trigger(event)
+
+    def test_dispatch_rejects_a_changed_main_commit(self):
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_dispatch"}):
+            self.assertEqual(publish.trigger({"inputs": {"expected_sha": self.sha}}), self.sha)
+            with self.assertRaisesRegex(ValueError, "advanced"):
+                publish.trigger({"inputs": {"expected_sha": "c" * 40}})
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run"}), self.assertRaisesRegex(ValueError, "trigger"):
+            publish.trigger({})
 
     def test_published_version_exits_before_release_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -124,16 +130,33 @@ class PublicationTests(unittest.TestCase):
                 decision.assert_not_called()
                 self.assertEqual(output.read_text(), "publish=false\n")
 
-    def test_stale_main_ci_exits_before_release_planning(self):
+    def test_wrong_checkout_fails_before_release_planning(self):
         with tempfile.TemporaryDirectory() as directory:
             event, output = [Path(directory) / name for name in ("event.json", "out")]
             event.write_text(json.dumps(self.event))
             with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(event), "GITHUB_OUTPUT": str(output)}), \
                  patch.object(publish.subprocess, "check_output", return_value="c" * 40), \
-                 patch.object(publish, "registry") as registry, patch.object(publish, "current") as current:
-                publish.plan()
+                 patch.object(publish, "registry") as registry, patch.object(publish, "api") as api:
+                with self.assertRaisesRegex(ValueError, "Checkout"):
+                    publish.plan()
                 registry.assert_not_called()
-                current.assert_not_called()
+                api.assert_not_called()
+                self.assertEqual(output.read_text(), "publish=false\n")
+
+    def test_another_version_commit_cannot_be_published_under_this_runs_provenance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            event, output, manifest = [Path(directory) / name for name in ("event.json", "out", "package.json")]
+            event.write_text(json.dumps(self.event))
+            manifest.write_text(json.dumps({"name": "spinetab", "version": "0.1.1",
+                "repository": {"url": "git+https://github.com/apetta/spinetab.git"}}))
+            with patch.dict(os.environ, {"GITHUB_EVENT_PATH": str(event), "GITHUB_OUTPUT": str(output)}), \
+                 patch.object(publish, "MANIFEST", str(manifest)), patch.object(publish, "current"), \
+                 patch.object(publish, "unpublished", return_value=True), \
+                 patch.object(publish.subprocess, "check_output", return_value="c" * 40), \
+                 patch.object(publish, "release_decision") as decision:
+                with self.assertRaisesRegex(ValueError, "version commit"):
+                    publish.plan()
+                decision.assert_not_called()
                 self.assertEqual(output.read_text(), "publish=false\n")
 
     def test_registry_failure_is_not_treated_as_missing_version(self):
@@ -159,13 +182,21 @@ class PublicationTests(unittest.TestCase):
         with patch.dict(os.environ, {"GITHUB_REF": "refs/heads/test"}), self.assertRaisesRegex(ValueError, "main-only"):
             publish.current(self.sha)
         with patch.object(publish, "api", side_effect=[{"object": {"sha": "c" * 40}},
-                 {"merge_base_commit": {"sha": "d" * 40}}]), self.assertRaisesRegex(ValueError, "not on main"):
+                 {"merge_base_commit": {"sha": "d" * 40}}]), \
+             patch.object(publish.subprocess, "check_output", return_value=self.sha), \
+             self.assertRaisesRegex(ValueError, "not on main"):
             publish.current(self.sha)
         with patch.object(publish, "api", side_effect=[{"object": {"sha": self.sha}},
                  {"merge_base_commit": {"sha": self.sha}}]), \
              patch.object(publish.subprocess, "check_output", return_value="c" * 40), \
              self.assertRaisesRegex(ValueError, "Checkout"):
             publish.current(self.sha)
+
+    def test_provenance_must_name_the_actual_publication_commit(self):
+        with patch.dict(os.environ, {"GITHUB_SHA": "c" * 40}), \
+             patch.object(publish, "api") as api, self.assertRaisesRegex(ValueError, "provenance"):
+            publish.current(self.sha)
+        api.assert_not_called()
 
     def test_archive_identity_and_hash_are_checked_without_execution(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -187,7 +218,7 @@ class PublicationTests(unittest.TestCase):
         receipt = {"repository": publish.REPO, "sha": self.sha, "version": "0.1.1",
                    "run_id": "42", "run_attempt": "1", "sha256": "d" * 64}
         run = {"repository": {"full_name": publish.REPO}, "head_branch": "main",
-               "path": ".github/workflows/publish.yml", "event": "workflow_run"}
+               "path": ".github/workflows/publish.yml", "event": "push", "head_sha": self.sha}
         names = ["verify / Lint, Typecheck, Test, E2E", "verify / Maintenance guards",
                  "verify / Packed consumer release verification"]
         jobs = {"total_count": 3, "jobs": [{"name": name, "conclusion": "success"} for name in names]}
@@ -196,7 +227,7 @@ class PublicationTests(unittest.TestCase):
              patch.object(publish, "unpublished", return_value=True), \
              patch.object(publish, "archive") as archive, \
              patch.object(publish.Path, "glob", return_value=[Path("release/spinetab-0.1.1.tgz")]):
-            for failure in (None, "other-run", "wrong-source", "wrong-workflow", "failed-job", "missing-job"):
+            for failure in (None, "other-run", "wrong-source", "wrong-workflow", "wrong-run-commit", "failed-job", "missing-job"):
                 candidate, candidate_run, candidate_jobs = copy.deepcopy((receipt, run, jobs))
                 if failure == "other-run":
                     candidate["run_id"] = "43"
@@ -204,6 +235,8 @@ class PublicationTests(unittest.TestCase):
                     candidate["sha"] = "c" * 40
                 elif failure == "wrong-workflow":
                     candidate_run["path"] = ".github/workflows/ci.yml"
+                elif failure == "wrong-run-commit":
+                    candidate_run["head_sha"] = "c" * 40
                 elif failure == "failed-job":
                     candidate_jobs["jobs"][-1]["conclusion"] = "failure"
                 elif failure == "missing-job":

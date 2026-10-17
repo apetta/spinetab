@@ -343,6 +343,9 @@ def merge():
     # GITHUB_TOKEN merges do not fire push workflows; dispatch the existing CI explicitly.
     api("/actions/workflows/ci.yml/dispatches", "POST", {
         "ref": "main", "inputs": {"deploy": True, "expected_sha": result["sha"]}})
+    if release_pr(pr):
+        api("/actions/workflows/publish.yml/dispatches", "POST", {
+            "ref": "main", "inputs": {"expected_sha": result["sha"]}})
     print(f"Merged PR #{pr['number']} as {result['sha']}; explicitly dispatched downstream CI")
 
 

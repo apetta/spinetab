@@ -1,13 +1,13 @@
 name: Publish
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
+    branches: [main]
+    paths: [packages/spinetab/package.json]
   workflow_dispatch:
     inputs:
-      version:
-        description: Optional expected version from the reviewed release PR
+      expected_sha:
+        description: Optional exact main merge commit to publish
         required: false
 
 permissions:
@@ -23,12 +23,7 @@ jobs:
   plan:
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
-      vars.NPM_PUBLISH_ENABLED == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      contains(fromJSON('["push","workflow_dispatch"]'), github.event.workflow_run.event)))
+      vars.NPM_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -38,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Identify an approved unpublished release

@@ -282,6 +282,29 @@ class GuardTests(unittest.TestCase):
                 review.merge()
             request.assert_not_called()
 
+    def test_release_merge_dispatches_publication_for_exact_merge_commit(self):
+        self.release_candidate()
+        merged_sha = "c" * 40
+        def fake(path, method="GET", data=None):
+            if method == "PUT":
+                self.assertEqual(data["sha"], self.pr["head"]["sha"])
+                return {"merged": True, "sha": merged_sha}
+            if method == "POST":
+                if path == "/actions/workflows/ci.yml/dispatches":
+                    self.assertEqual(data["inputs"], {"deploy": True, "expected_sha": merged_sha})
+                else:
+                    self.assertEqual(path, "/actions/workflows/publish.yml/dispatches")
+                    self.assertEqual(data, {"ref": "main", "inputs": {"expected_sha": merged_sha}})
+                return None
+            return {"merged": True, "merge_commit_sha": merged_sha}
+        with patch.dict(os.environ, {"DECISION": "approve", "REVIEW_ID": "9", "GITHUB_RUN_ID": "99",
+                                    "RELEASE_BOT_LOGIN": "spinetab-release[bot]"}), \
+             patch.object(review, "evidence", return_value=(self.pr, "b" * 40, self.run)), \
+             patch.object(review, "pages", return_value=[self.approval]), \
+             patch.object(review, "api", side_effect=fake) as request:
+            review.merge()
+            self.assertEqual(request.call_count, 4)
+
 
 class PrepareTriggerTests(unittest.TestCase):
     def setUp(self):

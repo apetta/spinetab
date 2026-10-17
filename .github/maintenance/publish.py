@@ -51,20 +51,22 @@ def stable(version):
 def current(sha):
     require(re.fullmatch(r"[0-9a-f]{40}", sha or ""), "Invalid release commit")
     require(os.environ["GITHUB_REF"] == "refs/heads/main", "Publication is main-only")
+    require(os.environ["GITHUB_SHA"] == sha, "Publication commit differs from provenance")
+    require(subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() == sha, "Checkout does not match the release commit")
     main = api("git/ref/heads/main")["object"]["sha"]
     require(api(f"compare/{sha}...{main}")["merge_base_commit"]["sha"] == sha, "Release commit is not on main")
-    require(subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip() == sha, "Checkout does not match the release commit")
 
 
 def trigger(event):
-    if os.environ["GITHUB_EVENT_NAME"] == "workflow_run":
-        run = event["workflow_run"]
-        require(run["name"] == "CI" and run["path"] == ".github/workflows/ci.yml", "Unexpected upstream workflow")
-        require(run["head_repository"]["full_name"] == REPO and run["head_branch"] == "main", "Unexpected upstream repository or branch")
-        require(run["event"] in {"push", "workflow_dispatch"} and run["status"] == "completed" and run["conclusion"] == "success", "Successful main CI is required")
-        return run["head_sha"]
-    require(os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch", "Unexpected publication trigger")
-    return os.environ["GITHUB_SHA"]
+    sha = os.environ["GITHUB_SHA"]
+    if os.environ["GITHUB_EVENT_NAME"] == "push":
+        require(event["ref"] == "refs/heads/main" and event["repository"]["full_name"] == REPO
+                and event["after"] == sha, "Unexpected publication repository, branch or commit")
+    else:
+        require(os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch", "Unexpected publication trigger")
+        requested = event.get("inputs", {}).get("expected_sha", "")
+        require(not requested or requested == sha, "Main advanced before publication dispatch")
+    return sha
 
 
 def output(**values):
@@ -125,17 +127,11 @@ def plan():
     output(publish="false")
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     sha = trigger(event)
-    checkout = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    if checkout != sha:
-        print("Main advanced; wait for CI on its current commit")
-        return
     current(sha)
     package = json.loads(Path(MANIFEST).read_text())
     require(package["name"] == PACKAGE and not package.get("private"), "Unexpected package")
     require(package["repository"]["url"] == f"git+https://github.com/{REPO}.git", "Package provenance repository differs")
     version = package["version"]
-    requested = event.get("inputs", {}).get("version", "")
-    require(not requested or requested == version, "Requested version differs from the reviewed manifest")
     if not unpublished(version):
         print("The current version is already published; no release work")
         return
@@ -143,6 +139,7 @@ def plan():
         ["git", "log", "-1", "--format=%H", "-G", r'^[[:space:]]*"version"[[:space:]]*:', "--", MANIFEST], text=True,
     ).strip()
     require(re.fullmatch(r"[0-9a-f]{40}", release_sha or ""), "Version commit is unavailable")
+    require(release_sha == sha, "Publication must run on the reviewed version commit")
     released_manifest = json.loads(subprocess.check_output(["git", "show", f"{release_sha}:{MANIFEST}"], text=True))
     require(released_manifest["version"] == version, "Version commit differs from the manifest")
     pr = release_decision(release_sha, version)
@@ -174,7 +171,8 @@ def verify():
     require(str(receipt["run_id"]) == run_id and re.fullmatch(r"[1-9][0-9]*", str(receipt["run_attempt"])), "Archive receipt covers another run")
     run = api(f"actions/runs/{run_id}/attempts/{receipt['run_attempt']}")
     require(run["repository"]["full_name"] == REPO and run["head_branch"] == "main", "Verification ran outside main")
-    require(run["path"] == ".github/workflows/publish.yml" and run["event"] in {"workflow_run", "workflow_dispatch"}, "Unexpected verification workflow")
+    require(run["path"] == ".github/workflows/publish.yml" and run["event"] in {"push", "workflow_dispatch"}
+            and run["head_sha"] == sha, "Unexpected verification workflow or commit")
     jobs = api(f"actions/runs/{run_id}/attempts/{receipt['run_attempt']}/jobs?per_page=100")
     require(jobs["total_count"] == len(jobs["jobs"]), "Incomplete verification evidence")
     for name in ("verify / Lint, Typecheck, Test, E2E", "verify / Maintenance guards", "verify / Packed consumer release verification"):
