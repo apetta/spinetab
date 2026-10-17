@@ -3235,6 +3235,9 @@ describe("socket.io client-initiated reconnects, error re-entry and leave timeou
 			/** upstream's recovery pid and cursor (private in its typings). */
 			const recoveryOf = (peer: Socket) =>
 				peer as unknown as { _pid?: string; _lastOffset?: string };
+			/** upstream's unanswered acknowledgements by packet id (private in its typings). */
+			const acksOf = (peer: Socket) =>
+				(peer as unknown as { acks: Record<string, unknown> }).acks;
 			/** The Manager's namespace cache (private in its typings). */
 			const cacheOf = (manager: Manager) =>
 				(manager as unknown as { nsps: Record<string, Socket> }).nsps;
@@ -3579,6 +3582,20 @@ describe("socket.io client-initiated reconnects, error re-entry and leave timeou
 						let receiveBufferAtDispose = 0;
 						if (leg === "control-confirmed") {
 							await waitFor(() => connected(a.context) === 2);
+							// The restored session leaves `old` once after `connected`:
+							// its acknowledgement settles before the trace starts.
+							await waitFor(
+								() =>
+									!h.server.of("/a").adapter.rooms.has("old") &&
+									Object.keys(acksOf(upstreamA)).length === 0,
+								{ message: "the recovery leave was never acknowledged" },
+							);
+							expect(
+								a.context.diagnostics.some(
+									(diagnostic) => diagnostic.type === "socket-io.leave-failed",
+								),
+								"the recovery leave was acknowledged, not timed out",
+							).toBe(false);
 						} else if (leg !== "control-outage") {
 							// A's CONNECT (with its pid and offset) reached the server
 							// and is being processed; no confirmation was sent.
