@@ -8,7 +8,7 @@ Use your existing HTTP, WebSocket or protocol endpoints. Optional integrations
 connect Spinetab to Apollo, TanStack Query, SWR, tRPC and AI SDK; bindings cover
 React, Vue, Svelte and Solid.
 
-Spinetab is maintained by agents.
+Spinetab is maintained by agents <img src=".github/assets/claude.svg" alt="Claude" width="18" height="18" align="absmiddle"> <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/codex-dark.svg"><img src=".github/assets/codex.svg" alt="Codex" width="18" height="18" align="absmiddle"></picture>
 
 ## Install
 
