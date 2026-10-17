@@ -62,13 +62,13 @@ importers:
         version: 8.3.1(@types/node@24.13.2)(terser@5.51.2)
       webpack:
         specifier: 5.111.1
-        version: 5.111.1(webpack-cli@7.2.3)
+        version: 5.111.1(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack-cli@7.2.3)
       webpack-cli:
         specifier: 7.2.3
         version: 7.2.3(webpack-dev-server@6.0.0)(webpack@5.111.1)
       webpack-dev-server:
         specifier: 6.0.0
-        version: 6.0.0(webpack-cli@7.2.3)(webpack@5.111.1)
+        version: 6.0.0(supports-color@8.1.1)(webpack-cli@7.2.3)(webpack@5.111.1)
 
 packages:
 
@@ -1632,8 +1632,8 @@ packages:
     engines: {node: '>=0.10.0'}
 
   spinetab@file:../pack/spinetab.tgz:
-    resolution: {integrity: sha512-lB5S3l1DEdW9ymnvRKLBoztQFgyWiBhIJeh8/W4iA4z6WMGAOI/qJS8aOLCxLqdkJb6JfcoUb5NxGkokNjyenQ==, tarball: file:../pack/spinetab.tgz}
-    version: 0.1.0
+    resolution: {integrity: sha512-2TAdMhIJuKmf4Gbnb0yhh2sDBJaOf77wbCglSyWngJePivGoycWbCd/xUgp9liN4EHCd5YXnGM1tmKuq1USfoA==, tarball: file:../pack/spinetab.tgz}
+    version: 0.2.0
     peerDependencies:
       '@apollo/client': ^4.3.1
       '@tanstack/query-core': ^5.104.0
@@ -2592,11 +2592,11 @@ snapshots:
 
   batch@0.6.1: {}
 
-  body-parser@2.3.0:
+  body-parser@2.3.0(supports-color@8.1.1):
     dependencies:
       bytes: 3.1.2
       content-type: 2.0.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       http-errors: 2.0.1
       iconv-lite: 0.7.2
       on-finished: 2.4.1
@@ -2678,11 +2678,11 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
-  compression@1.8.1:
+  compression@1.8.1(supports-color@8.1.1):
     dependencies:
       bytes: 3.1.2
       compressible: 2.0.18
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@8.1.1)
       negotiator: 0.6.4
       on-headers: 1.1.0
       safe-buffer: 5.2.1
@@ -2720,13 +2720,17 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  debug@2.6.9:
+  debug@2.6.9(supports-color@8.1.1):
     dependencies:
       ms: 2.0.0
+    optionalDependencies:
+      supports-color: 8.1.1
 
-  debug@4.4.3:
+  debug@4.4.3(supports-color@8.1.1):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 8.1.1
 
   default-browser-id@5.0.1: {}
 
@@ -2819,20 +2823,20 @@ snapshots:
 
   expect-type@1.4.0: {}
 
-  express@5.2.1:
+  express@5.2.1(supports-color@8.1.1):
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.3.0
+      body-parser: 2.3.0(supports-color@8.1.1)
       content-disposition: 1.1.0
       content-type: 1.0.5
       cookie: 0.7.2
       cookie-signature: 1.2.2
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       depd: 2.0.0
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
-      finalhandler: 2.1.1
+      finalhandler: 2.1.1(supports-color@8.1.1)
       fresh: 2.0.0
       http-errors: 2.0.1
       merge-descriptors: 2.0.0
@@ -2843,9 +2847,9 @@ snapshots:
       proxy-addr: 2.0.7
       qs: 6.15.3
       range-parser: 1.3.0
-      router: 2.2.0
-      send: 1.2.1
-      serve-static: 2.2.1
+      router: 2.2.0(supports-color@8.1.1)
+      send: 1.2.1(supports-color@8.1.1)
+      serve-static: 2.2.1(supports-color@8.1.1)
       statuses: 2.0.2
       type-is: 2.1.0
       vary: 1.1.2
@@ -2864,9 +2868,9 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
-  finalhandler@2.1.1:
+  finalhandler@2.1.1(supports-color@8.1.1):
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       on-finished: 2.4.1
@@ -2946,7 +2950,7 @@ snapshots:
       tapable: 2.3.3
     optionalDependencies:
       '@rspack/core': 2.2.7
-      webpack: 5.111.1(webpack-cli@7.2.3)
+      webpack: 5.111.1(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack-cli@7.2.3)
 
   htmlparser2@6.1.0:
     dependencies:
@@ -2971,9 +2975,9 @@ snapshots:
       statuses: 2.0.2
       toidentifier: 1.0.1
 
-  http-proxy-middleware@4.2.0:
+  http-proxy-middleware@4.2.0(supports-color@8.1.1):
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       httpxy: 0.5.5
       is-glob: 4.0.3
       is-plain-obj: 4.1.0
@@ -3158,13 +3162,18 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
-  minimizer-webpack-plugin@5.12.0(webpack@5.111.1):
+  minimizer-webpack-plugin@5.12.0(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack@5.111.1):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.5.0
       terser: 5.51.2
-      webpack: 5.111.1(webpack-cli@7.2.3)
+      webpack: 5.111.1(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack-cli@7.2.3)
+    optionalDependencies:
+      clean-css: 5.3.3
+      html-minifier-terser: 6.1.0
+      lightningcss: 1.33.0
+      postcss: 8.5.28
 
   ms@2.0.0: {}
 
@@ -3369,9 +3378,9 @@ snapshots:
       '@rolldown/binding-win32-arm64-msvc': 1.2.11
       '@rolldown/binding-win32-x64-msvc': 1.2.11
 
-  router@2.2.0:
+  router@2.2.0(supports-color@8.1.1):
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       depd: 2.0.0
       is-promise: 4.0.0
       parseurl: 1.3.3
@@ -3399,9 +3408,9 @@ snapshots:
       '@peculiar/x509': 1.14.3
       pkijs: 3.4.1
 
-  send@1.2.1:
+  send@1.2.1(supports-color@8.1.1):
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
@@ -3415,11 +3424,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  serve-index@1.9.2:
+  serve-index@1.9.2(supports-color@8.1.1):
     dependencies:
       accepts: 1.3.8
       batch: 0.6.1
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@8.1.1)
       escape-html: 1.0.3
       http-errors: 1.8.1
       mime-types: 2.1.35
@@ -3427,12 +3436,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  serve-static@2.2.1:
+  serve-static@2.2.1(supports-color@8.1.1):
     dependencies:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 1.2.1
+      send: 1.2.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -3606,10 +3615,10 @@ snapshots:
       import-local: 3.2.0
       interpret: 3.1.1
       rechoir: 0.8.0
-      webpack: 5.111.1(webpack-cli@7.2.3)
+      webpack: 5.111.1(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack-cli@7.2.3)
       webpack-merge: 6.0.1
     optionalDependencies:
-      webpack-dev-server: 6.0.0(webpack-cli@7.2.3)(webpack@5.111.1)
+      webpack-dev-server: 6.0.0(supports-color@8.1.1)(webpack-cli@7.2.3)(webpack@5.111.1)
 
   webpack-dev-middleware@8.3.0(webpack@5.111.1):
     dependencies:
@@ -3619,9 +3628,9 @@ snapshots:
       range-parser: 1.3.0
       schema-utils: 4.5.0
     optionalDependencies:
-      webpack: 5.111.1(webpack-cli@7.2.3)
+      webpack: 5.111.1(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack-cli@7.2.3)
 
-  webpack-dev-server@6.0.0(webpack-cli@7.2.3)(webpack@5.111.1):
+  webpack-dev-server@6.0.0(supports-color@8.1.1)(webpack-cli@7.2.3)(webpack@5.111.1):
     dependencies:
       '@types/bonjour': 3.5.13
       '@types/connect-history-api-fallback': 1.5.4
@@ -3633,23 +3642,23 @@ snapshots:
       ansi-html-community: 0.0.8
       bonjour-service: 1.4.4
       chokidar: 5.0.0
-      compression: 1.8.1
+      compression: 1.8.1(supports-color@8.1.1)
       connect-history-api-fallback: 2.0.0
-      express: 5.2.1
+      express: 5.2.1(supports-color@8.1.1)
       graceful-fs: 4.2.11
-      http-proxy-middleware: 4.2.0
+      http-proxy-middleware: 4.2.0(supports-color@8.1.1)
       ipaddr.js: 2.3.0
       launch-editor: 2.14.1
       open: 11.0.0
       p-retry: 8.0.1
       schema-utils: 4.5.0
       selfsigned: 5.5.0
-      serve-index: 1.9.2
+      serve-index: 1.9.2(supports-color@8.1.1)
       tinyglobby: 0.2.17
       webpack-dev-middleware: 8.3.0(webpack@5.111.1)
       ws: 8.22.0
     optionalDependencies:
-      webpack: 5.111.1(webpack-cli@7.2.3)
+      webpack: 5.111.1(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack-cli@7.2.3)
       webpack-cli: 7.2.3(webpack-dev-server@6.0.0)(webpack@5.111.1)
     transitivePeerDependencies:
       - bufferutil
@@ -3664,7 +3673,7 @@ snapshots:
 
   webpack-sources@3.6.0: {}
 
-  webpack@5.111.1(webpack-cli@7.2.3):
+  webpack@5.111.1(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack-cli@7.2.3):
     dependencies:
       '@types/estree': 1.0.9
       '@types/json-schema': 7.0.15
@@ -3678,7 +3687,7 @@ snapshots:
       events: 3.3.0
       graceful-fs: 4.2.11
       mime-db: 1.54.0
-      minimizer-webpack-plugin: 5.12.0(webpack@5.111.1)
+      minimizer-webpack-plugin: 5.12.0(clean-css@5.3.3)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(webpack@5.111.1)
       schema-utils: 4.5.0
       tapable: 2.3.3
       watchpack: 2.5.2

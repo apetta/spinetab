@@ -47,7 +47,7 @@ library's browser tests. The website consumes the built package through
 
 ## Development setup
 
-Use Node 24.11+ and pnpm 10.24.0:
+Use Node 24.11+ and pnpm 12.14.0 (pinned in `package.json`):
 
 ```sh
 pnpm install

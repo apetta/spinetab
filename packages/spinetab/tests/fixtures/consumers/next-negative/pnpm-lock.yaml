@@ -332,8 +332,8 @@ packages:
     engines: {node: '>=0.10.0'}
 
   spinetab@file:../pack/spinetab.tgz:
-    resolution: {integrity: sha512-lB5S3l1DEdW9ymnvRKLBoztQFgyWiBhIJeh8/W4iA4z6WMGAOI/qJS8aOLCxLqdkJb6JfcoUb5NxGkokNjyenQ==, tarball: file:../pack/spinetab.tgz}
-    version: 0.1.0
+    resolution: {integrity: sha512-2TAdMhIJuKmf4Gbnb0yhh2sDBJaOf77wbCglSyWngJePivGoycWbCd/xUgp9liN4EHCd5YXnGM1tmKuq1USfoA==, tarball: file:../pack/spinetab.tgz}
+    version: 0.2.0
     peerDependencies:
       '@apollo/client': ^4.3.1
       '@tanstack/query-core': ^5.104.0

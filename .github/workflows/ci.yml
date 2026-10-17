@@ -95,7 +95,9 @@ jobs:
           ref: ${{ inputs.expected_sha || github.ref }}
           persist-credentials: false
       - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1
+        with:
+          install: false
       - name: Setup Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -200,7 +202,9 @@ jobs:
         with:
           ref: ${{ inputs.expected_sha || github.sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1
+        with:
+          install: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
@@ -244,7 +248,9 @@ jobs:
         with:
           ref: ${{ inputs.expected_sha || github.ref }}
       - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1
+        with:
+          install: false
       - name: Setup Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
