@@ -66,6 +66,9 @@ jobs:
     name: Lint, Typecheck, Test, E2E
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
     # Match @playwright/test in apps/website/package.json. The image includes
     # the matching browser binaries and their system dependencies.
     container:
@@ -73,6 +76,7 @@ jobs:
       options: --user 1001
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      TURBO_CACHE: ${{ inputs.release && 'local:,remote:' || 'local:rw,remote:rw' }}
     steps:
       - name: Validate automated deployment target
         if: github.event_name == 'workflow_dispatch' && inputs.deploy
@@ -101,12 +105,26 @@ jobs:
         with:
           install: false
       - name: Setup Node
+        id: node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Restore and save task cache within GitHub's branch boundaries
+        if: ${{ !inputs.release }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-
+      - name: Authenticate the main branch to the remote build cache
+        if: github.ref == 'refs/heads/main' && vars.TURBO_TEAM != '' && !inputs.release
+        uses: vercel/setup-turborepo-remote-cache-action@49d7b1b46ba4c9251e1977986bfe18336feabc8f # v1.1.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+          audience: https://github.com/apetta
       - name: Biome
         run: pnpm exec biome ci .
       - name: Markdown, MDX and YAML formatting

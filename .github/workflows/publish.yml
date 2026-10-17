@@ -46,6 +46,9 @@ jobs:
   verify:
     needs: plan
     if: needs.plan.outputs.publish == 'true'
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/ci.yml
     with:
       release: true
