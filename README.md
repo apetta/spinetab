@@ -100,6 +100,10 @@ also verifies tree shaking and packed consumer applications. Run the library
 build before `test:tree-shaking`; it packs that build and checks Vite, webpack,
 Rspack and Next.js (Turbopack and webpack).
 
+Package and toolchain PRs also run tree shaking and packed-consumer installation,
+build and type checks alongside standard CI. The longer packed-consumer browser
+matrix runs before publication and on manually dispatched CI runs without deployment.
+
 Before the first browser test run:
 
 ```sh

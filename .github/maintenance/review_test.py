@@ -175,6 +175,35 @@ class GuardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Packed consumer"):
                 review.ci(self.pr, files=files)
 
+    def test_consumer_scope_includes_code_fixtures_and_toolchain(self):
+        for path in ("packages/spinetab/src/core/client.ts", "packages/typescript/base.json",
+                     "packages/spinetab/tests/fixtures/consumers/vanilla-polling/variants/plugin-absent/main.js.txt",
+                     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"):
+            with self.subTest(path=path):
+                self.assertTrue(review.consumer_checks_required([path]))
+                self.assertTrue(review.consumer_checks_required(["packages/spinetab/README.md", path]))
+
+    def test_documentation_changes_do_not_require_packed_consumers(self):
+        files = [{"filename": path, "status": "modified"} for path in (
+            "README.md", "packages/spinetab/README.md", "packages/spinetab/CHANGELOG.md",
+            "packages/spinetab/src/core/README.md", "apps/website/src/content/docs/overview.mdx")]
+        self.assertFalse(review.consumer_checks_required(item["filename"] for item in files))
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 0, "check_runs": []},
+                         {"total_count": 0, "statuses": []}]):
+            self.assertEqual(review.ci(self.pr, files=files)["id"], 42)
+
+    def test_renaming_source_to_readme_cannot_bypass_consumer_checks(self):
+        files = [{"filename": "packages/spinetab/README.md",
+                  "previous_filename": "packages/spinetab/src/core/client.ts", "status": "renamed"}]
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]}]):
+            with self.assertRaisesRegex(ValueError, "Packed consumer"):
+                review.ci(self.pr, files=files)
+
     def test_failed_check_named_review_is_not_exempt(self):
         with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
                          {"jobs": [{"name": review.CHECK, "conclusion": "success"},

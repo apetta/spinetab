@@ -147,6 +147,14 @@ def manifest_policy(files, base, head, release=False):
             require(old_manifest == {"packages/spinetab": before_version} and manifest == {"packages/spinetab": after_version}, "Release versions disagree")
 
 
+def consumer_checks_required(paths):
+    return any(
+        (path.startswith("packages/") and Path(path).name not in {"README.md", "CHANGELOG.md"})
+        or path in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"}
+        for path in paths
+    )
+
+
 def ci(pr, run_id=None, files=()):
     runs = api(f"/actions/workflows/ci.yml/runs?head_sha={pr['head']['sha']}&event=pull_request&per_page=100")["workflow_runs"]
     require(bool(runs), "No CI for the candidate commit")
@@ -159,7 +167,7 @@ def ci(pr, run_id=None, files=()):
     jobs = api(f"/actions/runs/{run['id']}/jobs?per_page=100")["jobs"]
     require(any(job["name"] == CHECK and job["conclusion"] == "success" for job in jobs), "Required test job did not pass")
     require(any(job["name"] == "Maintenance guards" and job["conclusion"] == "success" for job in jobs), "Maintenance guard tests did not pass")
-    if any(item["filename"].startswith("packages/") or item["filename"] in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"} for item in files):
+    if consumer_checks_required(path for item in files for path in {item["filename"], item.get("previous_filename", item["filename"])}):
         require(any(job["name"] == "Packed consumer release verification" and job["conclusion"] == "success" for job in jobs), "Packed consumer verification did not pass")
     checks = api(f"/commits/{pr['head']['sha']}/check-runs?per_page=100")
     require(checks["total_count"] == len(checks["check_runs"]), "Incomplete check evidence")

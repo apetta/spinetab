@@ -50,12 +50,14 @@ jobs:
         id: scope
         run: |
           python3 - <<'PY'
-          import json, os, subprocess
+          import json, os, subprocess, sys
           from pathlib import Path
+          sys.path.insert(0, '.github/maintenance')
+          from review import consumer_checks_required
           event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
           pr = event.get('pull_request')
-          paths = subprocess.check_output(['git', 'diff', '--name-only', pr['base']['sha'], pr['head']['sha']], text=True).splitlines() if pr else []
-          package = any(path.startswith('packages/') or path in ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'] for path in paths)
+          paths = subprocess.check_output(['git', 'diff', '--no-renames', '--name-only', pr['base']['sha'], pr['head']['sha']], text=True).splitlines() if pr else []
+          package = consumer_checks_required(paths)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write(f'package={str(package).lower()}\n')
           PY
@@ -233,7 +235,7 @@ jobs:
     if: >-
       (github.event_name == 'pull_request' && needs.scope.outputs.package == 'true') ||
       (github.event_name == 'workflow_dispatch' && !inputs.deploy) || inputs.release
-    needs: [check, scope]
+    needs: scope
     runs-on: ubuntu-latest
     timeout-minutes: 60
     container:
@@ -267,6 +269,7 @@ jobs:
       - name: Verify consumer builds, declarations and peer isolation
         run: pnpm --filter spinetab test:consumers
       - name: Verify packed development and production apps
+        if: inputs.release || github.event_name == 'workflow_dispatch'
         run: pnpm --filter spinetab e2e:consumers
       - name: Preserve verified release tarball
         if: inputs.release
