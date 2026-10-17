@@ -217,7 +217,7 @@ Each range starts at the version the package is tested against
 | `react`                | 19.3.0  | `react`                                     |
 | `vue`                  | 3.5.43  | `vue`                                       |
 | `svelte`               | 5.57.1  | `svelte`                                    |
-| `solid-js`             | 1.9.15  | `solid`                                     |
+| `solid-js`             | 1.9.17  | `solid`                                     |
 
 ## Limits
 

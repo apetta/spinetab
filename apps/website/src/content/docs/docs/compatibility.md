@@ -79,7 +79,7 @@ outside the supported peer range.
 | `react`                | `^19.3.0`  | `react`                                     |
 | `vue`                  | `^3.5.43`  | `vue`                                       |
 | `svelte`               | `^5.57.1`  | `svelte`                                    |
-| `solid-js`             | `^1.9.15`  | `solid`                                     |
+| `solid-js`             | `^1.9.17`  | `solid`                                     |
 
 Unused peers can be absent entirely.
 
