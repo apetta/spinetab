@@ -12,6 +12,6 @@
 		}
 	},
 	"dependencies": {
-		"spinetab": "file:../../../pack/spinetab-0.1.0.tgz"
+		"spinetab": "file:../../../pack/spinetab.tgz"
 	}
 }

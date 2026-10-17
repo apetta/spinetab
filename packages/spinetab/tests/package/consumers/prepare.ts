@@ -204,15 +204,26 @@ export function lockfileSpinetabIntegrity(lockText: string): string | null {
 
 /**
  * Lines that differ between the template lockfile and the installed one,
- * ignoring every line that mentions Spinetab (its resolution and integrity
- * change with each pack). Anything left is an unexpected dependency change.
+ * ignoring Spinetab's archive reference, integrity and its own version.
+ * Peer metadata and unrelated dependency changes must still match.
  */
 export function lockfileDiff(template: string, actual: string): string[] {
-	const relevant = (text: string) =>
-		text
+	const relevant = (text: string) => {
+		let spinetabEntry = false;
+		return text
 			.split("\n")
 			.map((line) => line.trimEnd())
-			.filter((line) => line.length > 0 && !line.includes("spinetab"));
+			.filter((line) => {
+				if (/^\S|^ {2}\S/.test(line)) {
+					spinetabEntry = /^ {2}spinetab@file:/.test(line);
+				}
+				return (
+					line.length > 0 &&
+					!line.includes("spinetab") &&
+					!(spinetabEntry && /^ {4}version: /.test(line))
+				);
+			});
+	};
 	const before = relevant(template);
 	const after = relevant(actual);
 	const counts = new Map<string, number>();
@@ -495,7 +506,7 @@ async function pack(): Promise<PackRecord> {
 	mkdirSync(destination, { recursive: true });
 	const packed = await run(
 		"pnpm",
-		["pack", "--pack-destination", destination],
+		["pack", "--out", join(destination, TARBALL)],
 		{
 			cwd: packageRoot,
 			env: isolatedEnv(),
@@ -566,7 +577,7 @@ export async function prepare(options: {
 					: "ancestors: clean",
 				`lock: ${join(root, ".lock")}`,
 				"hash: dist/** (sorted paths and contents)",
-				`pack: pnpm pack --pack-destination ${packDir()} (cwd ${packageRoot})`,
+				`pack: pnpm pack --out ${join(packDir(), TARBALL)} (cwd ${packageRoot})`,
 				"list: the tarball's own entries (paths and sizes)",
 				...consumers.map(
 					(spec) =>

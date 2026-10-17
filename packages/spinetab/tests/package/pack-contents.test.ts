@@ -1,15 +1,18 @@
 import { execFileSync } from "node:child_process";
 import {
 	mkdirSync,
+	mkdtempSync,
 	readdirSync,
 	readFileSync,
 	rmSync,
 	writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { tarballListing } from "./consumers/prepare.ts";
+import { TARBALL } from "./consumers/paths.ts";
+import { lockfileDiff, tarballListing } from "./consumers/prepare.ts";
 import { packageRoot, readManifest } from "./dist.ts";
 
 /**
@@ -35,6 +38,60 @@ const listing = (
 )[0] as Listing;
 
 describe("packed contents", () => {
+	it.each([
+		"0.1.1",
+		"0.2.0",
+	])("consumer archive installs version %s without unrelated lockfile changes", (version) => {
+		const root = mkdtempSync(join(tmpdir(), "spinetab-pack-version-"));
+		try {
+			const source = join(root, "source");
+			const target = join(root, "consumer");
+			const output = join(root, "pack");
+			for (const dir of [source, target, output]) mkdirSync(dir);
+			const pack = (candidate: string) => {
+				writeFileSync(
+					join(source, "package.json"),
+					JSON.stringify({ name: "spinetab", version: candidate }),
+				);
+				execFileSync("pnpm", ["pack", "--out", join(output, TARBALL)], {
+					cwd: source,
+					stdio: "pipe",
+				});
+			};
+			const install = () =>
+				execFileSync(
+					"pnpm",
+					["install", "--no-frozen-lockfile", "--offline", "--ignore-scripts"],
+					{ cwd: target, stdio: "pipe" },
+				);
+			writeFileSync(
+				join(target, "package.json"),
+				JSON.stringify({
+					name: "version-fixture",
+					private: true,
+					dependencies: { spinetab: `file:../pack/${TARBALL}` },
+				}),
+			);
+			pack("0.1.0");
+			install();
+			const before = readFileSync(join(target, "pnpm-lock.yaml"), "utf8");
+			pack(version);
+			install();
+			const after = readFileSync(join(target, "pnpm-lock.yaml"), "utf8");
+			const installed = JSON.parse(
+				readFileSync(
+					join(target, "node_modules/spinetab/package.json"),
+					"utf8",
+				),
+			);
+			expect(installed).toMatchObject({ name: "spinetab", version });
+			expect(lockfileDiff(before, after)).toEqual([]);
+			expect(readdirSync(output)).toEqual([TARBALL]);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it("contains only package.json, README.md, CHANGELOG.md, LICENSE and dist/**", () => {
 		const unexpected = listing.files
 			.map((file) => file.path)

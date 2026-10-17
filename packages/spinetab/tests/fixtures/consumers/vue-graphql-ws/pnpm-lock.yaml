@@ -15,8 +15,8 @@ importers:
         specifier: 6.3.0
         version: 6.3.0(graphql@17.0.2)(ws@8.22.0)
       spinetab:
-        specifier: file:../pack/spinetab-0.1.0.tgz
-        version: file:../pack/spinetab-0.1.0.tgz(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.22.0))(graphql@17.0.2)(vue@3.5.43(typescript@6.0.3))
+        specifier: file:../pack/spinetab.tgz
+        version: file:../pack/spinetab.tgz(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.22.0))(graphql@17.0.2)(vue@3.5.43(typescript@6.0.3))
       vue:
         specifier: 3.5.43
         version: 3.5.43(typescript@6.0.3)
@@ -1628,8 +1628,8 @@ packages:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz:
-    resolution: {integrity: sha512-YCiQ5m8mkF5BIxSUGRybn3EvreIIi0sFwj3fslBy8xCEHpWtgUYfDvcXMfBkDGDREO4BtXTSK/fOmscQ82a/5Q==, tarball: file:../pack/spinetab-0.1.0.tgz}
+  spinetab@file:../pack/spinetab.tgz:
+    resolution: {integrity: sha512-YCiQ5m8mkF5BIxSUGRybn3EvreIIi0sFwj3fslBy8xCEHpWtgUYfDvcXMfBkDGDREO4BtXTSK/fOmscQ82a/5Q==, tarball: file:../pack/spinetab.tgz}
     version: 0.1.0
     peerDependencies:
       '@apollo/client': ^4.3.1
@@ -3504,7 +3504,7 @@ snapshots:
 
   source-map@0.6.1: {}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.22.0))(graphql@17.0.2)(vue@3.5.43(typescript@6.0.3)):
+  spinetab@file:../pack/spinetab.tgz(graphql-ws@6.3.0(graphql@17.0.2)(ws@8.22.0))(graphql@17.0.2)(vue@3.5.43(typescript@6.0.3)):
     optionalDependencies:
       graphql: 17.0.2
       graphql-ws: 6.3.0(graphql@17.0.2)(ws@8.22.0)

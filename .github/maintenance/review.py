@@ -17,7 +17,8 @@ CHECK = "Lint, Typecheck, Test, E2E"
 REVIEWER = "github-actions[bot]"
 MARKER = "<!-- spinetab-maintenance-review -->"
 PROTECTED = (".github/", ".claude/", ".agents/", ".codex/", ".husky/")
-PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs", ".pnpmfile.cjs", "pnpm-workspace.yaml", "turbo.json", "turbo.jsonc", "biome.json", "biome.jsonc", ".prettierignore"}
+PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs", ".pnpmfile.cjs", "pnpm-workspace.yaml", "turbo.json", "turbo.jsonc", "biome.json", "biome.jsonc", ".prettierignore", ".release-please-manifest.json", "release-please-config.json"}
+RELEASE_FILES = {"packages/spinetab/package.json", "packages/spinetab/CHANGELOG.md", ".release-please-manifest.json"}
 HARNESS_CONFIG = re.compile(r"^(?:vitest(?:\.[\w-]+)*\.(?:config|workspace)|playwright(?:\.[\w-]+)*\.config|lint-staged\.config)\.[cm]?[jt]s$|^\.prettierrc(?:\..+)?$")
 
 
@@ -64,13 +65,37 @@ def output(**values):
             stream.write(f"{key}={text}\n")
 
 
+def release_pr(pr):
+    bot = os.environ.get("RELEASE_BOT_LOGIN", "")
+    return bool(re.fullmatch(r"[a-z0-9-]+\[bot\]", bot)) and pr["user"]["login"] == bot
+
+
+def release_approval(pr, version=None):
+    reviews = pages(f"/pulls/{pr['number']}/reviews")
+    supervisor = [review for review in reviews if review["user"]["login"] == "apetta"
+                  and review["state"] in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}]
+    require(supervisor and supervisor[-1]["state"] == "APPROVED"
+            and supervisor[-1]["commit_id"] == pr["head"]["sha"]
+            and "<!-- spinetab-release-supervisor -->" in (supervisor[-1]["body"] or ""),
+            "Release needs current-head supervisor approval")
+    if version is not None:
+        require(f"Version: {version}" in supervisor[-1]["body"].splitlines(), "Supervisor approved another version")
+
+
 def eligible(pr, files):
     require(pr["state"] == "open" and not pr["draft"], "PR is not ready")
     require(pr["base"]["ref"] == "main", "Unexpected base branch")
     for side in ("base", "head"):
         require(pr[side]["repo"] and pr[side]["repo"]["full_name"] == REPO, "Forks require human review")
     author = pr["user"]["login"]
-    require(author in {"apetta", "dependabot[bot]"}, "Author is outside the automation scope")
+    release = release_pr(pr)
+    require(release or author in {"apetta", "dependabot[bot]"}, "Author is outside the automation scope")
+    if release:
+        require(pr["head"]["ref"] == "release-please--branches--main--components--spinetab", "Unexpected release branch")
+        require("release:ready" in {label["name"] for label in pr["labels"]}, "Release awaits the supervisor")
+        require({item["filename"] for item in files} == RELEASE_FILES
+                and all(item["status"] == "modified" and "previous_filename" not in item for item in files),
+                "Release PR must contain only version metadata and changelog")
     if author == "apetta":
         require(pr["head"]["ref"].startswith(("claude/", "codex/")), "Unexpected agent branch")
         require("agent:ready" in {label["name"] for label in pr["labels"]}, "Missing agent:ready label")
@@ -78,7 +103,8 @@ def eligible(pr, files):
     for item in files:
         for path in (item["filename"], item.get("previous_filename", item["filename"])):
             parts = path.split("/")
-            require(not any(part + "/" in PROTECTED for part in parts[:-1]) and parts[-1] not in PROTECTED_FILES, "Automation policy or credentials configuration needs human review")
+            require((release and path == ".release-please-manifest.json") or
+                    (not any(part + "/" in PROTECTED for part in parts[:-1]) and parts[-1] not in PROTECTED_FILES), "Automation policy or credentials configuration needs human review")
             require(not HARNESS_CONFIG.fullmatch(parts[-1]), "Test or lint configuration needs human review")
             require(not any(part.startswith(".env") for part in path.split("/")), "Environment files need human review")
         require(item["status"] in {"added", "modified", "removed", "renamed"}, "Unsupported file change")
@@ -96,11 +122,13 @@ def current(number, expected_head=None, expected_base=None):
     comparison = api(f"/compare/{main}...{head}")
     require(comparison["merge_base_commit"]["sha"] == main, "Branch must include the current main commit")
     require(comparison["status"] == "ahead", "No current change to merge")
-    manifest_policy(files, main, head)
+    if release_pr(pr):
+        release_approval(pr, json.loads(content("packages/spinetab/package.json", head))["version"])
+    manifest_policy(files, main, head, release_pr(pr))
     return pr, files, main
 
 
-def manifest_policy(files, base, head):
+def manifest_policy(files, base, head, release=False):
     for item in files:
         if Path(item["filename"]).name != "package.json":
             continue
@@ -108,6 +136,15 @@ def manifest_policy(files, base, head):
         after = json.loads(content(item["filename"], head)) if item["status"] != "removed" else {}
         for key in ("scripts", "packageManager", "pnpm", "workspaces"):
             require(before.get(key) == after.get(key), "Package scripts or toolchain policy needs human review")
+        if release:
+            before_version, after_version = before.pop("version"), after.pop("version")
+            def stable(value):
+                require(isinstance(value, str) and re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", value), "Release requires a stable semantic version")
+                return tuple(int(part) for part in value.split("."))
+            require(before == after and stable(after_version) > stable(before_version), "Release manifest must advance only the version")
+            old_manifest = json.loads(content(".release-please-manifest.json", base))
+            manifest = json.loads(content(".release-please-manifest.json", head))
+            require(old_manifest == {"packages/spinetab": before_version} and manifest == {"packages/spinetab": after_version}, "Release versions disagree")
 
 
 def ci(pr, run_id=None, files=()):
@@ -248,7 +285,7 @@ def verify():
     auth = json.loads(subprocess.check_output(["claude", "auth", "status"], text=True))
     require(auth["authMethod"] == "oauth_token", "Subscription authentication required")
     output(decision=decision["decision"], reason=json.dumps(decision["reason"]))
-    print("Verified Opus 5.5, subscription authentication and an evidence-only tool trace")
+    print("Verified subscription authentication and an evidence-only tool trace")
 
 
 def latest_reviews(reviews):
@@ -274,7 +311,8 @@ def review():
     reason = json.loads(os.environ["REASON"])
     require(isinstance(reason, str) and 0 < len(reason) <= 3000, "Invalid reason")
     require(pr["user"]["login"] != REVIEWER, "Reviewer cannot approve its own PR")
-    body = f"{MARKER}\nClaude Opus 5.5 High: {decision}\n\n{reason}\n\nHead: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}\nReview run: {os.environ['GITHUB_RUN_ID']}"
+    title = {"approve": "Approved", "request_changes": "Changes requested", "escalate": "Needs attention"}[decision]
+    body = f"{MARKER}\n### {title}\n\n{reason}\n\nHead: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}\nReview run: {os.environ['GITHUB_RUN_ID']}"
     result = api(f"/pulls/{pr['number']}/reviews", "POST", {"commit_id": pr["head"]["sha"], "body": body,
                  "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES", "escalate": "COMMENT"}[decision]})
     require(result["user"]["login"] == REVIEWER and result["commit_id"] == pr["head"]["sha"], "Unexpected review identity or head")
@@ -305,6 +343,9 @@ def merge():
     # GITHUB_TOKEN merges do not fire push workflows; dispatch the existing CI explicitly.
     api("/actions/workflows/ci.yml/dispatches", "POST", {
         "ref": "main", "inputs": {"deploy": True, "expected_sha": result["sha"]}})
+    if release_pr(pr):
+        api("/actions/workflows/publish.yml/dispatches", "POST", {
+            "ref": "main", "inputs": {"expected_sha": result["sha"]}})
     print(f"Merged PR #{pr['number']} as {result['sha']}; explicitly dispatched downstream CI")
 
 

@@ -10,7 +10,7 @@
 		"next": "16.3.6",
 		"react": "19.3.0",
 		"react-dom": "19.3.0",
-		"spinetab": "file:../../../pack/spinetab-0.1.0.tgz"
+		"spinetab": "file:../../../pack/spinetab.tgz"
 	},
 	"devDependencies": {
 		"@types/node": "24.13.2",

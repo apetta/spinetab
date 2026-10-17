@@ -31,7 +31,7 @@ export function workRoot(): string {
 
 export const packDir = () => join(workRoot(), "pack");
 export const packRecordPath = () => join(packDir(), "pack.json");
-export const TARBALL = "spinetab-0.1.0.tgz";
+export const TARBALL = "spinetab.tgz";
 export const consumerDir = (name: string) => join(workRoot(), name);
 export const reportsDir = (name: string) => join(consumerDir(name), "reports");
 

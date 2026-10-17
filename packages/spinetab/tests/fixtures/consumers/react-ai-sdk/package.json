@@ -9,7 +9,7 @@
 		"ai": "7.0.116",
 		"react": "19.3.0",
 		"react-dom": "19.3.0",
-		"spinetab": "file:../pack/spinetab-0.1.0.tgz",
+		"spinetab": "file:../pack/spinetab.tgz",
 		"zod": "4.6.5"
 	},
 	"devDependencies": {

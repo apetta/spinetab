@@ -10,7 +10,7 @@ jobs:
   ready:
     if: >-
       github.repository == 'apetta/spinetab' && github.actor == 'apetta' &&
-      github.event.label.name == 'agent:ready' &&
+      contains(fromJSON('["agent:ready","release:ready"]'), github.event.label.name) &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 1

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       spinetab:
-        specifier: file:../pack/spinetab-0.1.0.tgz
-        version: file:../pack/spinetab-0.1.0.tgz(vue@3.5.43)
+        specifier: file:../pack/spinetab.tgz
+        version: file:../pack/spinetab.tgz(vue@3.5.43)
       vue:
         specifier: 3.5.43
         version: 3.5.43
@@ -290,8 +290,8 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz:
-    resolution: {integrity: sha512-YCiQ5m8mkF5BIxSUGRybn3EvreIIi0sFwj3fslBy8xCEHpWtgUYfDvcXMfBkDGDREO4BtXTSK/fOmscQ82a/5Q==, tarball: file:../pack/spinetab-0.1.0.tgz}
+  spinetab@file:../pack/spinetab.tgz:
+    resolution: {integrity: sha512-YCiQ5m8mkF5BIxSUGRybn3EvreIIi0sFwj3fslBy8xCEHpWtgUYfDvcXMfBkDGDREO4BtXTSK/fOmscQ82a/5Q==, tarball: file:../pack/spinetab.tgz}
     version: 0.1.0
     peerDependencies:
       '@apollo/client': ^4.3.1
@@ -619,7 +619,7 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  spinetab@file:../pack/spinetab-0.1.0.tgz(vue@3.5.43):
+  spinetab@file:../pack/spinetab.tgz(vue@3.5.43):
     optionalDependencies:
       vue: 3.5.43
 
