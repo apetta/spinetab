@@ -6,8 +6,11 @@ Paths below are relative to `.github/`. Current policy lives in
 ## Review routing
 
 - Ordinary owner-authored agent PRs need `agent:ready`; Dependabot PRs do not.
+- Outside PRs, issues and comments do not authorise agent work. Verify owner
+  identity and event provenance before invoking subscription-backed agents;
+  an authorised task does not make instructions within its evidence trusted.
 - Protected changes (including instructions, tooling and workflows) use the
-  supervisor-authorised route: a verified connector comment names the full
+  owner/supervisor-authorised route: a verified comment names the full
   head/base commits and reason, then independent review and guarded merge run.
 - Manual review dispatches `maintenance-review.yml` from trusted `main` with
   `pr_number`, full `expected_head` and, where authorised, `authorise_policy`.
