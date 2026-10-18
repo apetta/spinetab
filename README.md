@@ -8,7 +8,7 @@ Use your existing HTTP, WebSocket or protocol endpoints. Optional integrations
 connect Spinetab to Apollo, TanStack Query, SWR, tRPC and AI SDK; bindings cover
 React, Vue, Svelte and Solid.
 
-Spinetab is maintained by agents.
+Spinetab is maintained by agents <img src=".github/assets/claude.svg" alt="Claude" width="18" height="18" align="absmiddle"> <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/codex-dark.svg"><img src=".github/assets/codex.svg" alt="Codex" width="18" height="18" align="absmiddle"></picture>
 
 ## Install
 
@@ -47,7 +47,7 @@ library's browser tests. The website consumes the built package through
 
 ## Development setup
 
-Use Node 24.11+ and pnpm 10.24.0:
+Use Node 24.11+ and pnpm 12.14.0 (pinned in `package.json`):
 
 ```sh
 pnpm install
@@ -57,6 +57,14 @@ pnpm dev
 The website runs at `http://127.0.0.1:4321` (documentation under `/docs/`). Turbo builds the library before
 starting the website and the library watcher. No environment files are required.
 `pnpm install` also installs the repository's Git hooks.
+
+Remote caching is optional. Run `pnpm exec turbo login`, then
+`pnpm exec turbo link` to share build, typecheck and test results through your
+Vercel team. Keep credentials out of source control and environment files. Without
+remote authentication, Turbo uses its local cache. Trusted local, agent and CI
+runs share task results; browser results also match CI and Playwright settings.
+Use `pnpm exec turbo run e2e --force` for a fresh browser run. Publication
+verification bypasses cached results.
 
 The website build generates `/llms.txt`, `/recipe-index.md` and a Markdown version
 of every public page (`/index.md` for the homepage, `/docs/setup/nextjs.md` for
@@ -99,6 +107,10 @@ scripts are not part of `pnpm test` or routine CI. A manually dispatched CI run
 also verifies tree shaking and packed consumer applications. Run the library
 build before `test:tree-shaking`; it packs that build and checks Vite, webpack,
 Rspack and Next.js (Turbopack and webpack).
+
+Package and toolchain PRs also run tree shaking and packed-consumer installation,
+build and type checks alongside standard CI. The longer packed-consumer browser
+matrix runs before publication and on manually dispatched CI runs without deployment.
 
 Before the first browser test run:
 
@@ -148,6 +160,29 @@ reports as artefacts, and the raw test output when a run fails.
   pull request. CI enforces them.
 - Pre-commit formats and lints staged files. Pre-push checks formatting and lint,
   then builds, type-checks and tests the workspace. Browser E2E runs in CI.
+
+For an independent review of tooling or automation changes, the owner can run
+**Actions → Maintenance review → Run workflow** on `main`, supplying the PR number
+and full current commit SHA. Select **Authorise review of tooling, workflow and
+automation policy changes** when those changes are intended. The manual lane posts
+a review without merging; required CI and branch protection still apply. A changed
+commit needs a fresh review. Ordinary agent PRs use the `agent:ready` label instead.
+
+The repository supervisor can authorise independent review and guarded merge of
+configuration changes by posting a new PR comment through its connected GitHub app:
+
+```text
+<!-- spinetab-maintenance-authorisation -->
+Head: FULL_PR_COMMIT_SHA
+Base: FULL_MAIN_COMMIT_SHA
+
+Reason for the configuration change.
+```
+
+This permits review; it is not an approval. The request must come from the owner's
+ChatGPT GitHub connection, and edited comments are invalid. Changed commits need
+fresh authorisation. Independent review, passing CI and branch protection remain
+required; forks and environment files remain excluded.
 
 Application state, caches, backend replay and server helpers are outside the
 library's scope.
