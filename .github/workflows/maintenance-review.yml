@@ -40,14 +40,21 @@ jobs:
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.MAINTENANCE_ENABLED == 'true' &&
+      (github.run_attempt == 1 || github.triggering_actor == 'apetta') &&
+      (github.event_name != 'workflow_dispatch' ||
+      (github.actor_id == '33671231' && github.triggering_actor == 'apetta')) &&
       (github.event_name != 'issue_comment' ||
-      (github.event.issue.pull_request && github.actor == 'apetta' &&
+      (github.event.issue.pull_request && github.actor_id == '33671231' &&
+      github.triggering_actor == 'apetta' &&
       startsWith(github.event.comment.body, '<!-- spinetab-maintenance-authorisation -->'))) &&
       (github.event_name != 'check_run' ||
       (github.event.check_run.name == 'CodeQL' && github.event.check_run.app.id == 57789 &&
       github.event.check_run.conclusion == 'success')) &&
       (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('[33671231,49699333,41898282,343750776]'), github.event.workflow_run.actor.id) &&
+      contains(fromJSON('[33671231,49699333,41898282,343750776]'), github.event.workflow_run.triggering_actor.id) &&
       contains(fromJSON('["pull_request","pull_request_target"]'), github.event.workflow_run.event)))
     runs-on: ubuntu-latest
     environment: maintenance
