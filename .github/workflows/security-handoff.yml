@@ -20,6 +20,8 @@ concurrency:
 
 jobs:
   notify-maintainer:
+    # Trusted main only; save the inert receipt so repeated alerts do not start more agents.
+    cache-mode: write
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.MAINTENANCE_ENABLED == 'true' &&

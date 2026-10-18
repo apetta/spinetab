@@ -175,7 +175,7 @@ jobs:
       - name: Install trusted deployment tooling before credentials are available
         working-directory: deployment
         run: |
-          npm install --ignore-scripts --save-exact wrangler@4.150.0
+          npm install --ignore-scripts --save-exact wrangler@4.151.0
           npx --no-install wrangler --version
       - name: Download tested website build
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -190,7 +190,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: deployment
           packageManager: npm
-          wranglerVersion: "4.150.0"
+          wranglerVersion: "4.151.0"
           command: pages deploy dist --project-name=spinetab --branch=main --commit-hash=${{ inputs.expected_sha || github.sha }}
 
   verify-deployment:

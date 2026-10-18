@@ -1,0 +1,81 @@
+name: Maintenance handoff
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      comment_id:
+        description: Verified supervisor handoff comment to retry after inspecting routine history
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
+
+concurrency:
+  group: maintenance-handoff
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  deliver:
+    # Only trusted main runs here; cache entries contain an inert delivery receipt.
+    cache-mode: write
+    if: >-
+      github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
+      vars.MAINTENANCE_ENABLED == 'true' &&
+      (github.run_attempt == 1 || github.triggering_actor == 'apetta') &&
+      ((github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+      github.actor_id == '33671231' && github.triggering_actor == 'apetta' &&
+      startsWith(github.event.comment.body, '<!-- spinetab-maintenance-handoff -->')) ||
+      (github.event_name == 'workflow_dispatch' && github.actor_id == '33671231' &&
+      github.triggering_actor == 'apetta') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('[33671231,41898282,343750776]'), github.event.workflow_run.actor.id) &&
+      contains(fromJSON('[33671231,41898282,343750776]'), github.event.workflow_run.triggering_actor.id)))
+    runs-on: ubuntu-latest
+    environment: maintenance
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate the current handoff
+        id: work
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/maintenance/handoff.py prepare
+      - name: Check the delivery receipt
+        if: steps.work.outputs.key != ''
+        id: previous
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: maintenance-handoff-ack
+          key: ${{ steps.work.outputs.key }}
+          lookup-only: true
+      - name: Start the saved Claude worker
+        if: steps.work.outputs.key != '' && steps.previous.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROUTINE_ID: ${{ vars.CLAUDE_MAINTENANCE_ROUTINE_ID }}
+          ROUTINE_TOKEN: ${{ secrets.CLAUDE_MAINTENANCE_TRIGGER_TOKEN }}
+        run: python3 .github/maintenance/handoff.py dispatch
+      - name: Remember accepted delivery
+        if: steps.work.outputs.key != '' && steps.previous.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: maintenance-handoff-ack
+          key: ${{ steps.work.outputs.key }}
+      - name: Remove transient files
+        if: always()
+        run: rm -f maintenance-work.json maintenance-handoff-ack
