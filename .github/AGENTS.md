@@ -20,8 +20,11 @@ Paths below are relative to `.github/`. Current policy lives in
 ## Workflow pitfalls
 
 - Privileged jobs inspect candidate code without executing it. Keep model,
-  review and merge credentials separate; the review App token only posts reviews.
-  GitHub posting identity comes from the token, not commit authorship metadata.
+  review, status and merge credentials in separate jobs; narrow App tokens to
+  each job's permissions. GitHub posting identity comes from the token.
+- `Spinetab Agent / Review` reports progress and the result for the reviewed
+  commit. It is informational; formal approval and the merge guard remain
+  authoritative.
 - Required check names are contracts with branch protection and the guards.
   Keep `consumer_checks_required()` aligned between CI and review, including renames.
 - Trusted PR CI shares the agent cache; untrusted PRs have no cache credentials.
