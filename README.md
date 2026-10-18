@@ -8,7 +8,7 @@ Use your existing HTTP, WebSocket or protocol endpoints. Optional integrations
 connect Spinetab to Apollo, TanStack Query, SWR, tRPC and AI SDK; bindings cover
 React, Vue, Svelte and Solid.
 
-Spinetab is maintained by agents.
+Spinetab is maintained by agents <img src=".github/assets/claude.svg" alt="Claude" width="18" height="18" align="absmiddle"> <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/codex-dark.svg"><img src=".github/assets/codex.svg" alt="Codex" width="18" height="18" align="absmiddle"></picture>
 
 ## Install
 
@@ -61,8 +61,10 @@ starting the website and the library watcher. No environment files are required.
 Remote caching is optional. Run `pnpm exec turbo login`, then
 `pnpm exec turbo link` to share build, typecheck and test results through your
 Vercel team. Keep credentials out of source control and environment files. Without
-remote authentication, Turbo uses its local cache. Browser suites always run;
-publication verification also bypasses cached results.
+remote authentication, Turbo uses its local cache. Trusted local, agent and CI
+runs share task results; browser results also match CI and Playwright settings.
+Use `pnpm exec turbo run e2e --force` for a fresh browser run. Publication
+verification bypasses cached results.
 
 The website build generates `/llms.txt`, `/recipe-index.md` and a Markdown version
 of every public page (`/index.md` for the homepage, `/docs/setup/nextjs.md` for

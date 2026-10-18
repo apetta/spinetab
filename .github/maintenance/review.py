@@ -214,7 +214,7 @@ def manifest_policy(files, base, head, release=False, authorise_policy=False):
 
 def consumer_checks_required(paths):
     return any(
-        (path.startswith("packages/") and Path(path).name not in {"README.md", "CHANGELOG.md"})
+        (path.startswith("packages/") and Path(path).name not in {"README.md", "CHANGELOG.md", "AGENTS.md", "CLAUDE.md"})
         or path in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"}
         for path in paths
     )
