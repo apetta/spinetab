@@ -4,10 +4,10 @@ import os
 import re
 import sys
 
-from review import api, output, require
+from review import REVIEW_APP_ID, REVIEW_CHECK, api, output, require
 
-APP_ID = 5362510
-NAME = "Review"
+APP_ID = REVIEW_APP_ID
+NAME = REVIEW_CHECK
 
 
 def context():

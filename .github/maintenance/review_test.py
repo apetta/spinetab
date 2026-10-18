@@ -231,6 +231,44 @@ class GuardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Another check"):
                 review.ci(self.pr)
 
+    def test_own_review_status_is_not_a_ci_prerequisite(self):
+        for status, conclusion in (("in_progress", None), ("completed", "failure"),
+                                   ("completed", "action_required"), ("completed", "success")):
+            with self.subTest(status=status, conclusion=conclusion):
+                check = {"app": {"id": review.REVIEW_APP_ID}, "name": review.REVIEW_CHECK,
+                         "head_sha": self.pr["head"]["sha"], "status": status, "conclusion": conclusion}
+                with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                                 {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                           {"name": "Maintenance guards", "conclusion": "success"}]},
+                                 {"total_count": 1, "check_runs": [check]},
+                                 {"total_count": 0, "statuses": []}]):
+                    self.assertEqual(review.ci(self.pr)["id"], 42)
+
+    def test_review_status_exemption_requires_app_name_and_head(self):
+        for difference in ({"app": {"id": 15368}}, {"name": "Security"},
+                           {"head_sha": "d" * 40}, {"app": {}}):
+            with self.subTest(difference=difference):
+                check = {"app": {"id": review.REVIEW_APP_ID}, "name": review.REVIEW_CHECK,
+                         "head_sha": self.pr["head"]["sha"], "status": "in_progress", "conclusion": None}
+                check.update(difference)
+                with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                                 {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                           {"name": "Maintenance guards", "conclusion": "success"}]},
+                                 {"total_count": 1, "check_runs": [check]}]):
+                    with self.assertRaisesRegex(ValueError, "Another check"):
+                        review.ci(self.pr)
+
+    def test_own_review_status_does_not_hide_other_failed_checks(self):
+        checks = [{"app": {"id": review.REVIEW_APP_ID}, "name": review.REVIEW_CHECK,
+                   "head_sha": self.pr["head"]["sha"], "status": "in_progress", "conclusion": None},
+                  {"app": {"id": 57789}, "name": "CodeQL", "status": "completed", "conclusion": "failure"}]
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 2, "check_runs": checks}]):
+            with self.assertRaisesRegex(ValueError, "Another check"):
+                review.ci(self.pr)
+
     def test_failed_legacy_status_blocks_merge(self):
         with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
                          {"jobs": [{"name": review.CHECK, "conclusion": "success"},

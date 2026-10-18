@@ -15,6 +15,8 @@ REPO = "apetta/spinetab"
 CI_PATH = ".github/workflows/ci.yml"
 CHECK = "Lint, Typecheck, Test, E2E"
 REVIEWER = "spinetab-agent[bot]"
+REVIEW_APP_ID = 5362510
+REVIEW_CHECK = "Review"
 MARKER = "<!-- spinetab-maintenance-review -->"
 AUTHORISATION = "<!-- spinetab-maintenance-authorisation -->"
 SUPERVISOR_APP = {"id": 1144995, "slug": "chatgpt-codex-connector"}
@@ -237,6 +239,11 @@ def ci(pr, run_id=None, files=()):
     checks = api(f"/commits/{pr['head']['sha']}/check-runs?per_page=100")
     require(checks["total_count"] == len(checks["check_runs"]), "Incomplete check evidence")
     for check in checks["check_runs"]:
+        if (check.get("app", {}).get("id") == REVIEW_APP_ID
+                and check.get("name") == REVIEW_CHECK
+                and check.get("head_sha") == pr["head"]["sha"]):
+            # This reports the review's outcome; it cannot be its prerequisite.
+            continue
         require(check["status"] == "completed" and check["conclusion"] in {"success", "neutral", "skipped"}, "Another check is pending or failed")
     statuses = api(f"/commits/{pr['head']['sha']}/status?per_page=100")
     require(statuses["total_count"] == len(statuses["statuses"]), "Incomplete status evidence")
