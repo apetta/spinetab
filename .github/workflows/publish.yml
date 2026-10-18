@@ -46,9 +46,10 @@ jobs:
   verify:
     needs: plan
     if: needs.plan.outputs.publish == 'true'
-    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-verification.yml
     with:
-      release: true
       expected_sha: ${{ needs.plan.outputs.sha }}
 
   publish:

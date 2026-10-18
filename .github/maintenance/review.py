@@ -14,8 +14,10 @@ import urllib.request
 REPO = "apetta/spinetab"
 CI_PATH = ".github/workflows/ci.yml"
 CHECK = "Lint, Typecheck, Test, E2E"
-REVIEWER = "github-actions[bot]"
+REVIEWER = "spinetab-agent[bot]"
 MARKER = "<!-- spinetab-maintenance-review -->"
+AUTHORISATION = "<!-- spinetab-maintenance-authorisation -->"
+SUPERVISOR_APP = {"id": 1144995, "slug": "chatgpt-codex-connector"}
 PROTECTED = (".github/", ".claude/", ".agents/", ".codex/", ".husky/")
 PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs", ".pnpmfile.cjs", "pnpm-workspace.yaml", "turbo.json", "turbo.jsonc", "biome.json", "biome.jsonc", ".prettierignore", ".release-please-manifest.json", "release-please-config.json"}
 RELEASE_FILES = {"packages/spinetab/package.json", "packages/spinetab/CHANGELOG.md", ".release-please-manifest.json"}
@@ -27,7 +29,7 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def api(path, method="GET", data=None):
+def api(path, method="GET", data=None, *, token=None):
     require(os.environ["GITHUB_REPOSITORY"] == REPO, "Unexpected repository")
     require(path.startswith("/") and not path.startswith("//"), "Invalid API path")
     request = urllib.request.Request(
@@ -35,7 +37,7 @@ def api(path, method="GET", data=None):
         method=method,
         data=json.dumps(data).encode() if data is not None else None,
         headers={
-            "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+            "Authorization": "Bearer " + (token if token is not None else os.environ["GH_TOKEN"]),
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         },
@@ -82,7 +84,62 @@ def release_approval(pr, version=None):
         require(f"Version: {version}" in supervisor[-1]["body"].splitlines(), "Supervisor approved another version")
 
 
-def eligible(pr, files):
+def manual_request():
+    if os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch":
+        return None
+    event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+    inputs = event.get("inputs", {})
+    if not any(inputs.get(key) for key in ("pr_number", "expected_head")):
+        require(inputs.get("authorise_policy") not in (True, "true"), "Policy authorisation needs a PR and commit")
+        return None
+    require(os.environ.get("GITHUB_REPOSITORY") == REPO and
+            os.environ.get("GITHUB_REF") == "refs/heads/main", "Manual review must run from trusted main")
+    require(os.environ.get("GITHUB_ACTOR") == "apetta" and
+            os.environ.get("GITHUB_TRIGGERING_ACTOR") == "apetta", "Only the owner can request or rerun a manual review")
+    require(re.fullmatch(r"[1-9][0-9]*", str(inputs.get("pr_number", ""))), "Manual review needs a PR number")
+    require(re.fullmatch(r"[0-9a-f]{40}", inputs.get("expected_head", "")), "Manual review needs the full commit SHA")
+    return inputs
+
+
+def supervisor_request(pr, comment_id=None):
+    def trusted(comment):
+        app = comment.get("performed_via_github_app") or {}
+        user = comment.get("user") or {}
+        return user.get("login") == "apetta" and user.get("type") == "User" and all(
+            app.get(key) == value for key, value in SUPERVISOR_APP.items())
+
+    if comment_id:
+        require(re.fullmatch(r"[1-9][0-9]*", str(comment_id)), "Invalid supervisor comment ID")
+        comment = api(f"/issues/comments/{comment_id}")
+    else:
+        comments = [item for item in pages(f"/issues/{pr['number']}/comments")
+                    if trusted(item) and (item.get("body") or "").startswith(AUTHORISATION)]
+        if not comments:
+            return None
+        comment = max(comments, key=lambda item: item["id"])
+    require(trusted(comment), "Authorisation must come from the supervisor's GitHub connection")
+    require(comment["issue_url"] == f"https://api.github.com/repos/{REPO}/issues/{pr['number']}",
+            "Authorisation covers another PR")
+    require(comment.get("created_at") and comment["created_at"] == comment.get("updated_at"),
+            "Edited authorisation needs a fresh comment")
+    match = re.fullmatch(re.escape(AUTHORISATION) + r"\nHead: ([0-9a-f]{40})\nBase: ([0-9a-f]{40})\n\n([\s\S]{1,3000})",
+                         comment.get("body") or "")
+    require(match is not None, "Authorisation needs full head and base commits and a reason")
+    head, base, reason = match.groups()
+    require(bool(reason.strip()), "Authorisation needs a reason")
+    if head != pr["head"]["sha"] and not comment_id:
+        return None
+    require(head == pr["head"]["sha"], "Authorised PR head changed")
+    return {"id": comment["id"], "head": head, "base": base, "reason": reason,
+            "url": f"https://github.com/{REPO}/pull/{pr['number']}#issuecomment-{comment['id']}"}
+
+
+def eligible(pr, files, supervisor=None):
+    manual = manual_request()
+    policy = bool(supervisor) or (manual is not None and manual.get("authorise_policy") in (True, "true"))
+    if manual:
+        require(str(pr["number"]) == str(manual["pr_number"]), "Manual review covers another PR")
+        require(pr["head"]["sha"] == manual["expected_head"], "PR head changed")
     require(pr["state"] == "open" and not pr["draft"], "PR is not ready")
     require(pr["base"]["ref"] == "main", "Unexpected base branch")
     for side in ("base", "head"):
@@ -98,24 +155,31 @@ def eligible(pr, files):
                 "Release PR must contain only version metadata and changelog")
     if author == "apetta":
         require(pr["head"]["ref"].startswith(("claude/", "codex/")), "Unexpected agent branch")
-        require("agent:ready" in {label["name"] for label in pr["labels"]}, "Missing agent:ready label")
+        require(manual or "agent:ready" in {label["name"] for label in pr["labels"]}, "Missing agent:ready label")
     require(0 < len(files) == pr["changed_files"] <= 40, "Incomplete or oversized change")
     for item in files:
         for path in (item["filename"], item.get("previous_filename", item["filename"])):
             parts = path.split("/")
-            require((release and path == ".release-please-manifest.json") or
+            require(policy or (release and path == ".release-please-manifest.json") or
                     (not any(part + "/" in PROTECTED for part in parts[:-1]) and parts[-1] not in PROTECTED_FILES), "Automation policy or credentials configuration needs human review")
-            require(not HARNESS_CONFIG.fullmatch(parts[-1]), "Test or lint configuration needs human review")
+            require(policy or not HARNESS_CONFIG.fullmatch(parts[-1]), "Test or lint configuration needs human review")
             require(not any(part.startswith(".env") for part in path.split("/")), "Environment files need human review")
         require(item["status"] in {"added", "modified", "removed", "renamed"}, "Unsupported file change")
 
 
-def current(number, expected_head=None, expected_base=None):
+def current(number, expected_head=None, expected_base=None, supervisor_comment_id=None):
     require(re.fullmatch(r"[1-9][0-9]*", str(number)), "Invalid PR number")
     pr = api(f"/pulls/{number}")
     files = pages(f"/pulls/{number}/files")
-    eligible(pr, files)
     main = api("/git/ref/heads/main")["object"]["sha"]
+    comment_id = supervisor_comment_id or os.environ.get("SUPERVISOR_COMMENT_ID", "")
+    supervisor = supervisor_request(pr, comment_id) if comment_id else None
+    if supervisor:
+        require(supervisor["base"] == main, "Authorised base changed; fresh supervisor authorisation required")
+    eligible(pr, files, supervisor)
+    manual = manual_request()
+    if manual or supervisor:
+        require(os.environ.get("GITHUB_SHA") == main, "Reviewer main changed; start a fresh manual review")
     head = pr["head"]["sha"]
     require(expected_head is None or head == expected_head, "PR head changed")
     require(expected_base is None or main == expected_base, "Base changed; fresh CI and review required")
@@ -124,18 +188,19 @@ def current(number, expected_head=None, expected_base=None):
     require(comparison["status"] == "ahead", "No current change to merge")
     if release_pr(pr):
         release_approval(pr, json.loads(content("packages/spinetab/package.json", head))["version"])
-    manifest_policy(files, main, head, release_pr(pr))
+    manifest_policy(files, main, head, release_pr(pr),
+                    authorise_policy=bool(supervisor) or (manual is not None and manual.get("authorise_policy") in (True, "true")))
     return pr, files, main
 
 
-def manifest_policy(files, base, head, release=False):
+def manifest_policy(files, base, head, release=False, authorise_policy=False):
     for item in files:
         if Path(item["filename"]).name != "package.json":
             continue
         before = json.loads(content(item.get("previous_filename", item["filename"]), base)) if item["status"] != "added" else {}
         after = json.loads(content(item["filename"], head)) if item["status"] != "removed" else {}
         for key in ("scripts", "packageManager", "pnpm", "workspaces"):
-            require(before.get(key) == after.get(key), "Package scripts or toolchain policy needs human review")
+            require(authorise_policy or before.get(key) == after.get(key), "Package scripts or toolchain policy needs human review")
         if release:
             before_version, after_version = before.pop("version"), after.pop("version")
             def stable(value):
@@ -145,6 +210,14 @@ def manifest_policy(files, base, head, release=False):
             old_manifest = json.loads(content(".release-please-manifest.json", base))
             manifest = json.loads(content(".release-please-manifest.json", head))
             require(old_manifest == {"packages/spinetab": before_version} and manifest == {"packages/spinetab": after_version}, "Release versions disagree")
+
+
+def consumer_checks_required(paths):
+    return any(
+        (path.startswith("packages/") and Path(path).name not in {"README.md", "CHANGELOG.md", "AGENTS.md", "CLAUDE.md"})
+        or path in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"}
+        for path in paths
+    )
 
 
 def ci(pr, run_id=None, files=()):
@@ -159,7 +232,7 @@ def ci(pr, run_id=None, files=()):
     jobs = api(f"/actions/runs/{run['id']}/jobs?per_page=100")["jobs"]
     require(any(job["name"] == CHECK and job["conclusion"] == "success" for job in jobs), "Required test job did not pass")
     require(any(job["name"] == "Maintenance guards" and job["conclusion"] == "success" for job in jobs), "Maintenance guard tests did not pass")
-    if any(item["filename"].startswith("packages/") or item["filename"] in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"} for item in files):
+    if consumer_checks_required(path for item in files for path in {item["filename"], item.get("previous_filename", item["filename"])}):
         require(any(job["name"] == "Packed consumer release verification" and job["conclusion"] == "success" for job in jobs), "Packed consumer verification did not pass")
     checks = api(f"/commits/{pr['head']['sha']}/check-runs?per_page=100")
     require(checks["total_count"] == len(checks["check_runs"]), "Incomplete check evidence")
@@ -185,6 +258,7 @@ def prepare():
     require(not os.environ.get("ANTHROPIC_API_KEY"), "API billing is disabled")
     require(os.environ.get("RUNNER_DEBUG") != "1", "Disable debug logging before subscription review")
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+    manual = manual_request()
     run_event = event.get("workflow_run")
     if run_event:
         require(run_event["name"] in {"CI", "Maintenance readiness"} and run_event["conclusion"] == "success", "Not successful candidate CI")
@@ -199,6 +273,17 @@ def prepare():
         require(check_event["name"] == "CodeQL" and check_event["app"]["id"] == 57789 and check_event["conclusion"] == "success", "Unexpected security check")
         require(re.fullmatch(r"[0-9a-f]{40}", check_event["head_sha"]), "Invalid security check commit")
     number = event.get("inputs", {}).get("pr_number")
+    comment_id = None
+    if os.environ.get("GITHUB_EVENT_NAME") == "issue_comment":
+        require(os.environ.get("GITHUB_REPOSITORY") == REPO and os.environ.get("GITHUB_REF") == "refs/heads/main",
+                "Supervisor review must run from trusted main")
+        require(os.environ.get("GITHUB_ACTOR") == "apetta" and os.environ.get("GITHUB_TRIGGERING_ACTOR") == "apetta",
+                "Unexpected supervisor event actor")
+        require(event.get("action") == "created" and event.get("issue", {}).get("pull_request"),
+                "Supervisor request must be a new PR comment")
+        number = event["issue"]["number"]
+        comment_id = event.get("comment", {}).get("id")
+        require(re.fullmatch(r"[1-9][0-9]*", str(comment_id)), "Missing supervisor comment ID")
     require(not number or re.fullmatch(r"[1-9][0-9]*", str(number)), "Invalid PR number")
     candidates = [api(f"/pulls/{number}")] if number else pages("/pulls?state=open&sort=created&direction=asc")
     for candidate in candidates:
@@ -207,15 +292,24 @@ def prepare():
                 continue
             if check_event and candidate["head"]["sha"] != check_event["head_sha"]:
                 continue
-            pr, files, main = current(candidate["number"])
+            supervisor = None if manual else supervisor_request(candidate, comment_id)
+            supervisor_id = str(supervisor["id"]) if supervisor else ""
+            pr, files, main = current(candidate["number"], supervisor_comment_id=supervisor_id)
             run = ci(pr, run_event["id"] if run_event and run_event["name"] == "CI" else None, files)
             previous = pages(f"/pulls/{pr['number']}/reviews")
             signature = f"Head: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}"
-            if any(review["user"]["login"] == REVIEWER and MARKER in review["body"] and signature in review["body"] for review in previous):
+            if any(review["user"]["login"] == REVIEWER and MARKER in review["body"] and signature in review["body"]
+                   and (not supervisor or f"Supervisor authorisation: {supervisor['url']}" in review["body"].splitlines())
+                   for review in previous):
                 continue
             evidence = {"repository": REPO, "pr": pr["number"], "head": pr["head"]["sha"], "base": main,
                         "title": pr["title"], "description": (pr["body"] or "")[:12000].splitlines(keepends=True),
                         "ci": {"id": run["id"], "attempt": run["run_attempt"], "url": run["html_url"], "conclusion": "success"}, "files": []}
+            if manual:
+                evidence["owner_request"] = {"actor": "apetta", "head": manual["expected_head"],
+                                             "authorise_policy": manual.get("authorise_policy") in (True, "true")}
+            if supervisor:
+                evidence["supervisor_request"] = supervisor
             for item in files:
                 path = item["filename"]
                 record = {"path": path, "status": item["status"]}
@@ -245,13 +339,15 @@ def prepare():
                 encoded = json.dumps(evidence, indent=2)
             require(len(encoded) <= 600000, "Review is too large; split the change")
             require(all(len(line) <= 8000 for line in encoded.splitlines()), "Long evidence lines need human review")
-            current(pr["number"], pr["head"]["sha"], main)
+            current(pr["number"], pr["head"]["sha"], main, supervisor_comment_id=supervisor_id)
             Path("review-input.json").write_text(encoded)
             output(ready="true", pr=pr["number"], head=pr["head"]["sha"], base=main,
-                   ci_run=run["id"], ci_attempt=run["run_attempt"])
+                   ci_run=run["id"], ci_attempt=run["run_attempt"], supervisor_comment_id=supervisor_id)
             print(f"Prepared public, inert evidence for PR #{pr['number']} at {pr['head']['sha']}")
             return
         except (ValueError, UnicodeDecodeError) as error:
+            if manual or comment_id:
+                raise
             print(f"PR #{candidate['number']}: {error}")
     print("No eligible unreviewed candidate; nothing to change")
 
@@ -326,8 +422,13 @@ def review():
     require(pr["user"]["login"] != REVIEWER, "Reviewer cannot approve its own PR")
     title = {"approve": "Approved", "request_changes": "Changes requested", "escalate": "Needs attention"}[decision]
     body = f"{MARKER}\n### {title}\n\n{reason}\n\nHead: {pr['head']['sha']}\nBase: {main}\nCI: {run['id']}:{run['run_attempt']}\nReview run: {os.environ['GITHUB_RUN_ID']}"
+    if manual_request():
+        body += "\nOwner-requested review; merge remains subject to branch protection."
+    if os.environ.get("SUPERVISOR_COMMENT_ID"):
+        body += f"\nSupervisor authorisation: https://github.com/{REPO}/pull/{pr['number']}#issuecomment-{os.environ['SUPERVISOR_COMMENT_ID']}"
     result = api(f"/pulls/{pr['number']}/reviews", "POST", {"commit_id": pr["head"]["sha"], "body": body,
-                 "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES", "escalate": "COMMENT"}[decision]})
+                 "event": {"approve": "APPROVE", "request_changes": "REQUEST_CHANGES", "escalate": "COMMENT"}[decision]},
+                 token=os.environ["REVIEW_TOKEN"])
     require(result["user"]["login"] == REVIEWER and result["commit_id"] == pr["head"]["sha"], "Unexpected review identity or head")
     output(review_id=result["id"])
 
@@ -345,6 +446,7 @@ def approved(pr, reviews, review_id, base, run):
 
 
 def merge():
+    require(manual_request() is None, "Owner-requested reviews do not auto-merge")
     require(os.environ["DECISION"] == "approve", "Not approved")
     for _ in range(2):
         pr, main, run = evidence()
