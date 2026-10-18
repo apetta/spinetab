@@ -36,7 +36,7 @@ concurrency:
   queue: max
 
 jobs:
-  analyse:
+  prepare:
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.MAINTENANCE_ENABLED == 'true' &&
@@ -59,14 +59,11 @@ jobs:
       base: ${{ steps.prepare.outputs.base }}
       ci_run: ${{ steps.prepare.outputs.ci_run }}
       ci_attempt: ${{ steps.prepare.outputs.ci_attempt }}
-      decision: ${{ steps.verify.outputs.decision }}
-      reason: ${{ steps.verify.outputs.reason }}
       supervisor_comment_id: ${{ steps.prepare.outputs.supervisor_comment_id }}
+      artifact_id: ${{ steps.evidence.outputs.artifact-id }}
+      check_id: ${{ steps.check.outputs.check_id }}
     env:
-      ANTHROPIC_API_KEY: ""
       RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
-      CLAUDE_CODE_EFFORT_LEVEL: high
-      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         id: checkout
@@ -80,13 +77,66 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/maintenance/review.py prepare
-      - name: Require configured review instructions
+      - name: Preserve public review evidence for this run
         if: steps.prepare.outputs.ready == 'true'
+        id: evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: review-input-${{ github.run_attempt }}
+          path: review-input.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Create the review-status identity
+        if: steps.prepare.outputs.ready == 'true'
+        id: identity
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: apetta
+          repositories: spinetab
+          permission-checks: write
+      - name: Show review progress on the candidate commit
+        if: steps.prepare.outputs.ready == 'true'
+        id: check
+        env:
+          CHECK_TOKEN: ${{ steps.identity.outputs.token }}
+          PR_NUMBER: ${{ steps.prepare.outputs.pr }}
+          EXPECTED_HEAD: ${{ steps.prepare.outputs.head }}
+        run: python3 .github/maintenance/checks.py start
+      - name: Remove transient evidence
+        if: always()
+        run: rm -f review-input.json
+
+  analyse:
+    needs: prepare
+    if: needs.prepare.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    environment: maintenance
+    timeout-minutes: 20
+    outputs:
+      decision: ${{ steps.verify.outputs.decision }}
+      reason: ${{ steps.verify.outputs.reason }}
+    env:
+      ANTHROPIC_API_KEY: ""
+      CLAUDE_CODE_EFFORT_LEVEL: high
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Read this run's trusted preparation artefact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          merge-multiple: true
+      - name: Require configured review instructions
         env:
           REVIEW_PROMPT: ${{ secrets.MAINTENANCE_REVIEW_PROMPT }}
           MANUAL_REVIEW_PROMPT: ${{ secrets.MAINTENANCE_MANUAL_REVIEW_PROMPT }}
           MANUAL_HEAD: ${{ inputs.expected_head }}
-          SUPERVISOR_COMMENT_ID: ${{ steps.prepare.outputs.supervisor_comment_id }}
+          SUPERVISOR_COMMENT_ID: ${{ needs.prepare.outputs.supervisor_comment_id }}
         run: |
           if [ -n "$MANUAL_HEAD" ] || [ -n "$SUPERVISOR_COMMENT_ID" ]; then
             test -n "$MANUAL_REVIEW_PROMPT"
@@ -94,7 +144,6 @@ jobs:
             test -n "$REVIEW_PROMPT"
           fi
       - name: Review without executing candidate code
-        if: steps.prepare.outputs.ready == 'true'
         id: agent
         uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc
         with:
@@ -104,7 +153,7 @@ jobs:
           show_full_output: "false"
           display_report: "false"
           classify_inline_comments: "false"
-          prompt: ${{ (inputs.expected_head || steps.prepare.outputs.supervisor_comment_id) && secrets.MAINTENANCE_MANUAL_REVIEW_PROMPT || secrets.MAINTENANCE_REVIEW_PROMPT }}
+          prompt: ${{ (inputs.expected_head || needs.prepare.outputs.supervisor_comment_id) && secrets.MAINTENANCE_MANUAL_REVIEW_PROMPT || secrets.MAINTENANCE_REVIEW_PROMPT }}
           claude_args: >-
             --model claude-opus-5-5 --effort high --max-turns 18
             --restricted --permission-mode dontAsk --tools Read
@@ -113,7 +162,6 @@ jobs:
             --settings '{"permissions":{"deny":["Read(.git/**)","Read(.github/**)","Read(.env*)","Read(~/.claude/**)","Read(//proc/**)","Read(//tmp/**)"]}}'
             --json-schema '{"type":"object","additionalProperties":false,"required":["decision","reason"],"properties":{"decision":{"enum":["approve","request_changes","escalate"]},"reason":{"type":"string"}}}'
       - name: Verify subscription and evidence-only review
-        if: steps.prepare.outputs.ready == 'true'
         id: verify
         env:
           VERDICT: ${{ steps.agent.outputs.structured_output }}
@@ -125,8 +173,8 @@ jobs:
         run: rm -f review-input.json "$RUNNER_TEMP/claude-execution-output.json"
 
   review:
-    needs: analyse
-    if: needs.analyse.outputs.ready == 'true'
+    needs: [prepare, analyse]
+    if: needs.prepare.outputs.ready == 'true'
     runs-on: ubuntu-latest
     environment: maintenance
     timeout-minutes: 5
@@ -141,14 +189,14 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
-      PR_NUMBER: ${{ needs.analyse.outputs.pr }}
-      EXPECTED_HEAD: ${{ needs.analyse.outputs.head }}
-      EXPECTED_BASE: ${{ needs.analyse.outputs.base }}
-      CI_RUN: ${{ needs.analyse.outputs.ci_run }}
-      CI_ATTEMPT: ${{ needs.analyse.outputs.ci_attempt }}
+      PR_NUMBER: ${{ needs.prepare.outputs.pr }}
+      EXPECTED_HEAD: ${{ needs.prepare.outputs.head }}
+      EXPECTED_BASE: ${{ needs.prepare.outputs.base }}
+      CI_RUN: ${{ needs.prepare.outputs.ci_run }}
+      CI_ATTEMPT: ${{ needs.prepare.outputs.ci_attempt }}
       DECISION: ${{ needs.analyse.outputs.decision }}
       REASON: ${{ needs.analyse.outputs.reason }}
-      SUPERVISOR_COMMENT_ID: ${{ needs.analyse.outputs.supervisor_comment_id }}
+      SUPERVISOR_COMMENT_ID: ${{ needs.prepare.outputs.supervisor_comment_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -169,8 +217,41 @@ jobs:
           REVIEW_TOKEN: ${{ steps.identity.outputs.token }}
         run: python3 .github/maintenance/review.py review
 
+  status:
+    needs: [prepare, analyse, review]
+    if: always() && needs.prepare.outputs.check_id != ''
+    runs-on: ubuntu-latest
+    environment: maintenance
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Create the review-status identity
+        id: identity
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: apetta
+          repositories: spinetab
+          permission-checks: write
+      - name: Complete the candidate's review check
+        env:
+          CHECK_TOKEN: ${{ steps.identity.outputs.token }}
+          CHECK_ID: ${{ needs.prepare.outputs.check_id }}
+          PR_NUMBER: ${{ needs.prepare.outputs.pr }}
+          EXPECTED_HEAD: ${{ needs.prepare.outputs.head }}
+          ANALYSIS_RESULT: ${{ needs.analyse.result }}
+          REVIEW_RESULT: ${{ needs.review.result }}
+          DECISION: ${{ needs.analyse.outputs.decision }}
+        run: python3 .github/maintenance/checks.py finish
+
   merge:
-    needs: [analyse, review]
+    needs: [prepare, analyse, review]
     if: needs.analyse.outputs.decision == 'approve' && !(github.event_name == 'workflow_dispatch' && inputs.pr_number != '')
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -183,14 +264,14 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
-      PR_NUMBER: ${{ needs.analyse.outputs.pr }}
-      EXPECTED_HEAD: ${{ needs.analyse.outputs.head }}
-      EXPECTED_BASE: ${{ needs.analyse.outputs.base }}
-      CI_RUN: ${{ needs.analyse.outputs.ci_run }}
-      CI_ATTEMPT: ${{ needs.analyse.outputs.ci_attempt }}
+      PR_NUMBER: ${{ needs.prepare.outputs.pr }}
+      EXPECTED_HEAD: ${{ needs.prepare.outputs.head }}
+      EXPECTED_BASE: ${{ needs.prepare.outputs.base }}
+      CI_RUN: ${{ needs.prepare.outputs.ci_run }}
+      CI_ATTEMPT: ${{ needs.prepare.outputs.ci_attempt }}
       DECISION: ${{ needs.analyse.outputs.decision }}
       REVIEW_ID: ${{ needs.review.outputs.review_id }}
-      SUPERVISOR_COMMENT_ID: ${{ needs.analyse.outputs.supervisor_comment_id }}
+      SUPERVISOR_COMMENT_ID: ${{ needs.prepare.outputs.supervisor_comment_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
