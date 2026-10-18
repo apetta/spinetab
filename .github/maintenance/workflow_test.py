@@ -4,6 +4,22 @@ from pathlib import Path
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_review_model_never_receives_app_writing_credentials(self):
+        source = (Path(__file__).resolve().parents[1] / "workflows/maintenance-review.yml").read_text()
+        sections = re.split(r"^  ([\w-]+):\n", source.split("\njobs:\n", 1)[1], flags=re.M)
+        jobs = dict(zip(sections[1::2], sections[2::2]))
+        for name, body in jobs.items():
+            if "CLAUDE_CODE_OAUTH_TOKEN" in body:
+                with self.subTest(job=name):
+                    for credential in ("REVIEW_APP_PRIVATE_KEY", "REVIEW_TOKEN", "CHECK_TOKEN"):
+                        self.assertNotIn(credential, body)
+        self.assertIn("artifact-ids: ${{ needs.prepare.outputs.artifact_id }}", jobs["analyse"])
+        self.assertIn("if: always() && needs.prepare.outputs.check_id != ''", jobs["status"])
+        for name in ("prepare", "status"):
+            self.assertIn("permission-checks: write", jobs[name])
+            self.assertNotIn("permission-contents: write", jobs[name])
+            self.assertNotIn("permission-pull-requests: write", jobs[name])
+
     def test_deployment_does_not_inherit_the_optional_pr_lane(self):
         source = (Path(__file__).resolve().parents[1] / "workflows/ci.yml").read_text()
         jobs = source.split("\njobs:\n", 1)[1]
