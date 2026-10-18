@@ -119,7 +119,6 @@ class HandoffTests(unittest.TestCase):
         with patch.object(handoff, "prepare", return_value={"work": work}), \
              patch.dict(os.environ, {"ROUTINE_ID": "trig_test", "ROUTINE_TOKEN": "synthetic"}), \
              patch.object(handoff.urllib.request, "urlopen", return_value=io.BytesIO(json.dumps({
-                 "type": "routine_fire", "claude_code_session_id": "session_test",
                  "claude_code_session_url": "https://claude.ai/code/session_test"}).encode())) as send, \
              patch.object(handoff, "Path") as path, patch("sys.stdout", new_callable=io.StringIO) as log:
             handoff.dispatch(work, self.event)
@@ -145,3 +144,13 @@ class HandoffTests(unittest.TestCase):
              patch.object(handoff.urllib.request, "urlopen") as send, self.assertRaises(ValueError):
             handoff.dispatch(work, self.event)
         send.assert_not_called()
+
+    def test_unrecognised_receipt_never_records_delivery(self):
+        for response in [{}, {"claude_code_session_url": None},
+                         {"claude_code_session_url": "https://outside.example/session_test"}]:
+            with self.subTest(response=response), patch.object(handoff, "prepare", return_value={"work": {}}), \
+                 patch.dict(os.environ, {"ROUTINE_ID": "trig_test", "ROUTINE_TOKEN": "synthetic"}), \
+                 patch.object(handoff.urllib.request, "urlopen", return_value=io.BytesIO(json.dumps(response).encode())), \
+                 patch.object(handoff, "Path") as path, self.assertRaises(ValueError):
+                handoff.dispatch({}, self.event)
+            path.assert_not_called()
