@@ -770,6 +770,13 @@ class SupervisorReviewTests(unittest.TestCase):
 
 class PrepareTriggerTests(unittest.TestCase):
     def setUp(self):
+        environment = patch.dict(os.environ, {
+            "GITHUB_EVENT_NAME": "workflow_run", "GITHUB_RUN_ATTEMPT": "1",
+            "GITHUB_ACTOR": "apetta", "GITHUB_TRIGGERING_ACTOR": "apetta",
+            "GITHUB_REPOSITORY": review.REPO, "GITHUB_REF": "refs/heads/main",
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.path = Path(self.directory.name) / "event.json"
@@ -851,6 +858,20 @@ class PrepareTriggerTests(unittest.TestCase):
             self.prepare()
 
 
+class InvocationContextTests(unittest.TestCase):
+    def test_trigger_and_evidence_fixtures_do_not_inherit_the_invoking_workflow(self):
+        for event in ("workflow_dispatch", "pull_request", "workflow_run"):
+            with self.subTest(event=event), patch.dict(os.environ, {
+                    "GITHUB_EVENT_NAME": event, "GITHUB_EVENT_PATH": "/nonexistent/invoking-event.json",
+                    "GITHUB_ACTOR": "github-actions[bot]", "GITHUB_TRIGGERING_ACTOR": "github-actions[bot]",
+                    "GITHUB_RUN_ATTEMPT": "2"}):
+                suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(case)
+                                           for case in (PrepareTriggerTests, PrepareEvidenceTests))
+                log = io.StringIO()
+                result = unittest.TextTestRunner(stream=log).run(suite)
+                self.assertTrue(result.wasSuccessful(), log.getvalue())
+
+
 class PrepareEvidenceTests(unittest.TestCase):
     def prepare(self, paths, before, after):
         pr = {"number": 11, "head": {"sha": "a" * 40}, "title": "fix(deps): patch Solid", "body": ""}
@@ -869,7 +890,9 @@ class PrepareEvidenceTests(unittest.TestCase):
                     value = before if ref == "b" * 40 else after
                     self.assertLessEqual(len(value), limit)
                     return value
-                with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "GITHUB_EVENT_PATH": str(event), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
+                with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "GITHUB_EVENT_PATH": str(event),
+                     "GITHUB_RUN_ATTEMPT": "1", "GITHUB_TRIGGERING_ACTOR": "apetta",
+                     "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
                      patch.object(review, "api", return_value=pr), patch.object(review, "pages", return_value=[]), \
                      patch.object(review, "current", return_value=(pr, files, "b" * 40)), \
                      patch.object(review, "ci", return_value=run), patch.object(review, "content", side_effect=contents), \
