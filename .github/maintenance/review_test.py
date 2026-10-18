@@ -231,6 +231,44 @@ class GuardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Another check"):
                 review.ci(self.pr)
 
+    def test_own_review_status_is_not_a_ci_prerequisite(self):
+        for status, conclusion in (("in_progress", None), ("completed", "failure"),
+                                   ("completed", "action_required"), ("completed", "success")):
+            with self.subTest(status=status, conclusion=conclusion):
+                check = {"app": {"id": review.REVIEW_APP_ID}, "name": review.REVIEW_CHECK,
+                         "head_sha": self.pr["head"]["sha"], "status": status, "conclusion": conclusion}
+                with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                                 {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                           {"name": "Maintenance guards", "conclusion": "success"}]},
+                                 {"total_count": 1, "check_runs": [check]},
+                                 {"total_count": 0, "statuses": []}]):
+                    self.assertEqual(review.ci(self.pr)["id"], 42)
+
+    def test_review_status_exemption_requires_app_name_and_head(self):
+        for difference in ({"app": {"id": 15368}}, {"name": "Security"},
+                           {"head_sha": "d" * 40}, {"app": {}}):
+            with self.subTest(difference=difference):
+                check = {"app": {"id": review.REVIEW_APP_ID}, "name": review.REVIEW_CHECK,
+                         "head_sha": self.pr["head"]["sha"], "status": "in_progress", "conclusion": None}
+                check.update(difference)
+                with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                                 {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                           {"name": "Maintenance guards", "conclusion": "success"}]},
+                                 {"total_count": 1, "check_runs": [check]}]):
+                    with self.assertRaisesRegex(ValueError, "Another check"):
+                        review.ci(self.pr)
+
+    def test_own_review_status_does_not_hide_other_failed_checks(self):
+        checks = [{"app": {"id": review.REVIEW_APP_ID}, "name": review.REVIEW_CHECK,
+                   "head_sha": self.pr["head"]["sha"], "status": "in_progress", "conclusion": None},
+                  {"app": {"id": 57789}, "name": "CodeQL", "status": "completed", "conclusion": "failure"}]
+        with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
+                         {"jobs": [{"name": review.CHECK, "conclusion": "success"},
+                                   {"name": "Maintenance guards", "conclusion": "success"}]},
+                         {"total_count": 2, "check_runs": checks}]):
+            with self.assertRaisesRegex(ValueError, "Another check"):
+                review.ci(self.pr)
+
     def test_failed_legacy_status_blocks_merge(self):
         with patch.object(review, "api", side_effect=[{"workflow_runs": [self.run]},
                          {"jobs": [{"name": review.CHECK, "conclusion": "success"},
@@ -392,6 +430,15 @@ class ManualReviewTests(unittest.TestCase):
                  self.assertRaisesRegex(ValueError, "Only the owner"):
                 review.manual_request()
 
+    def test_blank_sweep_also_requires_owner_on_trusted_main(self):
+        self.inputs = {}
+        self.event()
+        self.assertIsNone(review.manual_request())
+        for key, value in [("GITHUB_ACTOR", "someone"), ("GITHUB_TRIGGERING_ACTOR", "someone"),
+                           ("GITHUB_REF", "refs/heads/candidate")]:
+            with self.subTest(key=key), patch.dict(os.environ, {key: value}), self.assertRaises(ValueError):
+                review.manual_request()
+
     def test_candidate_branch_cannot_supply_the_reviewer(self):
         with patch.dict(os.environ, {"GITHUB_REF": "refs/heads/codex/candidate"}), \
              self.assertRaisesRegex(ValueError, "trusted main"):
@@ -490,7 +537,7 @@ class SupervisorReviewTests(unittest.TestCase):
         self.path.write_text(json.dumps(self.event))
         self.pr.update(title="test: migrate the test runner", body="")
         self.files = [{"filename": "packages/spinetab/vitest.config.ts", "status": "modified"}]
-        self.comment = {"id": 100, "user": {"login": "apetta", "type": "User"},
+        self.comment = {"id": 100, "user": {"id": review.OWNER_ID, "login": "apetta", "type": "User"},
                         "performed_via_github_app": dict(review.SUPERVISOR_APP),
                         "issue_url": f"https://api.github.com/repos/{review.REPO}/issues/12",
                         "created_at": "2026-10-17T12:00:00Z", "updated_at": "2026-10-17T12:00:00Z",
@@ -554,9 +601,10 @@ class SupervisorReviewTests(unittest.TestCase):
         self.current()
         self.assertFalse(self.writes)
 
-    def test_owner_name_alone_is_not_supervisor_authorisation(self):
+    def test_owner_identity_and_connection_are_verified(self):
         for user, app in [({"login": "someone", "type": "User"}, review.SUPERVISOR_APP),
                           ({"login": "apetta", "type": "Bot"}, review.SUPERVISOR_APP),
+                          ({"login": "apetta", "type": "User", "id": 123}, review.SUPERVISOR_APP),
                           (self.comment["user"], None),
                           (self.comment["user"], {"id": 123, "slug": "claude"}),
                           (self.comment["user"], {"id": 123, "slug": "chatgpt-codex-connector"}),
@@ -568,6 +616,12 @@ class SupervisorReviewTests(unittest.TestCase):
                     self.current()
                 self.assertFalse(self.writes)
             self.comment = original
+
+    def test_owner_direct_comment_cannot_open_the_automatic_merge_lane(self):
+        self.comment["performed_via_github_app"] = None
+        with self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
+            self.current()
+        self.assertFalse(self.writes)
 
     def test_copied_untrusted_comment_does_not_authorise_a_sweep(self):
         self.comment["performed_via_github_app"] = {"id": 123, "slug": "claude"}
@@ -707,7 +761,7 @@ class SupervisorReviewTests(unittest.TestCase):
         self.assertFalse(any(call.kwargs.get("ready") == "true" for call in output.call_args_list))
 
     def test_authorisation_is_rechecked_before_writing(self):
-        self.comment["performed_via_github_app"] = None
+        self.comment["user"]["id"] = 123
         with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
              self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
             review.review()
@@ -721,11 +775,14 @@ class PrepareTriggerTests(unittest.TestCase):
         self.path = Path(self.directory.name) / "event.json"
         self.event = {"workflow_run": {"name": "Maintenance readiness", "conclusion": "success",
                                       "path": ".github/workflows/maintenance-ready.yml",
-                                      "event": "pull_request_target", "actor": {"login": "apetta"}}}
+                                      "event": "pull_request_target",
+                                      "head_repository": {"full_name": review.REPO},
+                                      "actor": {"login": "apetta", "id": review.OWNER_ID},
+                                      "triggering_actor": {"login": "apetta", "id": review.OWNER_ID}}}
 
     def prepare(self):
         self.path.write_text(json.dumps(self.event))
-        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "GITHUB_EVENT_PATH": str(self.path), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0"}), \
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_run", "GITHUB_EVENT_PATH": str(self.path), "ANTHROPIC_API_KEY": "", "RUNNER_DEBUG": "0", "GITHUB_RUN_ATTEMPT": "1"}), \
              patch.object(review, "output"), patch.object(review, "api", return_value=[]) as request:
             review.prepare()
             return request
@@ -740,7 +797,7 @@ class PrepareTriggerTests(unittest.TestCase):
             with self.subTest(key=key):
                 original = self.event["workflow_run"][key]
                 self.event["workflow_run"][key] = value
-                with self.assertRaisesRegex(ValueError, "Unexpected readiness"):
+                with self.assertRaises(ValueError):
                     self.prepare()
                 self.event["workflow_run"][key] = original
 
@@ -748,6 +805,39 @@ class PrepareTriggerTests(unittest.TestCase):
         self.event["workflow_run"].update(name="CI", path=review.CI_PATH)
         with self.assertRaisesRegex(ValueError, "Not a PR CI event"):
             self.prepare()
+
+    def test_outside_ci_cannot_wake_a_review_even_for_the_same_commit(self):
+        self.event["workflow_run"].update(name="CI", path=review.CI_PATH, event="pull_request")
+        for key, value in [("head_repository", {"full_name": "someone/spinetab"}),
+                           ("actor", {"login": "someone", "id": 123}),
+                           ("actor", {"login": "someone"}),
+                           ("actor", {"id": review.OWNER_ID}),
+                           ("actor", {}),
+                           ("actor", {"login": "apetta", "id": 123}),
+                           ("triggering_actor", {"login": "someone", "id": 123}),
+                           ("triggering_actor", None)]:
+            with self.subTest(key=key, value=value):
+                original = self.event["workflow_run"][key]
+                self.event["workflow_run"][key] = value
+                with patch.object(review, "api") as request, self.assertRaises(ValueError):
+                    self.prepare()
+                request.assert_not_called()
+                self.event["workflow_run"][key] = original
+
+    def test_existing_owner_and_bot_ci_can_trigger_review(self):
+        self.event["workflow_run"].update(name="CI", path=review.CI_PATH, event="pull_request")
+        for login, actor_id in review.TRIGGER_ACTORS.items():
+            with self.subTest(login=login):
+                actor = {"login": login, "id": actor_id}
+                self.event["workflow_run"].update(actor=actor, triggering_actor=actor)
+                self.prepare().assert_called_once()
+
+    def test_only_owner_can_rerun_a_valid_agent_event(self):
+        with patch.dict(os.environ, {"GITHUB_RUN_ATTEMPT": "2", "GITHUB_TRIGGERING_ACTOR": "someone"}), \
+             self.assertRaisesRegex(ValueError, "Only the owner"):
+            review.validate_trigger(self.event)
+        with patch.dict(os.environ, {"GITHUB_RUN_ATTEMPT": "2", "GITHUB_TRIGGERING_ACTOR": "apetta"}):
+            review.validate_trigger(self.event)
 
     def test_github_security_check_can_start_review(self):
         self.event = {"check_run": {"name": "CodeQL", "app": {"id": 57789},
