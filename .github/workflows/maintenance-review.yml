@@ -1,6 +1,8 @@
 name: Maintenance review
 
 on:
+  issue_comment:
+    types: [created]
   check_run:
     types: [completed]
   workflow_run:
@@ -11,8 +13,15 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: Optional trusted PR to review
+        description: PR number for owner-requested review (blank to sweep ordinary PRs)
         type: string
+      expected_head:
+        description: Full current PR commit SHA (required with a PR number)
+        type: string
+      authorise_policy:
+        description: Authorise review of tooling, workflow and automation policy changes at this commit
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -31,6 +40,9 @@ jobs:
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.MAINTENANCE_ENABLED == 'true' &&
+      (github.event_name != 'issue_comment' ||
+      (github.event.issue.pull_request && github.actor == 'apetta' &&
+      startsWith(github.event.comment.body, '<!-- spinetab-maintenance-authorisation -->'))) &&
       (github.event_name != 'check_run' ||
       (github.event.check_run.name == 'CodeQL' && github.event.check_run.app.id == 57789 &&
       github.event.check_run.conclusion == 'success')) &&
@@ -49,6 +61,7 @@ jobs:
       ci_attempt: ${{ steps.prepare.outputs.ci_attempt }}
       decision: ${{ steps.verify.outputs.decision }}
       reason: ${{ steps.verify.outputs.reason }}
+      supervisor_comment_id: ${{ steps.prepare.outputs.supervisor_comment_id }}
     env:
       ANTHROPIC_API_KEY: ""
       RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
@@ -71,7 +84,15 @@ jobs:
         if: steps.prepare.outputs.ready == 'true'
         env:
           REVIEW_PROMPT: ${{ secrets.MAINTENANCE_REVIEW_PROMPT }}
-        run: test -n "$REVIEW_PROMPT"
+          MANUAL_REVIEW_PROMPT: ${{ secrets.MAINTENANCE_MANUAL_REVIEW_PROMPT }}
+          MANUAL_HEAD: ${{ inputs.expected_head }}
+          SUPERVISOR_COMMENT_ID: ${{ steps.prepare.outputs.supervisor_comment_id }}
+        run: |
+          if [ -n "$MANUAL_HEAD" ] || [ -n "$SUPERVISOR_COMMENT_ID" ]; then
+            test -n "$MANUAL_REVIEW_PROMPT"
+          else
+            test -n "$REVIEW_PROMPT"
+          fi
       - name: Review without executing candidate code
         if: steps.prepare.outputs.ready == 'true'
         id: agent
@@ -83,7 +104,7 @@ jobs:
           show_full_output: "false"
           display_report: "false"
           classify_inline_comments: "false"
-          prompt: ${{ secrets.MAINTENANCE_REVIEW_PROMPT }}
+          prompt: ${{ (inputs.expected_head || steps.prepare.outputs.supervisor_comment_id) && secrets.MAINTENANCE_MANUAL_REVIEW_PROMPT || secrets.MAINTENANCE_REVIEW_PROMPT }}
           claude_args: >-
             --model claude-opus-5-5 --effort high --max-turns 18
             --restricted --permission-mode dontAsk --tools Read
@@ -107,10 +128,11 @@ jobs:
     needs: analyse
     if: needs.analyse.outputs.ready == 'true'
     runs-on: ubuntu-latest
+    environment: maintenance
     timeout-minutes: 5
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: read
       actions: read
       checks: read
       statuses: read
@@ -126,18 +148,30 @@ jobs:
       CI_ATTEMPT: ${{ needs.analyse.outputs.ci_attempt }}
       DECISION: ${{ needs.analyse.outputs.decision }}
       REASON: ${{ needs.analyse.outputs.reason }}
+      SUPERVISOR_COMMENT_ID: ${{ needs.analyse.outputs.supervisor_comment_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Create the independent review identity
+        id: identity
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: apetta
+          repositories: spinetab
+          permission-pull-requests: write
       - name: Submit independent current-head review
         id: review
+        env:
+          REVIEW_TOKEN: ${{ steps.identity.outputs.token }}
         run: python3 .github/maintenance/review.py review
 
   merge:
     needs: [analyse, review]
-    if: needs.analyse.outputs.decision == 'approve'
+    if: needs.analyse.outputs.decision == 'approve' && !(github.event_name == 'workflow_dispatch' && inputs.pr_number != '')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -156,6 +190,7 @@ jobs:
       CI_ATTEMPT: ${{ needs.analyse.outputs.ci_attempt }}
       DECISION: ${{ needs.analyse.outputs.decision }}
       REVIEW_ID: ${{ needs.review.outputs.review_id }}
+      SUPERVISOR_COMMENT_ID: ${{ needs.analyse.outputs.supervisor_comment_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

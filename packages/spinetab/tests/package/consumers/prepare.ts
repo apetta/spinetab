@@ -335,7 +335,8 @@ function isolatedEnv(): Record<string, string> {
 	const env: Record<string, string> = {};
 	for (const [key, value] of Object.entries(process.env)) {
 		if (value === undefined) continue;
-		if (/^(npm_config_|npm_package_|npm_lifecycle_)/i.test(key)) continue;
+		if (/^(npm_config_|pnpm_config_|npm_package_|npm_lifecycle_)/i.test(key))
+			continue;
 		if (key === "INIT_CWD" || key === "PNPM_SCRIPT_SRC_DIR") continue;
 		env[key] = value;
 	}

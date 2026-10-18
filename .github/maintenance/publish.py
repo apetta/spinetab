@@ -111,8 +111,9 @@ def release_decision(sha, version):
         if review["state"] in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
             latest[review["user"]["login"]] = review
     require(not any(review["state"] == "CHANGES_REQUESTED" for review in latest.values()), "Outstanding release change request")
-    independent = latest.get("github-actions[bot]")
+    independent = latest.get("spinetab-agent[bot]")
     require(independent and independent["state"] == "APPROVED"
+            and independent["user"]["login"] != pr["user"]["login"]
             and independent["commit_id"] == pr["head"]["sha"]
             and "<!-- spinetab-maintenance-review -->" in (independent["body"] or "")
             and f"Head: {pr['head']['sha']}" in independent["body"].splitlines(), "Missing current-head independent release approval")
@@ -177,6 +178,9 @@ def verify():
     require(jobs["total_count"] == len(jobs["jobs"]), "Incomplete verification evidence")
     for name in ("verify / Lint, Typecheck, Test, E2E", "verify / Maintenance guards", "verify / Packed consumer release verification"):
         require(any(job["name"] == name and job["conclusion"] == "success" for job in jobs["jobs"]), f"Missing successful {name}")
+    packed = next(job for job in jobs["jobs"] if job["name"] == "verify / Packed consumer release verification")
+    require(any(step["name"] == "Verify packed development and production apps" and step["conclusion"] == "success"
+                for step in packed.get("steps", [])), "Packed browser verification did not pass")
     paths = list(Path("release").glob("*.tgz"))
     require(len(paths) == 1, "Expected one verified archive")
     archive(paths[0], receipt, version)

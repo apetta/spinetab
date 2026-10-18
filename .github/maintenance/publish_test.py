@@ -31,7 +31,7 @@ class PublicationTests(unittest.TestCase):
                 "repo": {"full_name": publish.REPO}}}
         self.review = {"user": {"login": "apetta"}, "state": "APPROVED",
             "commit_id": "b" * 40, "body": "<!-- spinetab-release-supervisor -->\nVersion: 0.1.1"}
-        self.independent = {"user": {"login": "github-actions[bot]"}, "state": "APPROVED",
+        self.independent = {"user": {"login": "spinetab-agent[bot]"}, "state": "APPROVED",
             "commit_id": "b" * 40, "body": "<!-- spinetab-maintenance-review -->\nHead: " + "b" * 40}
         self.files = [{"filename": name, "status": "modified"} for name in (
             publish.MANIFEST, "packages/spinetab/CHANGELOG.md", ".release-please-manifest.json")]
@@ -79,6 +79,17 @@ class PublicationTests(unittest.TestCase):
                 self.decision([self.review, dict(self.independent, **change)])
         with self.assertRaisesRegex(ValueError, "independent"):
             self.decision([self.review])
+
+    def test_other_bot_identities_cannot_supply_the_independent_review(self):
+        for login in ["github-actions[bot]", self.bot, "someone[bot]"]:
+            with self.subTest(login=login), self.assertRaisesRegex(ValueError, "independent"):
+                self.decision([self.review, dict(self.independent, user={"login": login})])
+
+    def test_release_author_cannot_be_the_independent_reviewer(self):
+        self.pr["user"]["login"] = "spinetab-agent[bot]"
+        with patch.dict(os.environ, {"RELEASE_BOT_LOGIN": "spinetab-agent[bot]"}), \
+             self.assertRaisesRegex(ValueError, "independent"):
+            self.decision()
 
     def test_later_change_request_blocks_publication(self):
         with self.assertRaisesRegex(ValueError, "change request"):
@@ -222,12 +233,13 @@ class PublicationTests(unittest.TestCase):
         names = ["verify / Lint, Typecheck, Test, E2E", "verify / Maintenance guards",
                  "verify / Packed consumer release verification"]
         jobs = {"total_count": 3, "jobs": [{"name": name, "conclusion": "success"} for name in names]}
+        jobs["jobs"][-1]["steps"] = [{"name": "Verify packed development and production apps", "conclusion": "success"}]
         with patch.dict(os.environ, {"RELEASE_SHA": self.sha, "RELEASE_VERSION": "0.1.1"}), \
              patch.object(publish, "current"), patch.object(publish, "release_decision"), \
              patch.object(publish, "unpublished", return_value=True), \
              patch.object(publish, "archive") as archive, \
              patch.object(publish.Path, "glob", return_value=[Path("release/spinetab-0.1.1.tgz")]):
-            for failure in (None, "other-run", "wrong-source", "wrong-workflow", "wrong-run-commit", "failed-job", "missing-job"):
+            for failure in (None, "other-run", "wrong-source", "wrong-workflow", "wrong-run-commit", "failed-job", "missing-job", "skipped-browser", "failed-browser", "missing-browser"):
                 candidate, candidate_run, candidate_jobs = copy.deepcopy((receipt, run, jobs))
                 if failure == "other-run":
                     candidate["run_id"] = "43"
@@ -241,6 +253,12 @@ class PublicationTests(unittest.TestCase):
                     candidate_jobs["jobs"][-1]["conclusion"] = "failure"
                 elif failure == "missing-job":
                     candidate_jobs["jobs"].pop()
+                elif failure == "skipped-browser":
+                    candidate_jobs["jobs"][-1]["steps"][0]["conclusion"] = "skipped"
+                elif failure == "failed-browser":
+                    candidate_jobs["jobs"][-1]["steps"][0]["conclusion"] = "failure"
+                elif failure == "missing-browser":
+                    candidate_jobs["jobs"][-1].pop("steps")
                 with self.subTest(failure=failure), \
                      patch.object(publish.Path, "read_text", side_effect=[json.dumps({"version": "0.1.1"}), json.dumps(candidate)]), \
                      patch.object(publish, "api", side_effect=[candidate_run, candidate_jobs]):

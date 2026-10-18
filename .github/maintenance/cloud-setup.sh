@@ -19,7 +19,7 @@ curl --fail --silent --show-error --location https://nodejs.org/dist/v24.22.0/SH
 mkdir -p /opt/spinetab-node
 tar -xJf "$download_dir/$node_archive" --strip-components=1 -C /opt/spinetab-node
 export PATH="/opt/spinetab-node/bin:$PATH"
-npm install --global --allow-scripts=agent-browser pnpm@10.24.0 agent-browser@0.39.1
+npm install --global --allow-scripts=agent-browser,pnpm pnpm@12.14.0 agent-browser@0.39.1
 agent-browser --use-system-ca install --with-deps
 node --version
 pnpm --version
