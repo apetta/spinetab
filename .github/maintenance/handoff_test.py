@@ -124,6 +124,9 @@ class HandoffTests(unittest.TestCase):
              patch.object(handoff, "Path") as path, patch("sys.stdout", new_callable=io.StringIO) as log:
             handoff.dispatch(work, self.event)
             send.assert_called_once()
+            request = send.call_args.args[0]
+            self.assertEqual(request.get_header("Anthropic-beta"), "experimental-cc-routine-2026-04-01")
+            self.assertEqual(request.get_header("Anthropic-version"), "2023-06-01")
             path.assert_called_once_with("maintenance-handoff-ack")
             self.assertNotIn("session_test", log.getvalue())
             self.assertNotIn("synthetic", log.getvalue())
