@@ -605,6 +605,7 @@ class SupervisorReviewTests(unittest.TestCase):
         for user, app in [({"login": "someone", "type": "User"}, review.SUPERVISOR_APP),
                           ({"login": "apetta", "type": "Bot"}, review.SUPERVISOR_APP),
                           ({"login": "apetta", "type": "User", "id": 123}, review.SUPERVISOR_APP),
+                          (self.comment["user"], None),
                           (self.comment["user"], {"id": 123, "slug": "claude"}),
                           (self.comment["user"], {"id": 123, "slug": "chatgpt-codex-connector"}),
                           (self.comment["user"], {"id": 1144995, "slug": "another-app"})]:
@@ -616,9 +617,10 @@ class SupervisorReviewTests(unittest.TestCase):
                 self.assertFalse(self.writes)
             self.comment = original
 
-    def test_owner_can_direct_review_without_the_supervisor_connector(self):
+    def test_owner_direct_comment_cannot_open_the_automatic_merge_lane(self):
         self.comment["performed_via_github_app"] = None
-        self.current()
+        with self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
+            self.current()
         self.assertFalse(self.writes)
 
     def test_copied_untrusted_comment_does_not_authorise_a_sweep(self):

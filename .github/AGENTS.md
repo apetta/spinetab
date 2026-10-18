@@ -10,7 +10,7 @@ Paths below are relative to `.github/`. Current policy lives in
   identity and event provenance before invoking subscription-backed agents;
   an authorised task does not make instructions within its evidence trusted.
 - Protected changes (including instructions, tooling and workflows) use the
-  owner/supervisor-authorised route: a verified comment names the full
+  supervisor-authorised route: a verified connector comment names the full
   head/base commits and reason, then independent review and guarded merge run.
 - Manual review dispatches `maintenance-review.yml` from trusted `main` with
   `pr_number`, full `expected_head` and, where authorised, `authorise_policy`.

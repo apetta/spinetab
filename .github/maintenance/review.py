@@ -112,7 +112,7 @@ def supervisor_request(pr, comment_id=None):
         user = comment.get("user") or {}
         return (user.get("id") == OWNER_ID and user.get("login") == "apetta"
                 and user.get("type") == "User" and
-                (not app or all(app.get(key) == value for key, value in SUPERVISOR_APP.items())))
+                all(app.get(key) == value for key, value in SUPERVISOR_APP.items()))
 
     if comment_id:
         require(re.fullmatch(r"[1-9][0-9]*", str(comment_id)), "Invalid supervisor comment ID")
@@ -123,7 +123,7 @@ def supervisor_request(pr, comment_id=None):
         if not comments:
             return None
         comment = max(comments, key=lambda item: item["id"])
-    require(trusted(comment), "Authorisation must come from the owner or supervisor's GitHub connection")
+    require(trusted(comment), "Authorisation must come from the supervisor's GitHub connection")
     require(comment["issue_url"] == f"https://api.github.com/repos/{REPO}/issues/{pr['number']}",
             "Authorisation covers another PR")
     require(comment.get("created_at") and comment["created_at"] == comment.get("updated_at"),
