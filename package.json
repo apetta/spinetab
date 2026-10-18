@@ -4,9 +4,9 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
 		"husky": "9.1.7",
-		"lint-staged": "17.0.8",
-		"prettier": "3.9.9",
-		"turbo": "2.10.1"
+		"lint-staged": "17.6.0",
+		"prettier": "3.9.10",
+		"turbo": "2.11.8"
 	},
 	"engines": {
 		"node": ">=24.11.0"
