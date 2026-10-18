@@ -61,8 +61,10 @@ starting the website and the library watcher. No environment files are required.
 Remote caching is optional. Run `pnpm exec turbo login`, then
 `pnpm exec turbo link` to share build, typecheck and test results through your
 Vercel team. Keep credentials out of source control and environment files. Without
-remote authentication, Turbo uses its local cache. Browser suites always run;
-publication verification also bypasses cached results.
+remote authentication, Turbo uses its local cache. Trusted local, agent and CI
+runs share task results; browser results also match CI and Playwright settings.
+Use `pnpm exec turbo run e2e --force` for a fresh browser run. Publication
+verification bypasses cached results.
 
 The website build generates `/llms.txt`, `/recipe-index.md` and a Markdown version
 of every public page (`/index.md` for the homepage, `/docs/setup/nextjs.md` for
