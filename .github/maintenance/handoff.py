@@ -80,8 +80,10 @@ def dispatch(work, event):
     # The endpoint is not idempotent: do not retry an uncertain response automatically.
     with urllib.request.urlopen(request, timeout=30) as response:
         result = json.load(response)
-    require(result.get("type") == "routine_fire" and
-            re.fullmatch(r"session_[A-Za-z0-9]+", result.get("claude_code_session_id", "")),
+    # Match the established security sender's URL receipt. Older endpoint responses
+    # need not include the newer type/id fields; rejecting them can duplicate live workers.
+    session = result.get("claude_code_session_url", "")
+    require(isinstance(session, str) and session.startswith("https://claude.ai/code/"),
             "No session receipt; inspect routine history before retrying")
     Path("maintenance-handoff-ack").write_text("accepted\n")
     print("Claude accepted the maintenance handoff")
