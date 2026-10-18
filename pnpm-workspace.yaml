@@ -3,6 +3,13 @@ packages:
   - packages/*
   - packages/spinetab/tests/fixtures/harness
 
-onlyBuiltDependencies:
-  - esbuild
-  - sharp
+engineStrict: true
+saveExact: true
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: false
+
+skills:
+  dirs: []

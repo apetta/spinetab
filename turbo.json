@@ -1,9 +1,17 @@
 {
-	"$schema": "https://turbo.build/schema.json",
+	"$schema": "https://turborepo.dev/schema.json",
+	"globalEnv": ["NODE_ENV"],
+	"globalPassThroughEnv": ["CI"],
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"],
 			"outputs": ["dist/**"]
+		},
+		"website#build": {
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"],
+			"outputs": ["dist/**", ".astro/**"]
 		},
 		"dev": {
 			"dependsOn": ["^build"],
@@ -16,23 +24,38 @@
 			"persistent": true
 		},
 		"typecheck": {
-			"dependsOn": ["^build"]
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"]
+		},
+		"website#typecheck": {
+			"dependsOn": ["build", "^build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"]
 		},
 		"test": {
-			"dependsOn": ["build"]
+			"dependsOn": ["build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"]
 		},
 		"e2e": {
 			"dependsOn": ["build"],
-			"cache": false,
-			"passThroughEnv": ["CI", "PLAYWRIGHT_*"]
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"],
+			"env": ["CI", "PLAYWRIGHT_*"],
+			"outputs": ["playwright-report/**"]
+		},
+		"website#e2e": {
+			"dependsOn": ["build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"],
+			"env": ["CI", "PLAYWRIGHT_*", "WEBSITE_TEST_*"],
+			"outputs": ["playwright-report/**", "test-results/**"]
 		},
 		"spinetab#e2e": {
 			"dependsOn": ["build", "@spinetab/harness#build"],
-			"cache": false,
-			"passThroughEnv": ["CI", "PLAYWRIGHT_*"]
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"],
+			"env": ["CI", "PLAYWRIGHT_*"],
+			"outputs": ["playwright-report/**", "test-results/playwright/**"]
 		},
 		"@spinetab/harness#build": {
 			"dependsOn": ["spinetab#build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"],
 			"outputs": ["dist/**"]
 		},
 		"spinetab#consumers": {
@@ -41,7 +64,8 @@
 			"passThroughEnv": ["CI", "PLAYWRIGHT_*", "SPINETAB_*"]
 		},
 		"spinetab#typecheck": {
-			"dependsOn": ["build", "^build"]
+			"dependsOn": ["build", "^build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/AGENTS.md", "!**/CLAUDE.md"]
 		}
 	}
 }
