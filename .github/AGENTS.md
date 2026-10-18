@@ -17,6 +17,10 @@ Paths below are relative to `.github/`. Current policy lives in
   This lane reviews only; it never auto-merges.
 - Changed head/base commits or CI attempts invalidate review evidence. Resolve
   the guard's actual rejection rather than fabricating markers or bypassing it.
+- Implementation handoffs use `maintenance-handoff.yml`: a verified supervisor
+  connector comment starts with `<!-- spinetab-maintenance-handoff -->`, then
+  `Head: FULL_SHA`, `Base: FULL_SHA`, a blank line and the task. This delivers work
+  to the saved Claude routine; it grants no approval or merge authority.
 - Release PRs contain metadata only and need supervisor approval of the proposed
   version/head plus `release:ready`. Put implementation/docs fixes in separate PRs.
 
