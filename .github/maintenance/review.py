@@ -15,9 +15,14 @@ REPO = "apetta/spinetab"
 CI_PATH = ".github/workflows/ci.yml"
 CHECK = "Lint, Typecheck, Test, E2E"
 REVIEWER = "spinetab-agent[bot]"
+REVIEW_APP_ID = 5362510
+REVIEW_CHECK = "Review"
 MARKER = "<!-- spinetab-maintenance-review -->"
 AUTHORISATION = "<!-- spinetab-maintenance-authorisation -->"
 SUPERVISOR_APP = {"id": 1144995, "slug": "chatgpt-codex-connector"}
+OWNER_ID = 33671231
+TRIGGER_ACTORS = {"apetta": OWNER_ID, "dependabot[bot]": 49699333,
+                  "github-actions[bot]": 41898282, "spinetab-releases[bot]": 343750776}
 PROTECTED = (".github/", ".claude/", ".agents/", ".codex/", ".husky/")
 PROTECTED_FILES = {"AGENTS.md", "CLAUDE.md", ".npmrc", ".gitmodules", ".mcp.json", ".npm-extension.mjs", ".npm-extension.cjs", ".pnpmfile.cjs", "pnpm-workspace.yaml", "turbo.json", "turbo.jsonc", "biome.json", "biome.jsonc", ".prettierignore", ".release-please-manifest.json", "release-please-config.json"}
 RELEASE_FILES = {"packages/spinetab/package.json", "packages/spinetab/CHANGELOG.md", ".release-please-manifest.json"}
@@ -88,14 +93,14 @@ def manual_request():
     if os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch":
         return None
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-    inputs = event.get("inputs", {})
-    if not any(inputs.get(key) for key in ("pr_number", "expected_head")):
-        require(inputs.get("authorise_policy") not in (True, "true"), "Policy authorisation needs a PR and commit")
-        return None
     require(os.environ.get("GITHUB_REPOSITORY") == REPO and
             os.environ.get("GITHUB_REF") == "refs/heads/main", "Manual review must run from trusted main")
     require(os.environ.get("GITHUB_ACTOR") == "apetta" and
             os.environ.get("GITHUB_TRIGGERING_ACTOR") == "apetta", "Only the owner can request or rerun a manual review")
+    inputs = event.get("inputs", {})
+    if not any(inputs.get(key) for key in ("pr_number", "expected_head")):
+        require(inputs.get("authorise_policy") not in (True, "true"), "Policy authorisation needs a PR and commit")
+        return None
     require(re.fullmatch(r"[1-9][0-9]*", str(inputs.get("pr_number", ""))), "Manual review needs a PR number")
     require(re.fullmatch(r"[0-9a-f]{40}", inputs.get("expected_head", "")), "Manual review needs the full commit SHA")
     return inputs
@@ -105,8 +110,9 @@ def supervisor_request(pr, comment_id=None):
     def trusted(comment):
         app = comment.get("performed_via_github_app") or {}
         user = comment.get("user") or {}
-        return user.get("login") == "apetta" and user.get("type") == "User" and all(
-            app.get(key) == value for key, value in SUPERVISOR_APP.items())
+        return (user.get("id") == OWNER_ID and user.get("login") == "apetta"
+                and user.get("type") == "User" and
+                all(app.get(key) == value for key, value in SUPERVISOR_APP.items()))
 
     if comment_id:
         require(re.fullmatch(r"[1-9][0-9]*", str(comment_id)), "Invalid supervisor comment ID")
@@ -237,6 +243,11 @@ def ci(pr, run_id=None, files=()):
     checks = api(f"/commits/{pr['head']['sha']}/check-runs?per_page=100")
     require(checks["total_count"] == len(checks["check_runs"]), "Incomplete check evidence")
     for check in checks["check_runs"]:
+        if (check.get("app", {}).get("id") == REVIEW_APP_ID
+                and check.get("name") == REVIEW_CHECK
+                and check.get("head_sha") == pr["head"]["sha"]):
+            # This reports the review's outcome; it cannot be its prerequisite.
+            continue
         require(check["status"] == "completed" and check["conclusion"] in {"success", "neutral", "skipped"}, "Another check is pending or failed")
     statuses = api(f"/commits/{pr['head']['sha']}/status?per_page=100")
     require(statuses["total_count"] == len(statuses["statuses"]), "Incomplete status evidence")
@@ -253,11 +264,31 @@ def content(path, ref, limit=250_000):
     return base64.b64decode(value["content"]).decode("utf-8")
 
 
+def trusted_run_actor(actor):
+    return (isinstance(actor, dict) and actor.get("login") in TRIGGER_ACTORS
+            and TRIGGER_ACTORS[actor["login"]] == actor.get("id"))
+
+
+def validate_trigger(event):
+    """Reject indirect outside triggers before reading candidates or using a model."""
+    if int(os.environ.get("GITHUB_RUN_ATTEMPT", "1")) > 1:
+        require(os.environ.get("GITHUB_TRIGGERING_ACTOR") == "apetta", "Only the owner can rerun agent work")
+    if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+        manual_request()  # Includes blank sweeps, not just explicit PR reviews.
+    run = event.get("workflow_run")
+    if run:
+        require(run.get("head_repository", {}).get("full_name") == REPO,
+                "Outside CI cannot trigger agent review")
+        require(trusted_run_actor(run.get("actor")) and trusted_run_actor(run.get("triggering_actor")),
+                "Untrusted CI actor cannot trigger agent review")
+
+
 def prepare():
     output(ready="false")
     require(not os.environ.get("ANTHROPIC_API_KEY"), "API billing is disabled")
     require(os.environ.get("RUNNER_DEBUG") != "1", "Disable debug logging before subscription review")
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+    validate_trigger(event)
     manual = manual_request()
     run_event = event.get("workflow_run")
     if run_event:

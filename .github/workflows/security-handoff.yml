@@ -20,14 +20,20 @@ concurrency:
 
 jobs:
   notify-maintainer:
+    # Trusted main only; save the inert receipt so repeated alerts do not start more agents.
+    cache-mode: write
     if: >-
       github.repository == 'apetta/spinetab' && github.ref == 'refs/heads/main' &&
       vars.MAINTENANCE_ENABLED == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
+      (github.run_attempt == 1 || github.triggering_actor == 'apetta') &&
+      ((github.event_name == 'workflow_dispatch' && github.actor_id == '33671231' &&
+      github.triggering_actor == 'apetta') ||
       (github.event_name == 'check_run' && github.event.check_run.name == 'CodeQL' &&
       github.event.check_run.app.id == 57789 && github.event.check_run.check_suite.head_branch == 'main') ||
       (github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('[33671231,41898282,343750776]'), github.event.workflow_run.actor.id) &&
+      contains(fromJSON('[33671231,41898282,343750776]'), github.event.workflow_run.triggering_actor.id) &&
       contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
     runs-on: ubuntu-latest
     environment: maintenance

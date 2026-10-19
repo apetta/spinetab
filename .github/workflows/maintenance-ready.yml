@@ -9,7 +9,8 @@ permissions: {}
 jobs:
   ready:
     if: >-
-      github.repository == 'apetta/spinetab' && github.actor == 'apetta' &&
+      github.repository == 'apetta/spinetab' && github.actor_id == '33671231' &&
+      github.triggering_actor == 'apetta' &&
       contains(fromJSON('["agent:ready","release:ready"]'), github.event.label.name) &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest

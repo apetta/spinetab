@@ -19,8 +19,8 @@ import {
 	type LoopbackRuntime,
 } from "./helpers/loopback-client.ts";
 
-// INT-TR-01…10: SpinetabChatTransport with the real AI SDK `Chat` (ai 7.0.116,
-// @ai-sdk/react 4.0.119) against the scripted backend. Tabs are separate page
+// INT-TR-01…10: SpinetabChatTransport with the real AI SDK `Chat` (ai 7.0.141,
+// @ai-sdk/react 4.0.145) against the scripted backend. Tabs are separate page
 // clients on one in-process runtime stand-in (see helpers/loopback-client.ts);
 // the real SharedWorker path is covered by tests/browser/integrations-ai.spec.ts.
 
@@ -328,7 +328,13 @@ describe("SpinetabChatTransport with the AI SDK Chat", () => {
 		expect(a.interrupted).toEqual([chatId]);
 		const assistants = a.chat.messages.filter((m) => m.role === "assistant");
 		expect(assistants).toHaveLength(1);
-		const text = assistants[0]?.parts.find((part) => part.type === "text");
+		// The from-start replay replaces the interrupted parts instead of
+		// appending a second copy of the message.
+		const texts = (assistants[0]?.parts ?? []).filter(
+			(part) => part.type === "text",
+		);
+		expect(texts).toHaveLength(1);
+		const text = texts[0];
 		expect(text && "text" in text ? text.text.split(" ") : []).toHaveLength(30);
 		const counters = await server.counters();
 		expect(counters.resumes).toBe(1);
