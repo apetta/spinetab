@@ -19,8 +19,8 @@ import {
 	type LoopbackRuntime,
 } from "./helpers/loopback-client.ts";
 
-// INT-TR-01…10: SpinetabChatTransport with the real AI SDK `Chat` (ai 7.0.141,
-// @ai-sdk/react 4.0.145) against the scripted backend. Tabs are separate page
+// INT-TR-01…10: SpinetabChatTransport with the real AI SDK `Chat` (ai 7.0.142,
+// @ai-sdk/react 4.0.146) against the scripted backend. Tabs are separate page
 // clients on one in-process runtime stand-in (see helpers/loopback-client.ts);
 // the real SharedWorker path is covered by tests/browser/integrations-ai.spec.ts.
 
