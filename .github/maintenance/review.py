@@ -392,9 +392,14 @@ def complete_reads(trace, path):
         file = result.get("file") if isinstance(result, dict) else None
         if not isinstance(file, dict):
             continue
-        require(Path(file["filePath"]).resolve() == path, "Unexpected read result")
-        start, count = file["startLine"], file["numLines"]
-        require(file["totalLines"] == total and isinstance(start, int) and isinstance(count, int), "Read metadata mismatch")
+        require(isinstance(file.get("filePath"), str) and Path(file["filePath"]).resolve() == path, "Unexpected read result")
+        # A repeated read of an unchanged range returns no content, so it adds no coverage.
+        if result.get("type") == "file_unchanged":
+            continue
+        require(result.get("type") == "text", "Unexpected read result")
+        start, count = file.get("startLine"), file.get("numLines")
+        require(isinstance(start, int) and isinstance(count, int), "Read metadata mismatch")
+        require(file.get("totalLines") == total, "Read metadata mismatch")
         require(1 <= start <= total + 1 and 0 <= count <= total - start + 1, "Invalid read range")
         # A token cap can cut the last line. The next read must include it again.
         end = start + count - int(bool(file.get("truncatedByTokenCap")))

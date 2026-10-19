@@ -1021,6 +1021,32 @@ class ReadCoverageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "all evidence"):
             review.complete_reads([{"type": "user", "message": {"content": "Read succeeded"}}], self.path)
 
+    def unchanged(self):
+        return {"tool_use_result": {"type": "file_unchanged", "file": {"filePath": str(self.path)}}}
+
+    def test_unchanged_repeat_read_is_accepted_without_adding_coverage(self):
+        review.complete_reads([self.result(1, 4), self.unchanged()], self.path)
+        with self.assertRaisesRegex(ValueError, "all evidence"):
+            review.complete_reads([self.result(1, 2), self.unchanged()], self.path)
+
+    def test_unchanged_result_for_another_file_is_rejected(self):
+        result = self.unchanged()
+        result["tool_use_result"]["file"]["filePath"] = str(self.path.with_name("other.json"))
+        with self.assertRaisesRegex(ValueError, "Unexpected read result"):
+            review.complete_reads([result], self.path)
+
+    def test_unexpected_read_output_type_is_rejected(self):
+        result = self.result(1, 4)
+        result["tool_use_result"]["type"] = "notebook"
+        with self.assertRaisesRegex(ValueError, "Unexpected read result"):
+            review.complete_reads([result], self.path)
+
+    def test_missing_read_range_fails_closed(self):
+        result = self.result(1, 4)
+        del result["tool_use_result"]["file"]["startLine"]
+        with self.assertRaisesRegex(ValueError, "mismatch"):
+            review.complete_reads([result], self.path)
+
     def test_reading_another_file_is_rejected(self):
         result = self.result(1, 4)
         result["tool_use_result"]["file"]["filePath"] = str(self.path.with_name("other.json"))
