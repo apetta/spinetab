@@ -6,6 +6,7 @@ import {
 	channelName,
 	type ExampleKind,
 	type Experiment,
+	modeKey,
 	type NetworkSnapshot,
 	readExperiment,
 	readMode,
@@ -119,6 +120,21 @@ export default function ExampleDemo({ kind }: { kind: ExampleKind }) {
 			bus.postMessage(tab);
 		};
 		announceTab.current = announce;
+		const applyMode = (latest: Pick<Experiment, "mode" | "epoch">) =>
+			setExperiment((previous) =>
+				previous &&
+				(previous.mode !== latest.mode || previous.epoch !== latest.epoch)
+					? { ...previous, mode: latest.mode, epoch: latest.epoch }
+					: previous,
+			);
+		// A mode message can arrive before another tab's storage write is
+		// visible here (WebKit 27), so the stored mode is applied again when
+		// the write lands.
+		const storage = (event: StorageEvent) => {
+			if (event.key !== modeKey(kind, group)) return;
+			const latest = readMode(kind, group);
+			if (latest) applyMode(latest);
+		};
 		const update = () => {
 			const time = Date.now();
 			announce();
@@ -204,13 +220,7 @@ export default function ExampleDemo({ kind }: { kind: ExampleKind }) {
 				(value.mode === "shared" || value.mode === "local") &&
 				typeof value.epoch === "string"
 			) {
-				const latest = readMode(kind, group) ?? value;
-				setExperiment((previous) =>
-					previous &&
-					(previous.mode !== latest.mode || previous.epoch !== latest.epoch)
-						? { ...previous, mode: latest.mode, epoch: latest.epoch }
-						: previous,
-				);
+				applyMode(readMode(kind, group) ?? value);
 			} else if (value.type === "hello") announce();
 			else if (value.type === "control-request") {
 				const saved = current.current.experiment;
@@ -241,6 +251,7 @@ export default function ExampleDemo({ kind }: { kind: ExampleKind }) {
 		document.addEventListener("visibilitychange", visibility);
 		window.addEventListener("pagehide", leave);
 		window.addEventListener("pageshow", restore);
+		window.addEventListener("storage", storage);
 		const observer = new IntersectionObserver((entries) => {
 			onScreen.current = entries[0]?.isIntersecting ?? false;
 			visibility();
@@ -253,6 +264,7 @@ export default function ExampleDemo({ kind }: { kind: ExampleKind }) {
 			document.removeEventListener("visibilitychange", visibility);
 			window.removeEventListener("pagehide", leave);
 			window.removeEventListener("pageshow", restore);
+			window.removeEventListener("storage", storage);
 			bus.close();
 			channel.current = null;
 			announceTab.current = null;
