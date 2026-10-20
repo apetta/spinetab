@@ -2,7 +2,7 @@
 	"name": "website",
 	"version": "0.0.0",
 	"dependencies": {
-		"@apollo/client": "4.3.3",
+		"@apollo/client": "4.3.4",
 		"@astrojs/react": "7.1.0",
 		"@astrojs/sitemap": "3.7.4",
 		"@astrojs/starlight": "0.42.6",
@@ -20,7 +20,7 @@
 	},
 	"devDependencies": {
 		"@astrojs/check": "0.9.10",
-		"@playwright/test": "1.63.0",
+		"@playwright/test": "1.64.1",
 		"@repo/typescript-config": "workspace:*",
 		"@types/d3-geo": "3.1.1",
 		"@types/jsdom": "27.0.0",
