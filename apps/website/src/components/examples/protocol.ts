@@ -109,13 +109,17 @@ export function readExperiment(kind: ExampleKind): Experiment {
 	};
 }
 
+export function modeKey(kind: ExampleKind, group: string) {
+	return `${channelName(kind, group)}:mode`;
+}
+
 export function readMode(
 	kind: ExampleKind,
 	group: string,
 ): { mode: ExampleMode; epoch: string } | null {
 	try {
 		const value = JSON.parse(
-			localStorage.getItem(`${channelName(kind, group)}:mode`) ?? "null",
+			localStorage.getItem(modeKey(kind, group)) ?? "null",
 		);
 		if (
 			value &&
@@ -132,7 +136,7 @@ export function readMode(
 export function saveMode(experiment: Experiment) {
 	try {
 		localStorage.setItem(
-			`${channelName(experiment.kind, experiment.group)}:mode`,
+			modeKey(experiment.kind, experiment.group),
 			JSON.stringify({ mode: experiment.mode, epoch: experiment.epoch }),
 		);
 	} catch {
