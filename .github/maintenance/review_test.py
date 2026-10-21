@@ -983,10 +983,43 @@ class PrepareEvidenceTests(unittest.TestCase):
         self.assertIsNone(evidence)
         self.assertFalse(any(call.kwargs.get("ready") == "true" for call in outputs))
 
-    def test_large_complete_bases_still_exceed_packet_cap(self):
+    def test_large_complete_bases_fit_the_expanded_packet_cap(self):
         before = "".join(f"\t\t\t\t\t\tunchanged_line_{i:04d}(value);\n" for i in range(6200))
         after = before.replace("unchanged_line_2000(value);", "changed_line_2000(value);")
         evidence, outputs = self.prepare(["packages/spinetab/src/one.ts", "packages/spinetab/src/two.ts"], before, after)
+        self.assertIsNotNone(evidence)
+        self.assertTrue(any(call.kwargs.get("ready") == "true" for call in outputs))
+        self.assertGreater(len(json.dumps(evidence, indent=2)), 600000)
+        self.assertLessEqual(len(json.dumps(evidence, indent=2)), 1_200_000)
+        for record in evidence["files"]:
+            self.assertEqual(set(record), {"path", "status", "before", "patch"})
+            self.assertEqual("".join(record["before"]), before)
+            self.assertIn("-\t\t\t\t\t\tunchanged_line_2000(value);\n", record["patch"])
+            self.assertIn("+\t\t\t\t\t\tchanged_line_2000(value);\n", record["patch"])
+
+    def test_packet_cap_includes_the_boundary_and_rejects_one_character_over(self):
+        paths = ["packages/spinetab/src/example.ts"]
+        evidence, _ = self.prepare(paths, "old();\n", "new();\n")
+        size = len(json.dumps(evidence, indent=2))
+        with patch.object(review, "MAX_EVIDENCE_CHARACTERS", size):
+            accepted, outputs = self.prepare(paths, "old();\n", "new();\n")
+        self.assertEqual(accepted, evidence)
+        self.assertTrue(any(call.kwargs.get("ready") == "true" for call in outputs))
+        with patch.object(review, "MAX_EVIDENCE_CHARACTERS", size - 1):
+            rejected, outputs = self.prepare(paths, "old();\n", "new();\n")
+        self.assertIsNone(rejected)
+        self.assertFalse(any(call.kwargs.get("ready") == "true" for call in outputs))
+
+    def test_large_complete_bases_still_exceed_packet_cap(self):
+        before = "".join(f"\t\t\t\t\t\tunchanged_line_{i:04d}(value);\n" for i in range(6200))
+        after = before.replace("unchanged_line_2000(value);", "changed_line_2000(value);")
+        paths = [f"packages/spinetab/src/{name}.ts" for name in ("one", "two", "three", "four")]
+        evidence, outputs = self.prepare(paths, before, after)
+        self.assertIsNone(evidence)
+        self.assertFalse(any(call.kwargs.get("ready") == "true" for call in outputs))
+
+    def test_long_evidence_line_still_fails_closed(self):
+        evidence, outputs = self.prepare(["packages/spinetab/src/example.ts"], "old();\n", "x" * 8001)
         self.assertIsNone(evidence)
         self.assertFalse(any(call.kwargs.get("ready") == "true" for call in outputs))
 
