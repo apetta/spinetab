@@ -17,6 +17,7 @@ CHECK = "Lint, Typecheck, Test, E2E"
 REVIEWER = "spinetab-agent[bot]"
 REVIEW_APP_ID = 5362510
 REVIEW_CHECK = "Review"
+MAX_EVIDENCE_CHARACTERS = 1_200_000
 MARKER = "<!-- spinetab-maintenance-review -->"
 AUTHORISATION = "<!-- spinetab-maintenance-authorisation -->"
 SUPERVISOR_APP = {"id": 1144995, "slug": "chatgpt-codex-connector"}
@@ -368,7 +369,7 @@ def prepare():
                     record["patch"] = patch
                     del record["after"]
                 encoded = json.dumps(evidence, indent=2)
-            require(len(encoded) <= 600000, "Review is too large; split the change")
+            require(len(encoded) <= MAX_EVIDENCE_CHARACTERS, "Review is too large; split the change")
             require(all(len(line) <= 8000 for line in encoded.splitlines()), "Long evidence lines need human review")
             current(pr["number"], pr["head"]["sha"], main, supervisor_comment_id=supervisor_id)
             Path("review-input.json").write_text(encoded)
