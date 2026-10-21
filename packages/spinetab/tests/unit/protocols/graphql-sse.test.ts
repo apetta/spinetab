@@ -805,64 +805,68 @@ describe("single-mode operation rejection isolation", () => {
 			"application/graphql-response+json",
 			"Application/JSON; Charset=UTF-8",
 			"Application/GraphQL-Response+JSON",
-		])(`${code} %s: rejects only the invalid operation, preserves siblings and never retries it`, async (contentType) => {
-			let reservation: ReturnType<typeof stream> | undefined;
-			let posts = 0;
-			const errors = [{ message: "Cannot query field missingField" }];
-			const h = setup(
-				(call) => {
-					if (call.method === "PUT")
-						return new Response("token", { status: 201 });
-					if (call.method === "GET") {
-						reservation = stream([": open\n\n"], call.signal);
-						return reservation.response;
-					}
-					if (call.method === "POST") {
-						posts += 1;
-						return posts === 2
-							? Response.json(
-									{ errors },
-									{ status: code, headers: { "content-type": contentType } },
-								)
-							: new Response(null, { status: 202 });
-					}
-					return new Response(null, { status: 200 });
-				},
-				{ mode: "single" },
-			);
-			const healthy = h.subscribe(false);
-			await waitFor(() => h.test.hasStatus("connected"));
-			const id = JSON.parse(
-				h.calls.find((c) => c.method === "POST")?.body ?? "{}",
-			).extensions.operationId;
-			reservation?.push(next({ id, payload: { data: { ticks: { n: 1 } } } }));
-			await waitFor(() => healthy.recording.events.length === 1);
-			const invalid = h.subscribe(false);
-			await waitFor(() => invalid.recording.errors.length === 1);
-			expect(invalid.recording.errors).toEqual([
-				{
-					code: "upstream-error",
-					message: "The GraphQL operation failed.",
-					detail: { errors },
-				},
-			]);
-			expect(invalid.recording.completions).toBe(0);
-			expect(h.test.lastStatus()?.state).toBe("connected");
-			reservation?.push(next({ id, payload: { data: { ticks: { n: 2 } } } }));
-			await waitFor(() => healthy.recording.events.length === 2);
-			expect(healthy.recording.errors).toEqual([]);
-			expect(healthy.recording.continuity).toEqual([]);
-			const later = h.subscribe();
-			await waitFor(() => posts === 3);
-			expect(h.calls.filter((c) => c.method === "PUT")).toHaveLength(1);
-			healthy.subscription.unsubscribe();
-			later.subscription.unsubscribe();
-			await waitFor(
-				() => h.calls.find((c) => c.method === "GET")?.signal?.aborted === true,
-			);
-			expect(posts).toBe(3);
-			expect(h.calls.filter((c) => c.method === "DELETE")).toHaveLength(2);
-		});
+		])(
+			`${code} %s: rejects only the invalid operation, preserves siblings and never retries it`,
+			async (contentType) => {
+				let reservation: ReturnType<typeof stream> | undefined;
+				let posts = 0;
+				const errors = [{ message: "Cannot query field missingField" }];
+				const h = setup(
+					(call) => {
+						if (call.method === "PUT")
+							return new Response("token", { status: 201 });
+						if (call.method === "GET") {
+							reservation = stream([": open\n\n"], call.signal);
+							return reservation.response;
+						}
+						if (call.method === "POST") {
+							posts += 1;
+							return posts === 2
+								? Response.json(
+										{ errors },
+										{ status: code, headers: { "content-type": contentType } },
+									)
+								: new Response(null, { status: 202 });
+						}
+						return new Response(null, { status: 200 });
+					},
+					{ mode: "single" },
+				);
+				const healthy = h.subscribe(false);
+				await waitFor(() => h.test.hasStatus("connected"));
+				const id = JSON.parse(
+					h.calls.find((c) => c.method === "POST")?.body ?? "{}",
+				).extensions.operationId;
+				reservation?.push(next({ id, payload: { data: { ticks: { n: 1 } } } }));
+				await waitFor(() => healthy.recording.events.length === 1);
+				const invalid = h.subscribe(false);
+				await waitFor(() => invalid.recording.errors.length === 1);
+				expect(invalid.recording.errors).toEqual([
+					{
+						code: "upstream-error",
+						message: "The GraphQL operation failed.",
+						detail: { errors },
+					},
+				]);
+				expect(invalid.recording.completions).toBe(0);
+				expect(h.test.lastStatus()?.state).toBe("connected");
+				reservation?.push(next({ id, payload: { data: { ticks: { n: 2 } } } }));
+				await waitFor(() => healthy.recording.events.length === 2);
+				expect(healthy.recording.errors).toEqual([]);
+				expect(healthy.recording.continuity).toEqual([]);
+				const later = h.subscribe();
+				await waitFor(() => posts === 3);
+				expect(h.calls.filter((c) => c.method === "PUT")).toHaveLength(1);
+				healthy.subscription.unsubscribe();
+				later.subscription.unsubscribe();
+				await waitFor(
+					() =>
+						h.calls.find((c) => c.method === "GET")?.signal?.aborted === true,
+				);
+				expect(posts).toBe(3);
+				expect(h.calls.filter((c) => c.method === "DELETE")).toHaveLength(2);
+			},
+		);
 	}
 	for (const [name, reply] of [
 		["HTML error", () => new Response("bad request", { status: 400 })],

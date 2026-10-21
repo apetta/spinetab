@@ -573,32 +573,35 @@ describe("headroom against the control outbox bounds (smoke-1 shaped records)", 
 	it.each([
 		["an expired attachment", "expired", 1],
 		["control left queued", "queued-at-end", 2],
-	])("negative control: %s fails its structural row", (_name, suffix, value) => {
-		const records = smokeRecords().map((record) => {
-			const at = `${(record.detail as { config: { variant: string } }).config.variant}.n${
-				(record.detail as { config: { n: number } }).config.n
-			}`;
-			return {
-				...record,
-				metrics: {
-					...record.metrics,
-					[`control.${at}.expired`]: 0,
-					[`control.${at}.queued-at-end`]: 0,
-					...(at === "ws.n1" ? { [`control.${at}.${suffix}`]: value } : {}),
-				},
-				detail: { ...(record.detail as object), controlFlow: {} },
-			};
-		});
-		const result = evaluateRun({
-			records,
-			environment: SMOKE_ENV,
-			rows: budgets.rows,
-		});
-		expect(statusOf(result, `control.${suffix}`)).toMatchObject({
-			status: "fail",
-			measured: value,
-		});
-	});
+	])(
+		"negative control: %s fails its structural row",
+		(_name, suffix, value) => {
+			const records = smokeRecords().map((record) => {
+				const at = `${(record.detail as { config: { variant: string } }).config.variant}.n${
+					(record.detail as { config: { n: number } }).config.n
+				}`;
+				return {
+					...record,
+					metrics: {
+						...record.metrics,
+						[`control.${at}.expired`]: 0,
+						[`control.${at}.queued-at-end`]: 0,
+						...(at === "ws.n1" ? { [`control.${at}.${suffix}`]: value } : {}),
+					},
+					detail: { ...(record.detail as object), controlFlow: {} },
+				};
+			});
+			const result = evaluateRun({
+				records,
+				environment: SMOKE_ENV,
+				rows: budgets.rows,
+			});
+			expect(statusOf(result, `control.${suffix}`)).toMatchObject({
+				status: "fail",
+				measured: value,
+			});
+		},
+	);
 });
 
 describe("budgets.json control rows", () => {

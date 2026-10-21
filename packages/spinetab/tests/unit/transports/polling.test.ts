@@ -774,43 +774,49 @@ describe("a credential failure after the read timed out", () => {
 	it.each([
 		["credentials-timeout", "slow"],
 		["credentials-failed", "provider threw"],
-	] as const)("reports auth-blocked when the provider fails with %s after the read timeout", async (code, message) => {
-		let failing = true;
-		const { calls, join, statuses, ctx, connection } = setup({
-			credentials: () =>
-				failing
-					? new Promise((_resolve, reject) =>
-							setTimeout(() => reject(new SpinetabError(code, message)), 3_000),
-						)
-					: Promise.resolve({ headers: { authorization: "Bearer t" } }),
-			spec: { timeoutMs: 1_000 },
-		});
-		join("a", 1_000);
-		await vi.advanceTimersByTimeAsync(0);
-		expect(ctx.credentials).toHaveBeenCalledTimes(1);
-		// The read timeout fires at 1 s; nothing is reported before the
-		// credential wait ends.
-		await vi.advanceTimersByTimeAsync(1_000);
-		expect(statuses).toEqual([]);
-		await vi.advanceTimersByTimeAsync(2_000);
-		expect(calls).toHaveLength(0);
-		expect(statuses).toEqual([
-			{ state: "auth-blocked", reason: "credentials-missing" },
-		]);
-		// Blocked, not retried on a timer: the provider is not asked again.
-		await vi.advanceTimersByTimeAsync(120_000);
-		expect(ctx.credentials).toHaveBeenCalledTimes(1);
-		expect(calls).toHaveLength(0);
-		expect(statuses).toHaveLength(1);
-		// A rotation reads again, as for any blocked read.
-		failing = false;
-		connection.rotate?.();
-		await vi.advanceTimersByTimeAsync(0);
-		expect(calls).toHaveLength(1);
-		expect(new Headers(calls[0]?.init.headers).get("authorization")).toBe(
-			"Bearer t",
-		);
-	});
+	] as const)(
+		"reports auth-blocked when the provider fails with %s after the read timeout",
+		async (code, message) => {
+			let failing = true;
+			const { calls, join, statuses, ctx, connection } = setup({
+				credentials: () =>
+					failing
+						? new Promise((_resolve, reject) =>
+								setTimeout(
+									() => reject(new SpinetabError(code, message)),
+									3_000,
+								),
+							)
+						: Promise.resolve({ headers: { authorization: "Bearer t" } }),
+				spec: { timeoutMs: 1_000 },
+			});
+			join("a", 1_000);
+			await vi.advanceTimersByTimeAsync(0);
+			expect(ctx.credentials).toHaveBeenCalledTimes(1);
+			// The read timeout fires at 1 s; nothing is reported before the
+			// credential wait ends.
+			await vi.advanceTimersByTimeAsync(1_000);
+			expect(statuses).toEqual([]);
+			await vi.advanceTimersByTimeAsync(2_000);
+			expect(calls).toHaveLength(0);
+			expect(statuses).toEqual([
+				{ state: "auth-blocked", reason: "credentials-missing" },
+			]);
+			// Blocked, not retried on a timer: the provider is not asked again.
+			await vi.advanceTimersByTimeAsync(120_000);
+			expect(ctx.credentials).toHaveBeenCalledTimes(1);
+			expect(calls).toHaveLength(0);
+			expect(statuses).toHaveLength(1);
+			// A rotation reads again, as for any blocked read.
+			failing = false;
+			connection.rotate?.();
+			await vi.advanceTimersByTimeAsync(0);
+			expect(calls).toHaveLength(1);
+			expect(new Headers(calls[0]?.init.headers).get("authorization")).toBe(
+				"Bearer t",
+			);
+		},
+	);
 
 	it("stays silent when the read was paused during the wait and the provider then fails (guard)", async () => {
 		const { calls, join, handle, statuses, ctx } = setup({

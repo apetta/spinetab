@@ -100,28 +100,30 @@ async function subscribed(maxMessageBytes = 256) {
 }
 
 describe("native clone accounting", () => {
-	it.each(
-		largeNativeValues,
-	)("charges the internal value despite shadowed $name", ({ make }) => {
-		expect(estimateBytes(make())).toBeGreaterThanOrEqual(MIB);
-	});
+	it.each(largeNativeValues)(
+		"charges the internal value despite shadowed $name",
+		({ make }) => {
+			expect(estimateBytes(make())).toBeGreaterThanOrEqual(MIB);
+		},
+	);
 
-	it.each(
-		largeNativeValues,
-	)("refuses shadowed $name at the real message bridge", async ({ make }) => {
-		const { clock, page, runtime, upstream } = await subscribed();
-		try {
-			upstream.emit(make());
-			await settle(clock);
-			expect(page.data("one")).toEqual([]);
-			expect(page.continuity("one")[0]?.continuity.reason).toBe(
-				"message-too-large",
-			);
-			expect(runtime.stats().pendingBytes).toBe(0);
-		} finally {
-			page.close();
-		}
-	});
+	it.each(largeNativeValues)(
+		"refuses shadowed $name at the real message bridge",
+		async ({ make }) => {
+			const { clock, page, runtime, upstream } = await subscribed();
+			try {
+				upstream.emit(make());
+				await settle(clock);
+				expect(page.data("one")).toEqual([]);
+				expect(page.continuity("one")[0]?.continuity.reason).toBe(
+					"message-too-large",
+				);
+				expect(runtime.stats().pendingBytes).toBe(0);
+			} finally {
+				page.close();
+			}
+		},
+	);
 
 	it("does not invoke shadowed built-in getters or iterators", () => {
 		let reads = 0;
@@ -160,35 +162,33 @@ describe("native clone accounting", () => {
 		}
 	});
 
-	it.each([
-		"name",
-		"message",
-		"cause",
-		"stack",
-	])("rejects custom Error %s accessors without reading them", async (key) => {
-		let reads = 0;
-		const value = new Error("small");
-		Object.defineProperty(value, key, {
-			get() {
-				reads += 1;
-				return reads <= 2 ? "small" : "x".repeat(MIB);
-			},
-		});
-		expect(estimateBytes(value)).toBeUndefined();
-		const { clock, page, runtime, upstream } = await subscribed();
-		try {
-			upstream.emit(value);
-			await settle(clock);
-			expect(page.data("one")).toEqual([]);
-			expect(page.continuity("one")[0]?.continuity.reason).toBe(
-				"event-not-serialisable",
-			);
-			expect(runtime.stats().pendingBytes).toBe(0);
-			expect(reads).toBe(0);
-		} finally {
-			page.close();
-		}
-	});
+	it.each(["name", "message", "cause", "stack"])(
+		"rejects custom Error %s accessors without reading them",
+		async (key) => {
+			let reads = 0;
+			const value = new Error("small");
+			Object.defineProperty(value, key, {
+				get() {
+					reads += 1;
+					return reads <= 2 ? "small" : "x".repeat(MIB);
+				},
+			});
+			expect(estimateBytes(value)).toBeUndefined();
+			const { clock, page, runtime, upstream } = await subscribed();
+			try {
+				upstream.emit(value);
+				await settle(clock);
+				expect(page.data("one")).toEqual([]);
+				expect(page.continuity("one")[0]?.continuity.reason).toBe(
+					"event-not-serialisable",
+				);
+				expect(runtime.stats().pendingBytes).toBe(0);
+				expect(reads).toBe(0);
+			} finally {
+				page.close();
+			}
+		},
+	);
 
 	it("fails closed on native proxies and keeps cyclic containers estimable", () => {
 		expect(estimateBytes(new Proxy(new Map(), {}))).toBeUndefined();

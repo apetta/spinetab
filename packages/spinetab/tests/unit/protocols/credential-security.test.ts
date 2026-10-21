@@ -647,7 +647,9 @@ describe("no upstream text in statuses, diagnostics or other subscribers", () =>
 				data: JSON.stringify({ code: -32600, message: "bad input", data }),
 			});
 			await waitFor(() => owner.errors.length === 1, { timeout: 1_000 });
-			return (owner.errors[0]?.detail as { shape?: unknown }).shape;
+			const detail = owner.errors[0]?.detail as { shape?: unknown } | undefined;
+			expect(detail?.shape).toBeDefined();
+			return detail?.shape;
 		};
 		const strings: string[] = [];
 		const walk = (value: unknown): void => {

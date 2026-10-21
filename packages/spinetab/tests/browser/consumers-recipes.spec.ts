@@ -96,7 +96,9 @@ for (const bundler of BUNDLERS) {
 						await expect
 							.poll(() =>
 								page.evaluate(
-									() => (window.__consumer?.extra?.lines as unknown[]).length,
+									() =>
+										(window.__consumer?.extra?.lines as unknown[] | undefined)
+											?.length,
 								),
 							)
 							.toBeGreaterThan(0);

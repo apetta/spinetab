@@ -353,53 +353,53 @@ describe("Apollo reconcile recipe (real ApolloClient 4.3.1)", () => {
 		}
 	}
 
-	it.each([
-		true,
-		false,
-	])("P-U-31a own query (no-cache, guarded write): a successful refetch reconciles (active ObservableQuery: %s)", async (watch) => {
-		const run = await notice(ownQuery(), { refetch: "ok", watch });
-		expect(run.refetches).toBe(1);
-		expect(run.reconciled).toEqual([undefined]);
-		expect(unhandled).toEqual([]);
-	});
+	it.each([true, false])(
+		"P-U-31a own query (no-cache, guarded write): a successful refetch reconciles (active ObservableQuery: %s)",
+		async (watch) => {
+			const run = await notice(ownQuery(), { refetch: "ok", watch });
+			expect(run.refetches).toBe(1);
+			expect(run.reconciled).toEqual([undefined]);
+			expect(unhandled).toEqual([]);
+		},
+	);
 
-	it.each([
-		"network-error",
-		"graphql-errors",
-	] as const)("P-U-31b own query (no-cache, guarded write): a refetch with %s keeps continuity unknown and leaves no unhandled rejection", async (refetch) => {
-		const run = await notice(ownQuery(), { refetch, watch: true });
-		expect(run.refetches).toBe(1);
-		expect(run.reconciled).toEqual([]);
-		expect(unhandled).toEqual([]);
-	});
+	it.each(["network-error", "graphql-errors"] as const)(
+		"P-U-31b own query (no-cache, guarded write): a refetch with %s keeps continuity unknown and leaves no unhandled rejection",
+		async (refetch) => {
+			const run = await notice(ownQuery(), { refetch, watch: true });
+			expect(run.refetches).toBe(1);
+			expect(run.reconciled).toEqual([]);
+			expect(unhandled).toEqual([]);
+		},
+	);
 
-	it.each([
-		"network-error",
-		"graphql-errors",
-	] as const)("P-U-31c own query (no-cache, guarded write): errorPolicy 'none' is pinned, so a %s still fails when the client defaults to 'all'", async (refetch) => {
-		const run = await notice(ownQuery(), {
-			refetch,
-			watch: true,
-			clientErrorPolicy: "all",
-		});
-		expect(run.refetches).toBe(1);
-		expect(run.reconciled).toEqual([]);
-		expect(unhandled).toEqual([]);
-	});
+	it.each(["network-error", "graphql-errors"] as const)(
+		"P-U-31c own query (no-cache, guarded write): errorPolicy 'none' is pinned, so a %s still fails when the client defaults to 'all'",
+		async (refetch) => {
+			const run = await notice(ownQuery(), {
+				refetch,
+				watch: true,
+				clientErrorPolicy: "all",
+			});
+			expect(run.refetches).toBe(1);
+			expect(run.reconciled).toEqual([]);
+			expect(unhandled).toEqual([]);
+		},
+	);
 
-	it.each([
-		"network-error",
-		"graphql-errors",
-	] as const)("P-U-31d checked refetchQueries: a %s under errorPolicy 'all' keeps continuity unknown", async (refetch) => {
-		const run = await notice(checkedRefetch, {
-			refetch,
-			watch: true,
-			errorPolicy: "all",
-		});
-		expect(run.refetches).toBe(1);
-		expect(run.reconciled).toEqual([]);
-		expect(unhandled).toEqual([]);
-	});
+	it.each(["network-error", "graphql-errors"] as const)(
+		"P-U-31d checked refetchQueries: a %s under errorPolicy 'all' keeps continuity unknown",
+		async (refetch) => {
+			const run = await notice(checkedRefetch, {
+				refetch,
+				watch: true,
+				errorPolicy: "all",
+			});
+			expect(run.refetches).toBe(1);
+			expect(run.reconciled).toEqual([]);
+			expect(unhandled).toEqual([]);
+		},
+	);
 
 	it("P-U-31e checked refetchQueries: with no active ObservableQuery nothing is refetched and continuity stays unknown", async () => {
 		const run = await notice(checkedRefetch, { refetch: "ok", watch: false });
@@ -679,9 +679,12 @@ describe("Apollo reconcile recipe (real ApolloClient 4.3.1)", () => {
 			watch: false,
 			refetches: 0,
 		},
-	] as const)("P-U-31g anti-pattern, the superseded apollo.md recipe ($row): declared reconciled", async (row) => {
-		const run = await notice(superseded, row);
-		expect(run.refetches).toBe(row.refetches);
-		expect(run.reconciled).toEqual([undefined]);
-	});
+	] as const)(
+		"P-U-31g anti-pattern, the superseded apollo.md recipe ($row): declared reconciled",
+		async (row) => {
+			const run = await notice(superseded, row);
+			expect(run.refetches).toBe(row.refetches);
+			expect(run.reconciled).toEqual([undefined]);
+		},
+	);
 });

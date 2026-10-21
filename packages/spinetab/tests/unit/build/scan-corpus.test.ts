@@ -24,24 +24,25 @@ describe("scan corpus", () => {
 });
 
 describe("scan residuals: today's result, never a silent pass", () => {
-	it.each(
-		RESIDUAL_CASES.map((item) => [item.id, item] as const),
-	)("%s", (_, item) => {
-		const residual = item.residual;
-		expect(residual, "a residual row records its residual").toBeDefined();
-		if (!residual) return;
-		expect(residual.why.length).toBeGreaterThan(0);
-		expect(residual.remedy.length).toBeGreaterThan(0);
-		const meaning = {
-			kinds: [...item.expected].sort(),
-			fallback: item.fallback ?? false,
-		};
-		const today = {
-			kinds: [...residual.kinds].sort(),
-			fallback: residual.fallback,
-		};
-		// A row whose residual matches the meaning is a genuine case: move it.
-		expect(today).not.toEqual(meaning);
-		expect(read(item)).toEqual(today);
-	});
+	it.each(RESIDUAL_CASES.map((item) => [item.id, item] as const))(
+		"%s",
+		(_, item) => {
+			const residual = item.residual;
+			expect(residual, "a residual row records its residual").toBeDefined();
+			if (!residual) return;
+			expect(residual.why.length).toBeGreaterThan(0);
+			expect(residual.remedy.length).toBeGreaterThan(0);
+			const meaning = {
+				kinds: [...item.expected].sort(),
+				fallback: item.fallback ?? false,
+			};
+			const today = {
+				kinds: [...residual.kinds].sort(),
+				fallback: residual.fallback,
+			};
+			// A row whose residual matches the meaning is a genuine case: move it.
+			expect(today).not.toEqual(meaning);
+			expect(read(item)).toEqual(today);
+		},
+	);
 });
