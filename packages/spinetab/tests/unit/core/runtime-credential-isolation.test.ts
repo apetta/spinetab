@@ -494,10 +494,12 @@ describe("defineWorker registers nothing outside a SharedWorker", () => {
 			},
 		);
 		const created: Runtime[] = [];
+		const ports: MessagePort[] = [];
 		const { adapter } = createTestAdapter();
 		entry.defineWorker(() => [adapter]);
 		const connect = () => {
 			const channel = new MessageChannel();
+			ports.push(channel.port1, channel.port2);
 			const received: Array<Record<string, unknown>> = [];
 			channel.port1.addEventListener("message", (event) =>
 				received.push(event.data),
@@ -517,25 +519,29 @@ describe("defineWorker registers nothing outside a SharedWorker", () => {
 			});
 			return { received, port: channel.port1 };
 		};
-		const early = connect();
-		await new Promise((resolve) => setTimeout(resolve, 5));
-		expect(early.received.map((m) => m.t)).toContain("welcome");
-		entry.serveSharedWorker(() => {
-			const runtime = createRuntime({ adapters: [] });
-			created.push(runtime);
-			return runtime;
-		});
-		const late = connect();
-		await new Promise((resolve) => setTimeout(resolve, 5));
-		expect(listeners).toHaveLength(1);
-		expect(created).toHaveLength(0);
-		expect(late.received[0]).toMatchObject({
-			t: "startupError",
-			code: "worker-startup-error",
-		});
-		// Recorded: the page that attached before the second serve keeps its runtime.
-		expect(early.received.some((m) => m.t === "startupError")).toBe(false);
-		early.port.close();
-		late.port.close();
+		try {
+			const early = connect();
+			await expect
+				.poll(() => early.received.map((m) => m.t))
+				.toContain("welcome");
+			entry.serveSharedWorker(() => {
+				const runtime = createRuntime({ adapters: [] });
+				created.push(runtime);
+				return runtime;
+			});
+			const late = connect();
+			await expect
+				.poll(() => late.received[0])
+				.toMatchObject({
+					t: "startupError",
+					code: "worker-startup-error",
+				});
+			expect(listeners).toHaveLength(1);
+			expect(created).toHaveLength(0);
+			// The page attached before the second serve keeps its runtime.
+			expect(early.received.some((m) => m.t === "startupError")).toBe(false);
+		} finally {
+			for (const port of ports) port.close();
+		}
 	});
 });
