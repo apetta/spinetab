@@ -1059,16 +1059,19 @@ describe("heartbeat timing options stay within MAX_TIMER_MS", () => {
 		["intervalMs", { intervalMs: 2 ** 31, timeoutMs: 1_000, frame }],
 		["timeoutMs", { intervalMs: 1_000, timeoutMs: 2 ** 31, frame }],
 		["expectInboundWithinMs", { expectInboundWithinMs: 2 ** 31 }],
-	] as const)("refuses heartbeat.%s of 2^31 with the path and the fixed sentence", (key, heartbeat) => {
-		const path = `websocketAdapter.protocols.p.heartbeat.${key}`;
-		expect(define(heartbeat)).toThrowError(
-			expect.objectContaining({
-				code: "unsupported-option",
-				message: `${path} must be an integer between 1 and ${MAX}.`,
-				detail: { path },
-			}),
-		);
-	});
+	] as const)(
+		"refuses heartbeat.%s of 2^31 with the path and the fixed sentence",
+		(key, heartbeat) => {
+			const path = `websocketAdapter.protocols.p.heartbeat.${key}`;
+			expect(define(heartbeat)).toThrowError(
+				expect.objectContaining({
+					code: "unsupported-option",
+					message: `${path} must be an integer between 1 and ${MAX}.`,
+					detail: { path },
+				}),
+			);
+		},
+	);
 
 	it("accepts 2^31 - 1 for every heartbeat timing option (guard)", () => {
 		expect(define({ intervalMs: MAX, timeoutMs: MAX, frame })).not.toThrow();
@@ -1161,28 +1164,34 @@ describe("heartbeat shape by defined values, never key presence", () => {
 			{ intervalMs: undefined, timeoutMs: 500, frame },
 		],
 		["null", null],
-	] as const)("refuses a heartbeat with neither timing defined at its path: %s", (_, heartbeat) => {
-		expect(define(heartbeat)).toThrowError(
-			expect.objectContaining({
-				code: "unsupported-option",
-				message: `${path}: ${sentence}`,
-				detail: { path },
-			}),
-		);
-	});
+	] as const)(
+		"refuses a heartbeat with neither timing defined at its path: %s",
+		(_, heartbeat) => {
+			expect(define(heartbeat)).toThrowError(
+				expect.objectContaining({
+					code: "unsupported-option",
+					message: `${path}: ${sentence}`,
+					detail: { path },
+				}),
+			);
+		},
+	);
 
 	it.each([
 		["intervalMs without timeoutMs and frame()", { intervalMs: 1_000 }],
 		["intervalMs: null", { intervalMs: null }],
-	] as const)("treats a defined intervalMs as the probe shape: %s beside a valid expectation is refused", (_, probe) => {
-		expect(define({ ...probe, expectInboundWithinMs: 5_000 })).toThrowError(
-			expect.objectContaining({
-				code: "unsupported-option",
-				message: `${path}: ${sentence}`,
-				detail: { path },
-			}),
-		);
-	});
+	] as const)(
+		"treats a defined intervalMs as the probe shape: %s beside a valid expectation is refused",
+		(_, probe) => {
+			expect(define({ ...probe, expectInboundWithinMs: 5_000 })).toThrowError(
+				expect.objectContaining({
+					code: "unsupported-option",
+					message: `${path}: ${sentence}`,
+					detail: { path },
+				}),
+			);
+		},
+	);
 
 	// VF3-1: the `probe()` read site. After a suspension (the clock
 	// jumped past the expectation before any timer ran), a coordinated return
@@ -1191,27 +1200,30 @@ describe("heartbeat shape by defined values, never key presence", () => {
 	it.each([
 		["the plain inbound form (guard)", { expectInboundWithinMs: 5_000 }],
 		["RES-HB", { expectInboundWithinMs: 5_000, intervalMs: undefined }],
-	] as const)("probe() after a suspension fails a lapsed inbound expectation at once: %s", async (_, heartbeat) => {
-		const { conn, fake } = setup(createTopicProtocol({ heartbeat }));
-		subscribe(conn, "a");
-		await flush();
-		const socket = FakeWebSocket.last();
-		socket.serverOpen();
-		const sent = socket.sent.length;
-		vi.setSystemTime(Date.now() + 6_000);
-		conn.probe?.();
-		expect(socket.closedWith).toEqual({
-			code: CLOSE_LIVENESS,
-			reason: "liveness",
-		});
-		expect(socket.sent).toHaveLength(sent);
-		expect(
-			fake.diagnostics.filter((event) => event.type === "heartbeat-missed"),
-		).toEqual([{ type: "heartbeat-missed", detail: { within: 5_000 } }]);
-		expect(fake.diagnostics.map((event) => event.type)).not.toContain(
-			"protocol-hook-error",
-		);
-	});
+	] as const)(
+		"probe() after a suspension fails a lapsed inbound expectation at once: %s",
+		async (_, heartbeat) => {
+			const { conn, fake } = setup(createTopicProtocol({ heartbeat }));
+			subscribe(conn, "a");
+			await flush();
+			const socket = FakeWebSocket.last();
+			socket.serverOpen();
+			const sent = socket.sent.length;
+			vi.setSystemTime(Date.now() + 6_000);
+			conn.probe?.();
+			expect(socket.closedWith).toEqual({
+				code: CLOSE_LIVENESS,
+				reason: "liveness",
+			});
+			expect(socket.sent).toHaveLength(sent);
+			expect(
+				fake.diagnostics.filter((event) => event.type === "heartbeat-missed"),
+			).toEqual([{ type: "heartbeat-missed", detail: { within: 5_000 } }]);
+			expect(fake.diagnostics.map((event) => event.type)).not.toContain(
+				"protocol-hook-error",
+			);
+		},
+	);
 
 	// VF3-1: the frame() clause of the probe completeness check. Valid
 	// probe timings without a frame() function are refused beside a valid
@@ -1230,13 +1242,16 @@ describe("heartbeat shape by defined values, never key presence", () => {
 				expectInboundWithinMs: 5_000,
 			},
 		],
-	] as const)("refuses probe timings beside a valid expectation when frame is not a function: %s", (_, heartbeat) => {
-		expect(define(heartbeat)).toThrowError(
-			expect.objectContaining({
-				code: "unsupported-option",
-				message: `${path}: ${sentence}`,
-				detail: { path },
-			}),
-		);
-	});
+	] as const)(
+		"refuses probe timings beside a valid expectation when frame is not a function: %s",
+		(_, heartbeat) => {
+			expect(define(heartbeat)).toThrowError(
+				expect.objectContaining({
+					code: "unsupported-option",
+					message: `${path}: ${sentence}`,
+					detail: { path },
+				}),
+			);
+		},
+	);
 });

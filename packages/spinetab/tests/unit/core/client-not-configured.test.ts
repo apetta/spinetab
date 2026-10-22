@@ -153,21 +153,24 @@ describe("not-configured: first start", () => {
 		["require", { sharing: "require" }],
 		["off", { sharing: "off" }],
 		["no SharedWorker", {}, { hasSharedWorker: () => false }],
-	])("sharing %s with neither factory is not-configured", async (_, options, env = {}) => {
-		const { client, clock, kit } = makeClient(
-			{ worker: undefined, ...options },
-			{ noLocal: true, env },
-		);
-		client.start();
-		await settle(clock);
-		expect(client.status.get()).toMatchObject({
-			mode: "failed",
-			reason: "not-configured",
-		});
-		expect(reports(kit.reportError)).toEqual([
-			{ code: "not-configured", message: SENTENCE },
-		]);
-	});
+	])(
+		"sharing %s with neither factory is not-configured",
+		async (_, options, env = {}) => {
+			const { client, clock, kit } = makeClient(
+				{ worker: undefined, ...options },
+				{ noLocal: true, env },
+			);
+			client.start();
+			await settle(clock);
+			expect(client.status.get()).toMatchObject({
+				mode: "failed",
+				reason: "not-configured",
+			});
+			expect(reports(kit.reportError)).toEqual([
+				{ code: "not-configured", message: SENTENCE },
+			]);
+		},
+	);
 
 	it("the first browser subscribe starts it; handlers get the error, the client reports once", async () => {
 		const { client, clock, kit } = unconfigured();

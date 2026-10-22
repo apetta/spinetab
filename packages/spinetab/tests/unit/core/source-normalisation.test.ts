@@ -99,19 +99,22 @@ describe("verify with real builders", () => {
 			"socketIo",
 			() => socketIo("https://api.test/chat", { sharing: "shared" }),
 		],
-	])("a %s endpoint as a source fails synchronously with unsupported-option naming a path, before anything registers", async (_name, build) => {
-		const { client, host, clock } = makeClient();
-		const endpoint = build();
-		const error = caught(() =>
-			client.subscribe(endpoint as never, observe().observer),
-		);
-		expect(isSpinetabError(error, "unsupported-option")).toBe(true);
-		expect(typeof (error as { detail?: { path?: unknown } }).detail?.path).toBe(
-			"string",
-		);
-		await settle(clock);
-		expect(host.test.all()).toHaveLength(0);
-	});
+	])(
+		"a %s endpoint as a source fails synchronously with unsupported-option naming a path, before anything registers",
+		async (_name, build) => {
+			const { client, host, clock } = makeClient();
+			const endpoint = build();
+			const error = caught(() =>
+				client.subscribe(endpoint as never, observe().observer),
+			);
+			expect(isSpinetabError(error, "unsupported-option")).toBe(true);
+			expect(
+				typeof (error as { detail?: { path?: unknown } }).detail?.path,
+			).toBe("string");
+			await settle(clock);
+			expect(host.test.all()).toHaveLength(0);
+		},
+	);
 
 	it("an existing class-based observer keeps its `this`", async () => {
 		const { client, host, clock } = makeClient();

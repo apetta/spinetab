@@ -511,27 +511,30 @@ describe("a failing provider is never no-credential-source", () => {
 	it.each([
 		["a timeout, then a failure", ["timeout", "failure"]],
 		["a failure, then a timeout", ["failure", "timeout"]],
-	])("keeps credentials-timeout ahead of a failure: %s", async (_label, steps) => {
-		const { clock, test, runtime } = setup();
-		const tabs = [await tab(runtime, clock), await tab(runtime, clock)];
-		const ctx = await connection(tabs[1] as RawPage, clock, test);
-		const result = track(ctx.credentials("connect"));
-		await settle(clock);
-		for (const step of steps) {
-			const [asked] = pending(tabs, 0);
-			if (!asked) throw new Error("no tab was asked");
-			if (step === "timeout") {
-				clock.advance(5_000);
-			} else {
-				reply(asked, 0, failed);
-			}
+	])(
+		"keeps credentials-timeout ahead of a failure: %s",
+		async (_label, steps) => {
+			const { clock, test, runtime } = setup();
+			const tabs = [await tab(runtime, clock), await tab(runtime, clock)];
+			const ctx = await connection(tabs[1] as RawPage, clock, test);
+			const result = track(ctx.credentials("connect"));
 			await settle(clock);
-			// An asked tab is never asked again within one request.
-			tabs.splice(tabs.indexOf(asked), 1);
-		}
-		expect(result.done).toBe(true);
-		expect(isSpinetabError(result.error, "credentials-timeout")).toBe(true);
-	});
+			for (const step of steps) {
+				const [asked] = pending(tabs, 0);
+				if (!asked) throw new Error("no tab was asked");
+				if (step === "timeout") {
+					clock.advance(5_000);
+				} else {
+					reply(asked, 0, failed);
+				}
+				await settle(clock);
+				// An asked tab is never asked again within one request.
+				tabs.splice(tabs.indexOf(asked), 1);
+			}
+			expect(result.done).toBe(true);
+			expect(isSpinetabError(result.error, "credentials-timeout")).toBe(true);
+		},
+	);
 
 	it("still reports no-credential-source when no live page has a provider", async () => {
 		const { clock, test, runtime } = setup();

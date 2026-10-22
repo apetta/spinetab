@@ -557,7 +557,7 @@ describe("the fresh session presents no recovery pid or offset", () => {
 			// the earlier sessions delivered.
 			expect(h.connects()[3]?.data).toEqual({ pid: "p3", token: "t" });
 			expect(
-				(h.connects()[3]?.data as { offset?: unknown }).offset,
+				(h.connects()[3]?.data as { offset?: unknown } | undefined)?.offset,
 			).toBeUndefined();
 			expect(h.disconnects()).toHaveLength(0);
 		});
@@ -689,7 +689,7 @@ describe("the fresh session presents no recovery pid or offset", () => {
 			// the server starts a fresh session instead of replaying the gap.
 			expect(h.connects()[2]?.data).toEqual({ pid: "p2", token: "t" });
 			expect(
-				(h.connects()[2]?.data as { offset?: unknown }).offset,
+				(h.connects()[2]?.data as { offset?: unknown } | undefined)?.offset,
 			).toBeUndefined();
 			expect(h.disconnects()).toHaveLength(0);
 		});

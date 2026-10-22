@@ -54,6 +54,11 @@ pnpm install
 pnpm dev
 ```
 
+Dependencies must support this floor. `.npmrc` enables `engineStrict`, so a
+package whose `engines` excludes Node 24.11 makes `pnpm install` fail. When
+updating dependencies, check the `engines` entries that change in `pnpm-lock.yaml`,
+and keep `@types/node` on the Node 24 line so types match the oldest supported runtime.
+
 The website runs at `http://127.0.0.1:4321` (documentation under `/docs/`). Turbo builds the library before
 starting the website and the library watcher. No environment files are required.
 `pnpm install` also installs the repository's Git hooks.

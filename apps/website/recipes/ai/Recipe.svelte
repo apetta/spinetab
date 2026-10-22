@@ -23,7 +23,9 @@ onMount(() => {
 <section aria-label="Chat">
 	{#each chat.messages as message (message.id)}
 		<p>
-			{message.parts.map((part) => part.type === "text" ? part.text : "").join("")}
+			{message.parts
+				.map((part) => (part.type === "text" ? part.text : ""))
+				.join("")}
 		</p>
 	{/each}
 	{#if chat.error}
@@ -33,7 +35,11 @@ onMount(() => {
 	<button
 		type="button"
 		disabled={!mounted || busy}
-		onclick={() => { void chat.sendMessage({ text: "Explain shared browser connections in one sentence." }); }}
+		onclick={() => {
+			void chat.sendMessage({
+				text: "Explain shared browser connections in one sentence.",
+			});
+		}}
 	>
 		Send
 	</button>

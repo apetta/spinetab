@@ -122,9 +122,9 @@ describe("SpinetabLink in a real ApolloClient", () => {
 		await waitFor(() => failing.some((result) => result.error));
 		const errored = failing.find((result) => result.error);
 		expect(CombinedGraphQLErrors.is(errored?.error)).toBe(true);
-		expect((errored?.error as CombinedGraphQLErrors).errors[0]?.message).toBe(
-			"ticks failed after 1 events",
-		);
+		expect(
+			(errored?.error as CombinedGraphQLErrors | undefined)?.errors[0]?.message,
+		).toBe("ticks failed after 1 events");
 
 		const partial: Array<{ data?: TicksData; error?: unknown }> = [];
 		client

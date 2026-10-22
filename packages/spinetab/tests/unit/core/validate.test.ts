@@ -30,17 +30,20 @@ describe("refuseCredentialCarriers", () => {
 		"secret",
 		"Access_Token",
 		"TOKEN",
-	])("refuses the key %s in query, connectionParams and auth objects", (key) => {
-		for (const path of ["query", "connection.connectionParams", "auth"]) {
-			const error = refusal(() =>
-				refuseCredentialCarriers({ room: "a", [key]: "CANARY" }, path),
-			);
-			expect(error?.code).toBe("unsupported-option");
-			expect(error?.message).toContain(`${path}.${key}`);
-			expect(error?.message).toContain("credentials provider");
-			expect(error?.message).not.toContain("CANARY");
-		}
-	});
+	])(
+		"refuses the key %s in query, connectionParams and auth objects",
+		(key) => {
+			for (const path of ["query", "connection.connectionParams", "auth"]) {
+				const error = refusal(() =>
+					refuseCredentialCarriers({ room: "a", [key]: "CANARY" }, path),
+				);
+				expect(error?.code).toBe("unsupported-option");
+				expect(error?.message).toContain(`${path}.${key}`);
+				expect(error?.message).toContain("credentials provider");
+				expect(error?.message).not.toContain("CANARY");
+			}
+		},
+	);
 
 	it("refuses token keys nested at any depth, and a bare query parameter name", () => {
 		expect(
@@ -166,9 +169,12 @@ describe("isCredentials", () => {
 		[{ auth: { list: new Array<number>(2) } }],
 		[{ auth: { f() {} } }],
 		[{ connectionParams: cyclic }],
-	])("refuses %o: connectionParams and auth are Record<string, Json>", (value) => {
-		expect(isCredentials(value)).toBe(false);
-	});
+	])(
+		"refuses %o: connectionParams and auth are Record<string, Json>",
+		(value) => {
+			expect(isCredentials(value)).toBe(false);
+		},
+	);
 
 	it("accepts JSON records, nested objects, arrays and null", () => {
 		const shared = { id: 1 };
