@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/apetta/spinetab/compare/v0.2.0...v0.2.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** update integration targets and mark AI SDK resumes as replays ([#22](https://github.com/apetta/spinetab/issues/22)) ([607beac](https://github.com/apetta/spinetab/commit/607beacc34baf8612363a61e963d3197c4a1228c))
+
 ## [0.2.0](https://github.com/apetta/spinetab/compare/v0.1.0...v0.2.0) (2026-10-17)
 
 
