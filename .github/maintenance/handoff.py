@@ -43,7 +43,9 @@ def prepare(event):
     comment_id = event.get("inputs", {}).get("comment_id") if kind == "workflow_dispatch" else event["comment"]["id"]
     require(re.fullmatch(r"[1-9][0-9]*", str(comment_id)), "Invalid comment ID")
     comment = api(f"/issues/comments/{comment_id}")
-    require(trusted_supervisor(comment),
+    body = comment.get("body") or ""
+    continuation = body.startswith(CONTINUATION_MARKER + "\n")
+    require(trusted_supervisor(comment, continuation=continuation),
             "Handoff must come from the supervisor's GitHub connection")
     require(comment.get("created_at") and comment["created_at"] == comment.get("updated_at"),
             "Edited handoff needs a fresh comment")
@@ -53,8 +55,7 @@ def prepare(event):
     number = int(target[1])
     if kind == "issue_comment":
         require(number == event["issue"]["number"], "Handoff covers another issue")
-    body = comment.get("body") or ""
-    marker = CONTINUATION_MARKER if body.startswith(CONTINUATION_MARKER + "\n") else MARKER
+    marker = CONTINUATION_MARKER if continuation else MARKER
     match = re.fullmatch(re.escape(marker) + r"\nHead: ([0-9a-f]{40})\nBase: ([0-9a-f]{40})\n\n([\s\S]{1,3000})", body)
     require(match is not None and match[3].strip(), "Handoff needs full head/base commits and a task")
     pr = api(f"/pulls/{number}")

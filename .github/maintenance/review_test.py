@@ -601,12 +601,12 @@ class SupervisorReviewTests(unittest.TestCase):
         self.current()
         self.assertFalse(self.writes)
 
-    def test_technical_supervisor_permission_cannot_replace_independent_review(self):
+    def test_claude_worker_cannot_authorise_protected_configuration(self):
         self.comment["performed_via_github_app"] = dict(review.TECHNICAL_SUPERVISOR_APP)
-        self.current()
-        with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
-             patch.object(review, "ci", return_value=self.run), self.assertRaisesRegex(ValueError, "superseded"):
-            review.merge()
+        with self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
+            self.current()
+        with patch.object(review, "pages", side_effect=self.pages):
+            self.assertIsNone(review.supervisor_request(self.pr))
         self.assertFalse(self.writes)
 
     def test_owner_identity_and_connection_are_verified(self):
@@ -639,19 +639,17 @@ class SupervisorReviewTests(unittest.TestCase):
             self.assertIsNone(review.supervisor_request(self.pr))
 
     def test_authorisation_is_bound_to_both_commits_and_pr(self):
-        for app in (review.SUPERVISOR_APP, review.TECHNICAL_SUPERVISOR_APP):
-            self.comment["performed_via_github_app"] = dict(app)
-            for key, value, error in [
-                ("issue_url", f"https://api.github.com/repos/{review.REPO}/issues/13", "another PR"),
-                ("body", self.comment["body"].replace("Head: " + "a" * 40, "Head: " + "d" * 40), "head changed"),
-                ("body", self.comment["body"].replace("Base: " + "b" * 40, "Base: " + "d" * 40), "base changed"),
-                ("updated_at", "2026-10-17T12:01:00Z", "Edited authorisation"),
-            ]:
-                original = self.comment[key]
-                with self.subTest(app=app, key=key, value=value), self.assertRaisesRegex(ValueError, error):
-                    self.comment[key] = value
-                    self.current()
-                self.comment[key] = original
+        for key, value, error in [
+            ("issue_url", f"https://api.github.com/repos/{review.REPO}/issues/13", "another PR"),
+            ("body", self.comment["body"].replace("Head: " + "a" * 40, "Head: " + "d" * 40), "head changed"),
+            ("body", self.comment["body"].replace("Base: " + "b" * 40, "Base: " + "d" * 40), "base changed"),
+            ("updated_at", "2026-10-17T12:01:00Z", "Edited authorisation"),
+        ]:
+            original = self.comment[key]
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, error):
+                self.comment[key] = value
+                self.current()
+            self.comment[key] = original
         self.assertFalse(self.writes)
 
     def test_malformed_authorisation_is_rejected(self):
@@ -723,21 +721,17 @@ class SupervisorReviewTests(unittest.TestCase):
                 self.prepare("issue_comment")
 
     def test_verified_review_then_guarded_merge_dispatches_downstream_ci(self):
-        for app in (review.SUPERVISOR_APP, review.TECHNICAL_SUPERVISOR_APP):
-            with self.subTest(app=app):
-                self.comment["performed_via_github_app"] = dict(app)
-                self.reviews, self.writes, self.merged = [], [], False
-                with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
-                     patch.object(review, "ci", return_value=self.run), patch.object(review, "output"):
-                    review.review()
-                    self.assertIn("Supervisor authorisation:", self.reviews[0]["body"])
-                    self.assertEqual(self.reviews[0]["user"]["login"], review.REVIEWER)
-                    review.merge()
-                self.assertEqual([item[:2] for item in self.writes], [
-                    ("/pulls/12/reviews", "POST"), ("/pulls/12/merge", "PUT"),
-                    ("/actions/workflows/ci.yml/dispatches", "POST")])
-                self.assertEqual(self.writes[1][2]["sha"], "a" * 40)
-                self.assertEqual(self.writes[2][2], {"ref": "main", "inputs": {"deploy": True, "expected_sha": "c" * 40}})
+        with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \
+             patch.object(review, "ci", return_value=self.run), patch.object(review, "output"):
+            review.review()
+            self.assertIn("Supervisor authorisation:", self.reviews[0]["body"])
+            self.assertEqual(self.reviews[0]["user"]["login"], review.REVIEWER)
+            review.merge()
+        self.assertEqual([item[:2] for item in self.writes], [
+            ("/pulls/12/reviews", "POST"), ("/pulls/12/merge", "PUT"),
+            ("/actions/workflows/ci.yml/dispatches", "POST")])
+        self.assertEqual(self.writes[1][2]["sha"], "a" * 40)
+        self.assertEqual(self.writes[2][2], {"ref": "main", "inputs": {"deploy": True, "expected_sha": "c" * 40}})
 
     def test_changed_head_after_review_blocks_merge(self):
         with patch.object(review, "api", side_effect=self.api), patch.object(review, "pages", side_effect=self.pages), \

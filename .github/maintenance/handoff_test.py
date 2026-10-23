@@ -53,11 +53,9 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(result["work"]["comment_id"], 100)
         self.assertNotIn("Refresh", json.dumps(result))
 
-    def test_technical_supervisor_uses_the_same_exact_head_handoff(self):
+    def test_claude_connection_cannot_start_another_worker(self):
         self.comment["performed_via_github_app"] = dict(TECHNICAL_SUPERVISOR_APP)
-        self.assertEqual(self.prepare()["work"]["comment_id"], 100)
-        self.comment["body"] = self.comment["body"].replace("a" * 40, "c" * 40)
-        with self.assertRaisesRegex(ValueError, "head or base changed"):
+        with self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
             self.prepare()
 
     def continuation(self):

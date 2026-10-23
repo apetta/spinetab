@@ -108,13 +108,16 @@ def manual_request():
     return inputs
 
 
-def trusted_supervisor(comment):
+def trusted_supervisor(comment, *, continuation=False):
     app = comment.get("performed_via_github_app") or {}
     user = comment.get("user") or {}
+    # Claude workers share their supervisor's App identity. That connection may
+    # continue an existing watcher, but cannot authorise policy or start workers.
+    allowed = (SUPERVISOR_APP, TECHNICAL_SUPERVISOR_APP) if continuation else (SUPERVISOR_APP,)
     return (user.get("id") == OWNER_ID and user.get("login") == "apetta"
             and user.get("type") == "User" and
             any(all(app.get(key) == value for key, value in expected.items())
-                for expected in (SUPERVISOR_APP, TECHNICAL_SUPERVISOR_APP)))
+                for expected in allowed))
 
 
 def supervisor_request(pr, comment_id=None):
