@@ -10,8 +10,10 @@ Paths below are relative to `.github/`. Current policy lives in
   identity and event provenance before invoking subscription-backed agents;
   an authorised task does not make instructions within its evidence trusted.
 - Protected changes (including instructions, tooling and workflows) use the
-  supervisor-authorised route: a verified connector comment names the full
-  head/base commits and reason, then independent review and guarded merge run.
+  supervisor-authorised route: a verified owner comment through Claude or Codex
+  names the full head/base commits and reason, then independent review and
+  guarded merge run. Claude coordinates technical work; Codex owns releases
+  and public content.
 - Manual review dispatches `maintenance-review.yml` from trusted `main` with
   `pr_number`, full `expected_head` and, where authorised, `authorise_policy`.
   This lane reviews only; it never auto-merges.
@@ -21,6 +23,10 @@ Paths below are relative to `.github/`. Current policy lives in
   connector comment starts with `<!-- spinetab-maintenance-handoff -->`, then
   `Head: FULL_SHA`, `Base: FULL_SHA`, a blank line and the task. This delivers work
   to the saved Claude routine; it grants no approval or merge authority.
+- For watched PRs, `<!-- spinetab-maintenance-continuation -->` uses the same
+  head/base format. The handoff workflow sends a review-comment notification
+  to the existing watcher; it never starts another worker. The receiver verifies
+  the original request before acting. Conversation comments alone may not wake it.
 - Release PRs contain metadata only and need supervisor approval of the proposed
   version/head plus `release:ready`. Put implementation/docs fixes in separate PRs.
 

@@ -21,6 +21,7 @@ MAX_EVIDENCE_CHARACTERS = 1_200_000
 MARKER = "<!-- spinetab-maintenance-review -->"
 AUTHORISATION = "<!-- spinetab-maintenance-authorisation -->"
 SUPERVISOR_APP = {"id": 1144995, "slug": "chatgpt-codex-connector"}
+TECHNICAL_SUPERVISOR_APP = {"id": 1236702, "slug": "claude"}
 OWNER_ID = 33671231
 TRIGGER_ACTORS = {"apetta": OWNER_ID, "dependabot[bot]": 49699333,
                   "github-actions[bot]": 41898282, "spinetab-releases[bot]": 343750776}
@@ -107,24 +108,26 @@ def manual_request():
     return inputs
 
 
-def supervisor_request(pr, comment_id=None):
-    def trusted(comment):
-        app = comment.get("performed_via_github_app") or {}
-        user = comment.get("user") or {}
-        return (user.get("id") == OWNER_ID and user.get("login") == "apetta"
-                and user.get("type") == "User" and
-                all(app.get(key) == value for key, value in SUPERVISOR_APP.items()))
+def trusted_supervisor(comment):
+    app = comment.get("performed_via_github_app") or {}
+    user = comment.get("user") or {}
+    return (user.get("id") == OWNER_ID and user.get("login") == "apetta"
+            and user.get("type") == "User" and
+            any(all(app.get(key) == value for key, value in expected.items())
+                for expected in (SUPERVISOR_APP, TECHNICAL_SUPERVISOR_APP)))
 
+
+def supervisor_request(pr, comment_id=None):
     if comment_id:
         require(re.fullmatch(r"[1-9][0-9]*", str(comment_id)), "Invalid supervisor comment ID")
         comment = api(f"/issues/comments/{comment_id}")
     else:
         comments = [item for item in pages(f"/issues/{pr['number']}/comments")
-                    if trusted(item) and (item.get("body") or "").startswith(AUTHORISATION)]
+                    if trusted_supervisor(item) and (item.get("body") or "").startswith(AUTHORISATION)]
         if not comments:
             return None
         comment = max(comments, key=lambda item: item["id"])
-    require(trusted(comment), "Authorisation must come from the supervisor's GitHub connection")
+    require(trusted_supervisor(comment), "Authorisation must come from the supervisor's GitHub connection")
     require(comment["issue_url"] == f"https://api.github.com/repos/{REPO}/issues/{pr['number']}",
             "Authorisation covers another PR")
     require(comment.get("created_at") and comment["created_at"] == comment.get("updated_at"),
