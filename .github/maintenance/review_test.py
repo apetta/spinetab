@@ -601,6 +601,14 @@ class SupervisorReviewTests(unittest.TestCase):
         self.current()
         self.assertFalse(self.writes)
 
+    def test_claude_worker_cannot_authorise_protected_configuration(self):
+        self.comment["performed_via_github_app"] = dict(review.TECHNICAL_SUPERVISOR_APP)
+        with self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
+            self.current()
+        with patch.object(review, "pages", side_effect=self.pages):
+            self.assertIsNone(review.supervisor_request(self.pr))
+        self.assertFalse(self.writes)
+
     def test_owner_identity_and_connection_are_verified(self):
         for user, app in [({"login": "someone", "type": "User"}, review.SUPERVISOR_APP),
                           ({"login": "apetta", "type": "Bot"}, review.SUPERVISOR_APP),
@@ -608,7 +616,9 @@ class SupervisorReviewTests(unittest.TestCase):
                           (self.comment["user"], None),
                           (self.comment["user"], {"id": 123, "slug": "claude"}),
                           (self.comment["user"], {"id": 123, "slug": "chatgpt-codex-connector"}),
-                          (self.comment["user"], {"id": 1144995, "slug": "another-app"})]:
+                          (self.comment["user"], {"id": 1144995, "slug": "another-app"}),
+                          (self.comment["user"], {"id": 1236702, "slug": "another-app"}),
+                          (self.comment["user"], {"id": 1236702, "slug": "chatgpt-codex-connector"})]:
             original = copy.deepcopy(self.comment)
             with self.subTest(user=user, app=app):
                 self.comment.update(user=user, performed_via_github_app=app)
