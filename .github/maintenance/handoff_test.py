@@ -9,6 +9,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
+from review import TECHNICAL_SUPERVISOR_APP
+
 spec = importlib.util.spec_from_file_location("handoff", Path(__file__).with_name("handoff.py"))
 handoff = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(handoff)
@@ -51,10 +53,92 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(result["work"]["comment_id"], 100)
         self.assertNotIn("Refresh", json.dumps(result))
 
+    def test_claude_connection_cannot_start_another_worker(self):
+        self.comment["performed_via_github_app"] = dict(TECHNICAL_SUPERVISOR_APP)
+        with self.assertRaisesRegex(ValueError, "supervisor's GitHub connection"):
+            self.prepare()
+
+    def continuation(self):
+        self.comment["performed_via_github_app"] = dict(TECHNICAL_SUPERVISOR_APP)
+        self.comment["body"] = self.comment["body"].replace(handoff.MARKER, handoff.CONTINUATION_MARKER)
+        return self.prepare()["work"]
+
+    def test_continuation_binds_the_original_request_without_copying_its_task(self):
+        work = self.continuation()
+        self.assertEqual(work["kind"], "supervisor-continuation")
+        self.assertEqual(work["pr"], 24)
+        self.assertEqual(work["comment_id"], 100)
+        self.assertNotIn("Refresh", json.dumps(work))
+        for change in [{"performed_via_github_app": None},
+                       {"updated_at": "2026-10-18T12:01:00Z"},
+                       {"body": self.comment["body"].replace("a" * 40, "c" * 40)},
+                       {"body": self.comment["body"].replace("b" * 40, "c" * 40)}]:
+            original = copy.deepcopy(self.comment)
+            self.comment.update(change)
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                self.prepare()
+            self.comment = original
+
+    def test_continuation_notifies_the_watcher_without_starting_a_worker_or_approving(self):
+        work = self.continuation()
+        writes = []
+        def api(path, method="GET", data=None):
+            if method == "GET":
+                return self.api(path)
+            writes.append((path, method, data))
+            return {"id": 12, "state": "COMMENTED", "commit_id": work["head"]}
+        with patch.object(handoff, "api", side_effect=api), \
+             patch.object(handoff, "pages", return_value=[]), \
+             patch.object(handoff.urllib.request, "urlopen") as fire, \
+             patch.object(handoff, "Path") as path:
+            handoff.dispatch(work, self.event)
+        fire.assert_not_called()
+        self.assertEqual(len(writes), 1)
+        target, method, review = writes[0]
+        self.assertEqual((target, method), ("/pulls/24/reviews", "POST"))
+        self.assertEqual(review["event"], "COMMENT")
+        self.assertEqual(review["commit_id"], "a" * 40)
+        self.assertTrue(review["body"].startswith(handoff.DELIVERY_MARKER + "\nRequest: 100\n"))
+        self.assertIn(f"https://github.com/{handoff.REPO}/pull/24#issuecomment-100", review["body"])
+        self.assertNotIn("Refresh this PR", review["body"])
+        path.return_value.write_text.assert_called_once_with("accepted\n")
+
+    def test_continuation_receipt_prevents_a_repeat_after_uncertain_delivery(self):
+        work = self.continuation()
+        receipt = {"user": {"id": 41898282, "login": "github-actions[bot]", "type": "Bot"},
+                   "state": "COMMENTED", "body": handoff.DELIVERY_MARKER + "\nRequest: 100\n"}
+        with patch.object(handoff, "api", side_effect=self.api) as api, \
+             patch.object(handoff, "pages", return_value=[receipt]), \
+             patch.object(handoff.urllib.request, "urlopen") as fire, patch.object(handoff, "Path") as path:
+            handoff.dispatch(work, self.event)
+        self.assertTrue(all(len(call.args) == 1 for call in api.call_args_list))
+        fire.assert_not_called()
+        path.return_value.write_text.assert_called_once_with("accepted\n")
+
+    def test_failed_continuation_has_no_receipt_or_automatic_retry(self):
+        work = self.continuation()
+        for result in [TimeoutError(), None, {}, {"id": 12, "state": "APPROVED", "commit_id": work["head"]},
+                       {"id": 12, "state": "COMMENTED", "commit_id": "c" * 40}]:
+            posts = []
+            def api(target, method="GET", data=None):
+                if method == "GET":
+                    return self.api(target)
+                posts.append(data)
+                if isinstance(result, Exception):
+                    raise result
+                return result
+            with self.subTest(result=result), patch.object(handoff, "api", side_effect=api), \
+                 patch.object(handoff, "pages", return_value=[]), patch.object(handoff, "Path") as path, \
+                 self.assertRaises((ValueError, TimeoutError)):
+                handoff.dispatch(work, self.event)
+            self.assertEqual(len(posts), 1)
+            path.assert_not_called()
+
     def test_outside_plain_owner_and_forged_app_comments_fail_closed(self):
         for change in [{"user": {"id": 123, "login": "apetta", "type": "User"}},
                        {"performed_via_github_app": None},
                        {"performed_via_github_app": {"id": 1144995, "slug": "other"}},
+                       {"performed_via_github_app": {"id": 1236702, "slug": "other"}},
                        {"updated_at": "2026-10-18T12:01:00Z"},
                        {"body": "@claude please refresh"},
                        {"issue_url": "https://api.github.com/repos/outside/repo/issues/24"}]:

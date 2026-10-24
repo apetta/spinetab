@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       comment_id:
-        description: Verified supervisor handoff comment to retry after inspecting routine history
+        description: Verified supervisor request to retry after inspecting delivery evidence
         required: true
         type: string
 
@@ -26,6 +26,11 @@ concurrency:
 
 jobs:
   deliver:
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      actions: read
     # Only trusted main runs here; cache entries contain an inert delivery receipt.
     cache-mode: write
     if: >-
@@ -34,7 +39,8 @@ jobs:
       (github.run_attempt == 1 || github.triggering_actor == 'apetta') &&
       ((github.event_name == 'issue_comment' && github.event.issue.pull_request &&
       github.actor_id == '33671231' && github.triggering_actor == 'apetta' &&
-      startsWith(github.event.comment.body, '<!-- spinetab-maintenance-handoff -->')) ||
+      (startsWith(github.event.comment.body, '<!-- spinetab-maintenance-handoff -->') ||
+      startsWith(github.event.comment.body, '<!-- spinetab-maintenance-continuation -->'))) ||
       (github.event_name == 'workflow_dispatch' && github.actor_id == '33671231' &&
       github.triggering_actor == 'apetta') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure' &&
@@ -63,7 +69,7 @@ jobs:
           path: maintenance-handoff-ack
           key: ${{ steps.work.outputs.key }}
           lookup-only: true
-      - name: Start the saved Claude worker
+      - name: Deliver the verified request
         if: steps.work.outputs.key != '' && steps.previous.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
