@@ -893,7 +893,7 @@ describe("liveness", () => {
 	});
 });
 
-// NT-U-46, (phase 2b): protocol hooks that throw are
+// NT-U-46: protocol hooks that throw are
 // isolated. A throwing subscribe hook ends that topic only with
 // `subscribe-rejected`; a throwing unsubscribe hook is a diagnostic only; a
 // throwing classifyClose is transient; a throwing heartbeat.frame() is a

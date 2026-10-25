@@ -143,7 +143,7 @@ afterEach(() => {
 		rmSync(dir, { recursive: true, force: true });
 });
 
-// The one-file fixtures after the plugin wave:
+// Single-file worker fixtures:
 // `react-ai-sdk` on Vite, webpack and Rspack, `next-ai` on Next.
 describe("one-file worker modules in a page realm", () => {
 	for (const [fixture, file, extra] of [

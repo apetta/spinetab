@@ -156,7 +156,7 @@ describe("against the built runtime entries", () => {
 	});
 });
 
-describe("src/build/adapters.ts matches (build owner's table)", () => {
+describe("src/build/adapters.ts matches the public exports", () => {
 	it("names exactly the ten adapters, each once", async () => {
 		const { ADAPTER_NAMES } = await loadTable();
 		expect(ADAPTER_NAMES).toEqual(EXPECTED.flatMap((row) => row.kinds).sort());

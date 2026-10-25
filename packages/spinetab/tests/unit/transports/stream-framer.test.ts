@@ -201,7 +201,7 @@ describe("ndjsonParser", () => {
 	});
 });
 
-// NT-U-39, (phase 2b): frames completed in the same push as an
+// NT-U-39: frames completed in the same push as an
 // unterminated oversized tail travel in `partial`, so every chunking delivers
 // the same frames before `frame-too-large`.
 describe("frames completed before an oversized tail", () => {

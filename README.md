@@ -65,9 +65,7 @@ starting the website and the library watcher. No environment files are required.
 
 Remote caching is optional. Run `pnpm exec turbo login`, then
 `pnpm exec turbo link` to share build, typecheck and test results through your
-Vercel team. Keep credentials out of source control and environment files. Without
-remote authentication, Turbo uses its local cache. Trusted local, agent and CI
-runs share task results; browser results also match CI and Playwright settings.
+Vercel team. Without remote authentication, Turbo uses its local cache.
 Use `pnpm exec turbo run e2e --force` for a fresh browser run. Publication
 verification bypasses cached results.
 
@@ -165,29 +163,6 @@ reports as artefacts, and the raw test output when a run fails.
   pull request. CI enforces them.
 - Pre-commit formats and lints staged files. Pre-push checks formatting and lint,
   then builds, type-checks and tests the workspace. Browser E2E runs in CI.
-
-For an independent review of tooling or automation changes, the owner can run
-**Actions → Maintenance review → Run workflow** on `main`, supplying the PR number
-and full current commit SHA. Select **Authorise review of tooling, workflow and
-automation policy changes** when those changes are intended. The manual lane posts
-a review without merging; required CI and branch protection still apply. A changed
-commit needs a fresh review. Ordinary agent PRs use the `agent:ready` label instead.
-
-The repository supervisor can authorise independent review and guarded merge of
-configuration changes by posting a new PR comment through its connected GitHub app:
-
-```text
-<!-- spinetab-maintenance-authorisation -->
-Head: FULL_PR_COMMIT_SHA
-Base: FULL_MAIN_COMMIT_SHA
-
-Reason for the configuration change.
-```
-
-This permits review; it is not an approval. The request must come from the owner's
-ChatGPT GitHub connection, and edited comments are invalid. Changed commits need
-fresh authorisation. Independent review, passing CI and branch protection remain
-required; forks and environment files remain excluded.
 
 Application state, caches, backend replay and server helpers are outside the
 library's scope.

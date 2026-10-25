@@ -514,7 +514,7 @@ function wireBytes(value: string | null | undefined) {
 /** One real macrotask, so Node reports any unhandled rejection before it. */
 const nextTask = () => new Promise((resolve) => setImmediate(resolve));
 
-// NT-U-44, (phase 2b): Last-Event-ID carries the cursor's UTF-8
+// NT-U-44: Last-Event-ID carries the cursor's UTF-8
 // bytes; a cursor a header cannot carry exactly is not conveyed,
 // and a request that cannot be built fails instead of hanging.
 describe("cursor conveyance", () => {
@@ -683,7 +683,7 @@ describe("cursor conveyance", () => {
 	});
 });
 
-// NT-U-45, (phase 2b): events completed before `frame-too-large`
+// NT-U-45: events completed before `frame-too-large`
 // in the same chunk are delivered in order and advance the cursor; the
 // failure follows.
 describe("events completed before frame-too-large", () => {
@@ -723,7 +723,7 @@ describe("events completed before frame-too-large", () => {
 	});
 });
 
-// NT-U-41 (adapter), (phase 2b): a `retry:` value between 30 s
+// NT-U-41 (adapter): a `retry:` value between 30 s
 // and 60 s takes effect; the clamp stays 250 ms–60 s.
 describe("retry field above the backoff cap", () => {
 	it("uses a 45 s retry value as the base, beyond the 30 s cap", async () => {

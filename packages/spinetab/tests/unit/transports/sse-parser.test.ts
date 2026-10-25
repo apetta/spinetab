@@ -388,7 +388,7 @@ describe("chunk-independent bound on lines and retained metadata", () => {
 	});
 });
 
-// NT-U-40, (phase 2b): events dispatched in the same push as an
+// NT-U-40: events dispatched in the same push as an
 // oversized line travel in `partial` on the `frame-too-large` error, so every
 // chunking yields the same events before the failure.
 describe("events dispatched before frame-too-large", () => {
