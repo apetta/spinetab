@@ -680,7 +680,7 @@ describe("options and identity", () => {
 	});
 });
 
-// U-PL-4, (phase 2b): a read timeout that fires while the
+// U-PL-4: a read timeout that fires while the
 // credentials are awaited, or just after fetch resolves, is transient
 // `network`/`timeout`; only an AbortError stays silent.
 describe("read timeouts around the credential wait", () => {
@@ -941,7 +941,7 @@ describe("no-content reads", () => {
 	});
 });
 
-// U-PL-6, (phase 2b): polling header values follow the fetch
+// U-PL-6: polling header values follow the fetch
 // header-value grammar and names the token grammar, in the builder and the
 // worker validator (version skew); errors carry the path, never the value.
 describe("header grammar", () => {

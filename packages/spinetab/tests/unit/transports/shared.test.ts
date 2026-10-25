@@ -246,7 +246,7 @@ describe("harness adapter definitions", () => {
 	});
 });
 
-// NT-U-41, (phase 2b): an SSE `retry:` base above the 30 s cap
+// NT-U-41: an SSE `retry:` base above the 30 s cap
 // lifts the cap to the base, so the 250 ms–60 s clamp takes effect.
 describe("backoff base above the cap", () => {
 	it("lifts the cap to a larger base and keeps 30 s for smaller ones", () => {
@@ -271,7 +271,7 @@ describe("backoff base above the cap", () => {
 	});
 });
 
-// NT-U-42, (phase 2b): a request whose init cannot be built (a
+// NT-U-42: a request whose init cannot be built (a
 // header fetch refuses) fails the connection with a fixed, value-free
 // `unsupported-option` instead of an unhandled rejection that leaves the
 // connection in `connecting` for ever.
@@ -333,7 +333,7 @@ describe("request building", () => {
 	});
 });
 
-// NT-U-43, (phase 2b): header values follow the fetch
+// NT-U-43: header values follow the fetch
 // header-value grammar (code units up to 0xFF; no NUL, CR or LF), in the
 // builders, the worker validators (version skew) and for provider values.
 describe("header value grammar", () => {
