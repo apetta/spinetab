@@ -37,7 +37,11 @@ onUnmounted(() => {
 		<button
 			type="button"
 			:disabled="!mounted || busy"
-			@click="sendMessage({ text: 'Explain shared browser connections in one sentence.' })"
+			@click="
+				sendMessage({
+					text: 'Explain shared browser connections in one sentence.',
+				})
+			"
 		>
 			Send
 		</button>
