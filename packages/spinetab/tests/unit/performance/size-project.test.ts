@@ -223,7 +223,7 @@ describe("seeded Next project pins the consumer templates' toolchain", () => {
 		expect(TOOLCHAIN).toMatchObject({
 			next: "16.3.6",
 			typescript: "6.0.3",
-			"@types/node": "24.13.2",
+			"@types/node": "24.19.2",
 			"@types/react": "19.3.0",
 			"@types/react-dom": "19.3.0",
 		});
@@ -239,7 +239,7 @@ describe("seeded Next project pins the consumer templates' toolchain", () => {
 		expect(manifest.devDependencies).toEqual({
 			next: "16.3.6",
 			typescript: "6.0.3",
-			"@types/node": "24.13.2",
+			"@types/node": "24.19.2",
 			"@types/react": "19.3.0",
 			"@types/react-dom": "19.3.0",
 		});
@@ -253,7 +253,7 @@ describe("seeded Next project pins the consumer templates' toolchain", () => {
 		const manifest = JSON.parse(
 			readFileSync(join(dir, "package.json"), "utf8"),
 		) as { devDependencies: Record<string, string> };
-		expect(manifest.devDependencies["@types/node"]).toBe("24.13.2");
+		expect(manifest.devDependencies["@types/node"]).toBe("24.19.2");
 		const tsconfig = JSON.parse(
 			readFileSync(join(dir, "tsconfig.json"), "utf8"),
 		) as typeof NEXT_TSCONFIG;

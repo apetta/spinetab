@@ -12,7 +12,7 @@
 		"spinetab": "file:../pack/spinetab.tgz"
 	},
 	"devDependencies": {
-		"@types/node": "24.13.2",
+		"@types/node": "24.19.2",
 		"@types/react": "19.3.0",
 		"@types/react-dom": "19.3.0",
 		"typescript": "6.0.3"

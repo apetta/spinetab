@@ -258,7 +258,7 @@ export const TOOLCHAIN = {
 	vite: "8.3.4",
 	next: "16.3.6",
 	typescript: "6.0.3",
-	"@types/node": "24.13.2",
+	"@types/node": "24.19.2",
 	"@types/react": "19.3.0",
 	"@types/react-dom": "19.3.0",
 } as const;

@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -71,6 +71,16 @@
 			}
 		},
 		{
+			"includes": ["packages/spinetab/tests/**"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noComponentHookFactories": "off"
+					}
+				}
+			}
+		},
+		{
 			"includes": [
 				"apps/website/recipes/**/*.vue",
 				"apps/website/recipes/**/*.svelte"
@@ -114,6 +124,22 @@
 		"experimentalFullSupportEnabled": true,
 		"formatter": {
 			"enabled": true
+		}
+	},
+	"markdown": {
+		"formatter": {
+			"enabled": false
+		},
+		"linter": {
+			"enabled": false
+		}
+	},
+	"yaml": {
+		"formatter": {
+			"enabled": false
+		},
+		"linter": {
+			"enabled": false
 		}
 	}
 }

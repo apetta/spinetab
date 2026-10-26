@@ -474,6 +474,7 @@ export function describeCell(
 	definition: CellDefinition,
 	body: (context: CellContext) => void,
 ): void {
+	// biome-ignore lint/correctness/usePlaywrightValidDescribeCallback: Playwright accepts a details object before the callback.
 	test.describe
 		.serial(definition.id, {
 			annotation: { type: "consumer-cell", description: definition.id },
