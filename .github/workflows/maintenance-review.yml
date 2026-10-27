@@ -152,7 +152,7 @@ jobs:
           fi
       - name: Review without executing candidate code
         id: agent
-        uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33
+        uses: anthropics/claude-code-action@925afb53776cf1a2b738c6bdbed37b4d4000ef13
         with:
           github_token: ${{ github.token }}
           allowed_bots: "dependabot[bot],github-actions[bot],${{ vars.RELEASE_BOT_LOGIN }}"
