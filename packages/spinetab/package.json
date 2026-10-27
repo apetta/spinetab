@@ -12,7 +12,7 @@
 		"url": "https://github.com/apetta/spinetab/issues"
 	},
 	"devDependencies": {
-		"@ai-sdk/react": "4.0.154",
+		"@ai-sdk/react": "4.0.156",
 		"@apollo/client": "4.3.5",
 		"@jridgewell/sourcemap-codec": "1.6.0",
 		"@playwright/test": "1.64.1",
@@ -25,7 +25,7 @@
 		"@types/react": "19.3.0",
 		"@types/react-dom": "19.3.0",
 		"@types/ws": "8.18.2",
-		"ai": "7.0.150",
+		"ai": "7.0.152",
 		"astro": "7.4.2",
 		"es-module-lexer": "3.0.4",
 		"expect-type": "1.4.0",
@@ -33,7 +33,7 @@
 		"graphql-sse": "2.6.3",
 		"graphql-ws": "6.4.1",
 		"happy-dom": "21.0.4",
-		"next": "16.4.2",
+		"next": "16.4.3",
 		"react": "19.3.1",
 		"react-dom": "19.3.1",
 		"rxjs": "7.8.2",
@@ -43,13 +43,13 @@
 		"superjson": "2.2.6",
 		"svelte": "5.57.2",
 		"swr": "2.5.1",
-		"tsdown": "0.23.1",
+		"tsdown": "0.23.2",
 		"typescript": "6.0.3",
 		"typescript-floor": "npm:typescript@5.7.3",
-		"vite": "8.3.4",
+		"vite": "8.3.5",
 		"vitest": "5.0.5",
 		"vue": "3.5.44",
-		"webpack": "5.112.1",
+		"webpack": "5.112.2",
 		"ws": "8.22.0"
 	},
 	"exports": {
