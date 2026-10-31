@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { builtinModules } from "node:module";
 import { join } from "node:path";
 import ts from "typescript";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
 	allowlistedSelfImports,
 	allowsSpecifier,
@@ -15,10 +15,12 @@ import {
 	isNodeBuiltin,
 	packageName,
 } from "./allowlist.ts";
+import { buildDeclarationMaps } from "./declaration-maps.ts";
 import { distDir, targets } from "./dist.ts";
 import {
 	areasOf,
 	closureOf,
+	type DeclarationMaps,
 	distRelative,
 	importsOf,
 	isDeclaration,
@@ -40,6 +42,12 @@ const selfImports = new Set(allowlistedSelfImports());
 const importsIn = (file: string) =>
 	importsOf(readFileSync(join(distDir, file), "utf8"));
 
+// Declaration sources come from a declaration-map build bound to dist/.
+let maps: DeclarationMaps;
+beforeAll(async () => {
+	maps = await buildDeclarationMaps("dist-specifiers");
+});
+
 describe("bare specifiers in dist", () => {
 	it("never imports Next or server/client markers", () => {
 		const offending = emitted.flatMap((file) =>
@@ -54,7 +62,7 @@ describe("bare specifiers in dist", () => {
 
 	it("imports node: built-ins only from build files", () => {
 		const offending = emitted.flatMap((file) => {
-			const areas = areasOf(distDir, file);
+			const areas = areasOf(distDir, file, maps);
 			const build =
 				file.startsWith("build/") &&
 				areas.length > 0 &&
@@ -82,7 +90,7 @@ describe("bare specifiers in dist", () => {
 
 	it("keeps core-only files free of third-party imports", () => {
 		const offending = emitted.flatMap((file) => {
-			const areas = areasOf(distDir, file);
+			const areas = areasOf(distDir, file, maps);
 			if (!areas.every((area) => area === CORE)) return [];
 			return importsIn(file)
 				.filter(isBareSpecifier)
@@ -215,7 +223,7 @@ describe("bare specifiers in dist", () => {
 		const offending: string[] = [];
 		const found = new Set<string>();
 		for (const file of emitted) {
-			for (const source of sourcesOf(distDir, file)) {
+			for (const source of sourcesOf(distDir, file, maps)) {
 				const owner = owners[source];
 				if (!owner) continue;
 				found.add(source);

@@ -569,12 +569,13 @@ describe("isolation inspection", () => {
 		expect(realmOf([], undefined, "shared")).toBe("shared");
 	});
 
-	it("maps dist files to areas through their own maps or declaration regions", () => {
+	it("maps dist files to areas through their own maps only", () => {
 		const resolve = createDistResolver(installed);
 		expect(resolve("entry.js")).toEqual(["transports/sse"]);
 		expect(resolve("sse/runtime.js")).toEqual(["transports/sse"]);
 		expect(resolve("chunk-A1.js")).toEqual(["core"]);
-		expect(resolve("types-C3.d.ts")).toEqual(["core"]);
+		// Its region comments do not attribute it.
+		expect(resolve("types-C3.d.ts")).toEqual(["unmapped:types-C3.d.ts"]);
 		expect(resolve("polling.js")).toEqual(["transports/polling"]);
 		expect(resolve("ai-sdk.js")).toEqual(["integrations/ai-sdk"]);
 		expect(resolve("missing.js")).toEqual(["missing:missing.js"]);
@@ -1079,7 +1080,10 @@ describe("import graph", () => {
 		expect([...closure.bare.keys()]).toEqual(["graphql"]);
 		expect(closure.unresolved).toEqual([]);
 		expect(areasOf(installed, "lazy-B2.js")).toEqual(["transports/shared"]);
-		expect(areasOf(installed, "entry.d.ts")).toEqual(["transports/sse"]);
+		// Region comments in a declaration are not provenance on their own.
+		expect(() => areasOf(installed, "entry.d.ts")).toThrow(
+			/declaration-map evidence/,
+		);
 	});
 });
 
