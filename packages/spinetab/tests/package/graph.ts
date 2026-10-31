@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, join, posix, relative, resolve } from "node:path";
+import { basename, dirname, join, posix, relative, resolve } from "node:path";
 import ts from "typescript";
 import { areaOf, isBareSpecifier, isNodeBuiltin } from "./allowlist.ts";
 
@@ -7,7 +7,9 @@ import { areaOf, isBareSpecifier, isNodeBuiltin } from "./allowlist.ts";
  * Import-graph helpers over emitted files. Static and
  * dynamic imports, re-exports and `require()` calls come from
  * `ts.preProcessFile(text, true, true)`; areas come from each JS file's own
- * sourcemap `sources`, or from `//#region src/…` markers in declarations.
+ * sourcemap `sources`. Declarations ship without maps, so their sources come
+ * from a separate declaration-map build bound to the candidate (see
+ * `DeclarationMaps`); bundler comments are never read as provenance.
  */
 
 export interface Closure {
@@ -166,13 +168,16 @@ export function closureOf(
 }
 
 /**
- * Source areas of an emitted file. JS: its map's `sources`, relative to the
- * package root. Declarations: `//#region src/…` markers (no declaration maps
- * are emitted). Unmapped files yield `unmapped:<file>`.
+ * Source areas of an emitted file, from `sourcesOf`. Unmapped files yield
+ * `unmapped:<file>`.
  */
-export function areasOf(root: string, file: string): string[] {
+export function areasOf(
+	root: string,
+	file: string,
+	maps?: DeclarationMaps,
+): string[] {
 	const areas = new Set<string>();
-	for (const source of sourcesOf(root, file)) {
+	for (const source of sourcesOf(root, file, maps)) {
 		areas.add(areaOf(source) ?? `unknown:${source}`);
 	}
 	if (areas.size === 0 && !(isDeclaration(file) && reexportsOnly(root, file))) {
@@ -184,7 +189,7 @@ export function areasOf(root: string, file: string): string[] {
 /**
  * A declaration file that declares nothing itself: only import and
  * `export … from`/`export { … }` statements (the keep stub's
- * `auto/worker.d.ts`). rolldown-plugin-dts writes no region marker for it,
+ * `auto/worker.d.ts`). rolldown-plugin-dts writes no declaration map for it,
  * so it carries no area of its own; its imports are still followed.
  */
 export function reexportsOnly(root: string, file: string): boolean {
@@ -199,16 +204,33 @@ export function reexportsOnly(root: string, file: string): boolean {
 	);
 }
 
-/** Source paths relative to the package root (`src/…`) for an emitted file. */
-export function sourcesOf(root: string, file: string): string[] {
+/**
+ * Declaration maps for a candidate `dist/`, from a separate build of the same
+ * sources and config (`tests/package/declaration-maps.ts`). `candidate` is the
+ * absolute directory the build was checked against; `dir` holds its output.
+ */
+export interface DeclarationMaps {
+	candidate: string;
+	dir: string;
+}
+
+const MAP_REFERENCE = /\n?\/\/# sourceMappingURL=(\S+)\s*$/;
+
+/**
+ * Source paths relative to the package root (`src/…`) for an emitted file.
+ * JS: its own map. Declarations: the map beside the same file in `maps`,
+ * once that file is byte-identical to the candidate's apart from its own map
+ * reference. Missing, stale or unbound evidence throws rather than yielding
+ * no sources, so a realm check cannot pass on absent provenance.
+ */
+export function sourcesOf(
+	root: string,
+	file: string,
+	maps?: DeclarationMaps,
+): string[] {
 	const packageRoot = dirname(resolve(root));
 	const distName = relative(packageRoot, resolve(root)).replace(/\\/g, "/");
-	if (isDeclaration(file)) {
-		const text = readFileSync(join(root, file), "utf8");
-		return [...text.matchAll(/\/\/#region (src\/\S+)/g)].map((match) =>
-			(match[1] as string).replace(/\.d\.(c|m)?ts$/, ".ts"),
-		);
-	}
+	if (isDeclaration(file)) return declarationSources(root, file, maps);
 	const mapPath = join(root, `${file}.map`);
 	if (!existsSync(mapPath)) return [];
 	const map = JSON.parse(readFileSync(mapPath, "utf8")) as {
@@ -219,6 +241,78 @@ export function sourcesOf(root: string, file: string): string[] {
 		.map((source) =>
 			posix.normalize(posix.join(distName, posix.dirname(file), source)),
 		);
+}
+
+/**
+ * The text a declaration-map build wrote for `file`, without its own map
+ * reference, or why it cannot stand for the candidate's file.
+ */
+export function boundDeclaration(
+	root: string,
+	file: string,
+	maps: DeclarationMaps,
+): { text: string; mapped: boolean } | { problem: string } {
+	if (resolve(root) !== maps.candidate) {
+		return { problem: `maps were checked against ${maps.candidate}` };
+	}
+	const built = join(maps.dir, file);
+	if (!existsSync(built))
+		return { problem: "not in the declaration-map build" };
+	const text = readFileSync(built, "utf8");
+	const reference = MAP_REFERENCE.exec(text);
+	if (reference && reference[1] !== `${basename(file)}.map`) {
+		return { problem: `references another map: ${reference[1]}` };
+	}
+	const body = reference ? text.slice(0, reference.index) : text;
+	if (body !== readFileSync(join(root, file), "utf8")) {
+		return { problem: "differs from the candidate" };
+	}
+	return { text: body, mapped: existsSync(`${built}.map`) };
+}
+
+function declarationSources(
+	root: string,
+	file: string,
+	maps: DeclarationMaps | undefined,
+): string[] {
+	const fail = (problem: string): never => {
+		throw new Error(`${file}: ${problem}`);
+	};
+	if (!maps) return fail("declarations need declaration-map evidence");
+	const bound = boundDeclaration(root, file, maps);
+	if ("problem" in bound) return fail(bound.problem);
+	if (!bound.mapped) {
+		return reexportsOnly(root, file) ? [] : fail("no declaration map");
+	}
+	const mapPath = join(maps.dir, `${file}.map`);
+	let map: {
+		version?: unknown;
+		file?: unknown;
+		sourceRoot?: unknown;
+		sources?: unknown;
+	};
+	try {
+		map = JSON.parse(readFileSync(mapPath, "utf8"));
+	} catch {
+		return fail("declaration map is not JSON");
+	}
+	const sources = map.sources;
+	if (
+		map.version !== 3 ||
+		map.file !== basename(file) ||
+		(map.sourceRoot !== undefined && map.sourceRoot !== "") ||
+		!Array.isArray(sources) ||
+		sources.length === 0 ||
+		!sources.every((source) => typeof source === "string")
+	) {
+		return fail("declaration map does not describe this file");
+	}
+	const packageRoot = dirname(resolve(root));
+	return sources.map((source: string) => {
+		const path = resolve(dirname(mapPath), source);
+		if (!existsSync(path)) fail(`maps to a missing source: ${source}`);
+		return relative(packageRoot, path).replace(/\\/g, "/");
+	});
 }
 
 /** Every file below `root`, relative and sorted. */

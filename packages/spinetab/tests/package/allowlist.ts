@@ -2,8 +2,8 @@
  * Per-entry dependency allow-list for the built package. Shared by the dist checks (`tests/package/*.test.ts`)
  * and the packed-consumer isolation inspection (`consumers/inspect.ts`).
  *
- * Areas come from sourcemap `sources` (JS) or `//#region src/…` markers
- * (declarations): `src/core/**`, `src/runtime/**`, `src/worker/**`,
+ * Areas come from sourcemap `sources`; the package tests read declaration
+ * sources from a bound declaration-map build (`declaration-maps.ts`). `src/core/**`, `src/runtime/**`, `src/worker/**`,
  * `src/index.ts` and `src/wiring.ts` are core; the plugin seams
  * (`src/auto/**`, `src/worker-config.ts`) are `auto`; `src/build/**` is
  * `build`, never core; `src/<kind>/<name>/**` is the area `<kind>/<name>`.

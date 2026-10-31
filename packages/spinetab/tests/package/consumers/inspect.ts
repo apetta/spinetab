@@ -776,7 +776,7 @@ export function realmOf(
 }
 
 /**
- * Areas of one installed Spinetab dist file, through its own map or regions.
+ * Areas of one installed Spinetab dist file, through its own map.
  * Anything that cannot be attributed yields a non-area marker (`missing:`,
  * `invalid-map:`, `unmapped:`, `unknown:`) that no entry allows.
  */
@@ -811,12 +811,8 @@ export function createDistResolver(
 			}
 			if (areas.size === 0) areas.add(`unmapped:${distFile}`);
 		} else if (existsSync(join(installedDist, distFile))) {
-			const text = readFileSync(join(installedDist, distFile), "utf8");
-			for (const match of text.matchAll(/\/\/#region (src\/\S+)/g)) {
-				const path = (match[1] as string).replace(/\.d\.ts$/, ".ts");
-				areas.add(areaOf(path) ?? `unknown:${path}`);
-			}
-			if (areas.size === 0) areas.add(`unmapped:${distFile}`);
+			// Bundler comments (such as module markers) are not provenance.
+			areas.add(`unmapped:${distFile}`);
 		} else {
 			areas.add(`missing:${distFile}`);
 		}

@@ -16,22 +16,38 @@ import { dynamicImportsOf, importsOf } from "./graph.ts";
 /** Bundlers recognise these literal worker expressions; tree shaking must retain the worker binding even with application sideEffects: false. */
 const manifest = readManifest();
 const read = (file: string) => readFileSync(join(distDir, file), "utf8");
-/** Emitted code without tsdown's region markers and the map reference. */
+/**
+ * Emitted code without whole-line `//` comments (bundler module markers, whose
+ * form is not a contract, and the map reference) or blank lines. A line
+ * comment cannot change what the module does; code lines stay exact.
+ */
 const code = (text: string) =>
 	text
 		.split("\n")
-		.filter(
-			(line) =>
-				!/^\/\/#(region|endregion)\b/.test(line) &&
-				!/^\/\/# sourceMappingURL=/.test(line) &&
-				line.trim() !== "",
-		)
+		.filter((line) => !/^\s*\/\//.test(line) && line.trim() !== "")
 		.join("\n");
 const count = (text: string, needle: string) => text.split(needle).length - 1;
 
 const WORKER_LITERAL =
 	'\tworker: () => new SharedWorker(new URL("./worker.js", import.meta.url), { type: "module" }),';
 const LOCAL_LITERAL = '\tlocal: () => import("./worker.js")';
+
+describe("the comparison ignores only comment lines", () => {
+	it("drops either module-marker form and the map reference, not code", () => {
+		const emitted = [
+			"//#region src/auto/wiring.ts",
+			"// src/auto/wiring.ts",
+			"const wiring = 1; // trailing comments stay",
+			"",
+			"//#endregion",
+			"export { wiring };",
+			"//# sourceMappingURL=wiring.js.map",
+		].join("\n");
+		expect(code(emitted)).toBe(
+			"const wiring = 1; // trailing comments stay\nexport { wiring };",
+		);
+	});
+});
 
 describe("dist/auto/wiring.js: the shipped literals", () => {
 	const text = read("auto/wiring.js");

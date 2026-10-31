@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
 	allowedAreas,
 	BUILD_SHARED_SOURCES,
@@ -10,17 +10,25 @@ import {
 	forbiddenSources,
 	type Realm,
 } from "./allowlist.ts";
+import { buildDeclarationMaps } from "./declaration-maps.ts";
 import { distDir, packageRoot, targets } from "./dist.ts";
 import {
 	areasOf,
 	type Closure,
 	closureOf,
+	type DeclarationMaps,
 	distRelative,
 	sourcesOf,
 	walk,
 } from "./graph.ts";
 
 /** Only auto/wiring may cross from the page graph into the runtime graph, through the keep stub. Check JavaScript and declaration closures separately. */
+
+// Declaration sources come from a declaration-map build bound to dist/.
+let maps: DeclarationMaps;
+beforeAll(async () => {
+	maps = await buildDeclarationMaps("dist-closure");
+});
 
 const jsEntries = (target: ReturnType<typeof targets>[number]) =>
 	[target.import.default, target.require?.default].filter(
@@ -33,7 +41,7 @@ const typeEntries = (target: ReturnType<typeof targets>[number]) =>
 
 function crossings(files: readonly string[], forbidden: readonly RegExp[]) {
 	return files.flatMap((file) =>
-		sourcesOf(distDir, file)
+		sourcesOf(distDir, file, maps)
 			.filter((source) => forbidden.some((pattern) => pattern.test(source)))
 			.map((source) => `${file}: ${source}`),
 	);
@@ -41,7 +49,7 @@ function crossings(files: readonly string[], forbidden: readonly RegExp[]) {
 
 function buildStrays(files: readonly string[]) {
 	return files.flatMap((file) =>
-		sourcesOf(distDir, file)
+		sourcesOf(distDir, file, maps)
 			.filter((source) => !buildMayReach(source))
 			.map((source) => `${file}: ${source}`),
 	);
@@ -53,7 +61,7 @@ describe("dist closure per entry", () => {
 		const offending = (files: readonly string[]) => {
 			const allowed = allowedAreas(target.subpath);
 			return files.flatMap((file) =>
-				areasOf(distDir, file)
+				areasOf(distDir, file, maps)
 					.filter((area) => !allowed.has(area))
 					.map((area) => `${file}: ${area}`),
 			);
@@ -111,7 +119,7 @@ describe("dynamic edges into the runtime realm", () => {
 		closure.dynamic.map(({ from, to }) => ({
 			from,
 			to,
-			sources: sourcesOf(distDir, to),
+			sources: sourcesOf(distDir, to, maps),
 		}));
 
 	it("./auto/wiring has exactly one: the lazy local import of the keep stub", () => {
@@ -207,7 +215,7 @@ describe("realm partition of the emitted files", () => {
 	it("shares only the declared sources between the build and browser realms", () => {
 		const bySource = new Map<string, Set<"build" | "browser">>();
 		for (const [file, realms] of reachedBy) {
-			for (const source of sourcesOf(distDir, file)) {
+			for (const source of sourcesOf(distDir, file, maps)) {
 				const sides = bySource.get(source) ?? new Set<"build" | "browser">();
 				for (const realm of realms) {
 					sides.add(realm === "build" ? "build" : "browser");
