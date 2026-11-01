@@ -11,3 +11,7 @@
 - Generated-code and sourcemap recognisers need contamination controls, including
   composed/indexed maps. Prove provenance; filename and empty-map exemptions can
   silently admit application code or unselected imports.
+- Use `buildDeclarationMaps()` for declaration provenance. Its separate build
+  must match candidate declarations byte-for-byte except their own map references;
+  reject missing, stale or unrelated evidence. Bundler comments are not provenance.
+  Keep declaration maps in test outputs, not the published package.
