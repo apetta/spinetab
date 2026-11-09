@@ -18,3 +18,12 @@ skills:
 # override once the wrangler release we use depends on undici 7.30.1 or later.
 overrides:
   miniflare>undici: 7.30.1
+
+# astro2tsx pins @emnapi/core 1.11.3 but leaves @emnapi/runtime to peer
+# resolution, which picks the 2.0 beta that rolldown's WASI binding brings in.
+# The mismatched pair fails to load and breaks `astro check`. Remove this once
+# astro2tsx declares @emnapi/runtime itself.
+packageExtensions:
+  "@astrojs/astro2tsx@0.1.2":
+    dependencies:
+      "@emnapi/runtime": 1.11.3
