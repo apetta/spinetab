@@ -117,7 +117,7 @@ describe("tRPC: onStatus and onContinuity with controls", () => {
 
 	it("controls are inert once the observable ended", () => {
 		const { trpc, calls, seen } = setup();
-		const subscription = trpc.ticks.subscribe({ tag: "a" }, {});
+		const subscription = trpc.ticks.subscribe({ tag: "a" }, { onData() {} });
 		const call = calls[0];
 		call?.status("reconnecting");
 		const controls = seen.status[0]?.controls as SpinetabControls;

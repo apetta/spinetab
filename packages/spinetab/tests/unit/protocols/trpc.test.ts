@@ -86,6 +86,24 @@ describe("tRPC subscription identity and cursors", () => {
 		});
 	});
 
+	it("delivers async-iterator subscriptions and releases the call on return", async () => {
+		const { trpc, calls } = setup();
+		const iterator = trpc.ticks.subscribe({ tag: "a" });
+		const call = calls[0];
+		const first = iterator.next();
+		call?.observer.next(
+			{ id: "1", data: { id: "1", data: { n: 1 } } },
+			{ seq: 1, eventId: "1" },
+		);
+		expect(await first).toEqual({
+			done: false,
+			value: { id: "1", data: { n: 1 } },
+		});
+		expect(call?.unsubscribed).toBe(0);
+		await iterator.return?.();
+		expect(call?.unsubscribed).toBe(1);
+	});
+
 	it("maps completion to stopped and keeps resumable states open", () => {
 		const { trpc, calls } = setup();
 		const states: string[] = [];
