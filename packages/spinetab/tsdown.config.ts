@@ -80,12 +80,13 @@ const external = [
 
 /**
  * Declarations ship without `.d.ts.map` files: `src/` is not published, so a
- * declaration map would only dangle. rolldown-plugin-dts 0.28.6
- * gives its declaration output the JS `sourcemap` setting and, with
- * `dts.sourcemap: false`, deletes the map asset in `generateBundle` while the
- * declaration chunk keeps its `sourceMappingURL` comment. This post hook drops
- * that comment from this build's declaration chunks before they are written;
- * JS chunks and their maps are untouched.
+ * declaration map would only dangle. rolldown-plugin-dts gives its declaration
+ * output the JS `sourcemap` setting. Before 0.30 it deleted the map asset
+ * with `dts.sourcemap: false` but kept the chunk's `sourceMappingURL` comment;
+ * from 0.30 it also strips that comment, including the final newline. This
+ * post hook drops any remaining comment and ends each declaration chunk with
+ * one newline, so shipped declarations match the declaration-map build used
+ * by the package tests. JS chunks and their maps are untouched.
  */
 const stripDeclarationMapReferences = {
 	name: "spinetab:strip-declaration-map-references",
@@ -101,7 +102,7 @@ const stripDeclarationMapReferences = {
 				if (output.type !== "chunk" || typeof output.code !== "string")
 					continue;
 				if (!/\.d\.[cm]?ts$/.test(output.fileName)) continue;
-				const stripped = output.code.replace(pattern, "\n");
+				const stripped = output.code.replace(pattern, "").replace(/\n?$/, "\n");
 				if (stripped !== output.code) output.code = stripped;
 			}
 		},
