@@ -12,7 +12,7 @@
 		"url": "https://github.com/apetta/spinetab/issues"
 	},
 	"devDependencies": {
-		"@ai-sdk/react": "4.0.168",
+		"@ai-sdk/react": "4.0.169",
 		"@apollo/client": "4.3.7",
 		"@jridgewell/sourcemap-codec": "1.6.0",
 		"@playwright/test": "1.65.0",
@@ -25,7 +25,7 @@
 		"@types/react": "19.3.0",
 		"@types/react-dom": "19.3.0",
 		"@types/ws": "8.18.2",
-		"ai": "7.0.164",
+		"ai": "7.0.165",
 		"astro": "7.4.7",
 		"es-module-lexer": "3.0.4",
 		"expect-type": "1.4.0",
