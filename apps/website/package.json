@@ -37,7 +37,7 @@
 		"typescript": "6.0.3",
 		"unified": "11.0.5",
 		"wrangler": "4.158.0",
-		"ws": "8.22.1"
+		"ws": "8.22.2"
 	},
 	"private": true,
 	"scripts": {
