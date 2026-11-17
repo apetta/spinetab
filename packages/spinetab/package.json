@@ -15,7 +15,7 @@
 		"@ai-sdk/react": "4.0.177",
 		"@apollo/client": "4.3.8",
 		"@jridgewell/sourcemap-codec": "1.6.0",
-		"@playwright/test": "1.65.0",
+		"@playwright/test": "1.65.1",
 		"@repo/typescript-config": "workspace:*",
 		"@rspack/core": "2.3.2",
 		"@tanstack/query-core": "5.107.1",
