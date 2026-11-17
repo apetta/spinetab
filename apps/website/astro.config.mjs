@@ -12,6 +12,9 @@ export default defineConfig({
 	output: "static",
 	// Preserve spaces around inline prose when the formatter wraps HTML tags.
 	compressHTML: true,
+	// Starlight 0.43 no longer forces zero-specificity scoped styles. Keep them
+	// so component styles do not override the global docs CSS.
+	scopedStyleStrategy: "where",
 	integrations: [
 		react(),
 		sitemap({ filter: (page) => !retiredPaths.has(new URL(page).pathname) }),
