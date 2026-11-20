@@ -14,6 +14,9 @@ updates:
       # jsdom 30+ needs Node 24.15; recheck in #140. Security updates still arrive.
       - dependency-name: jsdom
         update-types: ["version-update:semver-major"]
+      # Solid 2 needs a binding redesign and integration support; recheck in #180.
+      - dependency-name: solid-js
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "chore(deps)"
   - package-ecosystem: github-actions
