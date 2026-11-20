@@ -36,7 +36,7 @@
 		"turndown": "7.2.5",
 		"typescript": "6.0.3",
 		"unified": "11.0.5",
-		"wrangler": "4.162.0",
+		"wrangler": "4.163.0",
 		"ws": "8.23.0"
 	},
 	"private": true,
