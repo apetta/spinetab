@@ -12,13 +12,13 @@
 		"url": "https://github.com/apetta/spinetab/issues"
 	},
 	"devDependencies": {
-		"@ai-sdk/react": "4.0.183",
+		"@ai-sdk/react": "4.0.184",
 		"@apollo/client": "4.3.8",
 		"@jridgewell/sourcemap-codec": "1.6.0",
 		"@playwright/test": "1.65.1",
 		"@repo/typescript-config": "workspace:*",
 		"@rspack/core": "2.3.3",
-		"@tanstack/query-core": "5.108.2",
+		"@tanstack/query-core": "5.108.3",
 		"@trpc/client": "11.29.7",
 		"@trpc/server": "11.29.7",
 		"@types/node": "24.19.2",
